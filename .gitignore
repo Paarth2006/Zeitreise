@@ -1,0 +1,21 @@
+# Gradle and Kotlin build output
+build/
+.gradle/
+.kotlin/
+
+# IDE
+.idea/
+*.iml
+
+# Local machine configuration and secrets
+local.properties
+
+# Xcode
+xcuserdata/
+**/xcshareddata/WorkspaceSettings.xcsettings
+
+# macOS
+.DS_Store
+
+# Node modules pulled in by the Kotlin/Wasm browser toolchain
+node_modules/

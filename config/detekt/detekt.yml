@@ -1,0 +1,33 @@
+build:
+  maxIssues: 0
+
+config:
+  validation: true
+  warningsAsErrors: true
+
+complexity:
+  LongParameterList:
+    # Composables take a modifier plus the state they render, which is legitimately wide.
+    functionThreshold: 8
+    ignoreAnnotated: ['Composable']
+  TooManyFunctions:
+    ignoreAnnotatedFunctions: ['Composable']
+
+naming:
+  FunctionNaming:
+    # Composables that emit UI are PascalCase nouns, per the Compose API guidelines.
+    ignoreAnnotated: ['Composable']
+  TopLevelPropertyNaming:
+    constantPattern: '[A-Z][_A-Z0-9]*'
+    privatePropertyPattern: '_?[A-Za-z][_A-Za-z0-9]*'
+
+style:
+  UnusedPrivateMember:
+    # @Preview functions are called by the IDE tooling, never from Kotlin code.
+    ignoreAnnotated: ['Preview']
+  MagicNumber:
+    # Colour literals and layout constants read better inline than behind a name.
+    ignorePropertyDeclaration: true
+    ignoreAnnotated: ['Composable']
+  MaxLineLength:
+    maxLineLength: 120
