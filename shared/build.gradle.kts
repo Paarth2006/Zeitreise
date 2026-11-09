@@ -44,6 +44,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(libs.coil.compose)
+            implementation(libs.compose.components.resources)
             implementation(libs.coil.network.ktor)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)

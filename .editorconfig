@@ -27,3 +27,7 @@ indent_size = 4
 
 [{Makefile,*.mk}]
 indent_style = tab
+
+# Compose generates its resource accessors into build/; their formatting is not ours to fix.
+[**/build/**/*.{kt,kts}]
+ktlint = disabled

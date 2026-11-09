@@ -1,6 +1,7 @@
 import com.android.build.api.dsl.ApplicationExtension
 import io.gitlab.arturbosch.detekt.Detekt
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
+import org.jlleitschuh.gradle.ktlint.KtlintExtension
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompilerOptions
@@ -28,6 +29,15 @@ val javaCompatibility: JavaVersion = JavaVersion.toVersion(libs.versions.jvmTarg
 subprojects {
     apply(plugin = rootProject.libs.plugins.ktlint.get().pluginId)
     apply(plugin = rootProject.libs.plugins.detekt.get().pluginId)
+
+    val generatedRoot = layout.buildDirectory.get().asFile.path
+    extensions.configure<KtlintExtension> {
+        filter {
+            // The compose resource accessors are generated into build/, and their formatting is
+            // not ours to fix.
+            exclude { element -> element.file.path.startsWith(generatedRoot) }
+        }
+    }
 
     extensions.configure<DetektExtension> {
         buildUponDefaultConfig = true
