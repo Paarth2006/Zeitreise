@@ -15,9 +15,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.countryAt
 import com.paarth.zeitreise.globe.GlobeProjection
+import org.jetbrains.compose.resources.stringResource
+import zeitreise.shared.generated.resources.Res
+import zeitreise.shared.generated.resources.globe_description
 
 /** Width of a country border, in pixels. */
 private const val BORDER_WIDTH = 0.9f
@@ -53,6 +58,7 @@ private const val NANOS_PER_SECOND = 1_000_000_000.0
  * @param selected the country drawn highlighted, if any.
  * @param onSelect called with the country that was tapped, or `null` when the ocean was tapped.
  * @param modifier applied to the root element.
+ * @param onTurned called when the user finishes a drag or pinch.
  */
 @Composable
 internal fun GlobeView(
@@ -60,10 +66,12 @@ internal fun GlobeView(
     selected: Country?,
     onSelect: (Country?) -> Unit,
     modifier: Modifier = Modifier,
+    onTurned: () -> Unit = {},
 ) {
     val state = remember { GlobeInteractionState() }
     val geometry = remember(countries) { GlobeGeometryCache(countries) }
     val palette = rememberGlobePalette()
+    val description = stringResource(Res.string.globe_description)
 
     // Read inside the frame loop rather than captured, so selecting a country stops the drift
     // without restarting the loop.
@@ -86,6 +94,7 @@ internal fun GlobeView(
     Canvas(
         modifier = modifier
             .fillMaxSize()
+            .semantics { contentDescription = description }
             // Layout runs before draw, so the viewport is known by the first frame, and the draw
             // loop never writes Compose state - which would invalidate itself on every frame.
             .onSizeChanged { state.viewport = Size(it.width.toFloat(), it.height.toFloat()) }
@@ -94,7 +103,10 @@ internal fun GlobeView(
                 onDragged = state::onDragged,
                 onZoomed = state::onZoomed,
                 onScrolled = state::onScrolled,
-                onReleased = state::onReleased,
+                onReleased = { velocity ->
+                    state.onReleased(velocity)
+                    onTurned()
+                },
                 onTapped = { position -> onSelect(state.countryUnder(countries, position)) },
             ),
     ) {

@@ -3,7 +3,6 @@ package com.paarth.zeitreise.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -31,7 +30,8 @@ public fun App(modifier: Modifier = Modifier) {
                     .background(MaterialTheme.colorScheme.background)
                     .fillMaxSize(),
             ) {
-                GlobeScreen(modifier = Modifier.safeContentPadding())
+                // The globe runs under the system bars; the screen keeps its own controls clear of them.
+                GlobeScreen()
             }
         }
     }

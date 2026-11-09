@@ -31,7 +31,12 @@ kotlin {
 
     android {
         namespace = "com.paarth.zeitreise.shared"
-        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        // The SDK ships API 37 as platform "android-37.0"; naming the minor level lets the IDE find it.
+        compileSdk {
+            version = release(libs.versions.android.compileSdk.get().toInt()) {
+                minorApiLevel = 0
+            }
+        }
         minSdk = libs.versions.android.minSdk.get().toInt()
         androidResources {
             enable = true
@@ -61,11 +66,14 @@ kotlin {
             implementation(libs.ktor.serialization.json)
             implementation(libs.lifecycle.runtimeCompose)
             implementation(libs.lifecycle.viewmodelCompose)
+            implementation(libs.multiplatformSettings.noArg)
             implementation(libs.navigation.compose)
             implementation(libs.sqldelight.runtime)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.multiplatformSettings.test)
         }
         androidMain.dependencies {
             implementation(libs.compose.uiTooling)

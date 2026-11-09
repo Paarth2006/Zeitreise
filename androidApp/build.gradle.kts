@@ -5,7 +5,12 @@ plugins {
 
 android {
     namespace = "com.paarth.zeitreise"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
+    // The SDK ships API 37 as platform "android-37.0"; naming the minor level lets the IDE find it.
+    compileSdk {
+        version = release(libs.versions.android.compileSdk.get().toInt()) {
+            minorApiLevel = 0
+        }
+    }
 
     defaultConfig {
         applicationId = "com.paarth.zeitreise"

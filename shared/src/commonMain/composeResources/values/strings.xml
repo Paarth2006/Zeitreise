@@ -1,0 +1,14 @@
+<resources>
+    <string name="globe_description">Interactive globe. Drag to turn it, pinch or scroll to zoom, tap a country to select it.</string>
+    <string name="close_country">Close</string>
+    <string name="loading_world">Loading the world</string>
+    <string name="welcome_title">Welcome to Zeitreise</string>
+    <string name="welcome_spin_title">Spin the World</string>
+    <string name="welcome_spin_body">Drag the globe to turn it, and pinch or scroll to look closer.</string>
+    <string name="welcome_select_title">Meet a Country</string>
+    <string name="welcome_select_body">Tap any country to find out where you have landed.</string>
+    <string name="welcome_continue">Continue</string>
+    <string name="hint_turn">Drag to spin the globe</string>
+    <string name="hint_select">Now tap a country</string>
+    <string name="hint_skip">Skip</string>
+</resources>

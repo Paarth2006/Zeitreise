@@ -1,5 +1,6 @@
 [versions]
-agp = "9.1.1"
+# Pinned to the newest AGP the IntelliJ IDEA 2026.3 Android plugin supports; newer versions can break IDE sync.
+agp = "9.3.0"
 android-compileSdk = "37"
 android-minSdk = "24"
 android-targetSdk = "37"
@@ -12,6 +13,7 @@ jvmTarget = "11"
 koin = "4.2.2"
 kotlin = "2.4.21"
 kotlinx-coroutines = "1.11.0"
+multiplatformSettings = "1.3.0"
 kotlinx-serialization = "1.12.0"
 ktlint = "14.2.0"
 ktor = "3.6.1"
@@ -35,6 +37,9 @@ koin-compose-viewmodel = { module = "io.insert-koin:koin-compose-viewmodel", ver
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+multiplatformSettings-noArg = { module = "com.russhwolf:multiplatform-settings-no-arg", version.ref = "multiplatformSettings" }
+multiplatformSettings-test = { module = "com.russhwolf:multiplatform-settings-test", version.ref = "multiplatformSettings" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
