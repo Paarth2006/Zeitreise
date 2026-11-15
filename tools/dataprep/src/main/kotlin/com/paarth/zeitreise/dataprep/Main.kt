@@ -6,9 +6,11 @@ import kotlin.io.path.absolute
 import kotlin.system.exitProcess
 
 private const val GENERATOR_COUNTRIES = "countries"
+private const val GENERATOR_STATES = "states"
 
 private val GENERATORS = mapOf(
     GENERATOR_COUNTRIES to ::generateCountries,
+    GENERATOR_STATES to ::generateStates,
 )
 
 /**
@@ -18,7 +20,7 @@ private val GENERATORS = mapOf(
  * resources. Each generator runs on demand and its output is committed, so the data is prepared
  * once per refresh rather than on every build.
  *
- * Usage: `./gradlew :tools:dataprep:run --args="countries"`, or no arguments to run every
+ * Usage: `./gradlew :tools:dataprep:run --args="countries"` or `--args="states"`, or no arguments to run every
  * generator.
  */
 fun main(args: Array<String>) {

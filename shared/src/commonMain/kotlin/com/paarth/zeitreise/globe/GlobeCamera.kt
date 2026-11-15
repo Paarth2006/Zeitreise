@@ -1,6 +1,8 @@
 package com.paarth.zeitreise.globe
 
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.sin
 
 /** Closest the camera may come to a pole, which keeps the graticule and drag feel stable. */
 public const val MAX_PITCH_DEGREES: Double = 85.0
@@ -8,8 +10,17 @@ public const val MAX_PITCH_DEGREES: Double = 85.0
 /** Zoom level at which the globe fills its default radius. */
 public const val MIN_ZOOM: Double = 1.0
 
-/** Closest the camera may zoom in. */
-public const val MAX_ZOOM: Double = 6.0
+/**
+ * Closest the camera may zoom in: far enough to fill the screen with a small country such as
+ * Luxembourg, whose states are drawn once it is selected.
+ */
+public const val MAX_ZOOM: Double = 40.0
+
+/**
+ * Share of its zoom a flight between opposite sides of the globe gives up at its midpoint, so a
+ * long hop pulls back to show where it is going, as Apple Maps does, while a short one barely does.
+ */
+private const val FLIGHT_PULL_BACK = 0.6
 
 /**
  * Orientation and magnification of the globe.
@@ -54,6 +65,22 @@ public data class GlobeCamera(val yaw: Double = 0.0, val pitch: Double = 0.0, va
             pitch = pitch + (target.pitch - pitch) * progress,
             zoom = zoom + (target.zoom - zoom) * progress,
         )
+    }
+
+    /**
+     * The camera [fraction] of the way along a flight to [target].
+     *
+     * Turns like [interpolatedTo], but also pulls the zoom back in the middle of the flight, by
+     * more the farther apart the two views are, so the user sees where the flight is heading.
+     *
+     * @param fraction `0.0` returns this camera and `1.0` returns [target].
+     */
+    public fun flightTo(target: GlobeCamera, fraction: Double): GlobeCamera {
+        val progress = fraction.coerceIn(0.0, 1.0)
+        val straight = interpolatedTo(target, progress)
+        val distance = center.angleTo(target.center) / DEGREES_PER_HALF_TURN
+        val pullBack = FLIGHT_PULL_BACK * distance * sin(PI * progress)
+        return straight.copy(zoom = (straight.zoom * (1.0 - pullBack)).coerceIn(MIN_ZOOM, MAX_ZOOM))
     }
 
     public companion object {

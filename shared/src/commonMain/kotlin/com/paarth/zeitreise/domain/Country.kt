@@ -1,13 +1,15 @@
 package com.paarth.zeitreise.domain
 
+import com.paarth.zeitreise.globe.GeoCap
 import com.paarth.zeitreise.globe.GeoPoint
 import com.paarth.zeitreise.globe.PAIR_STRIDE
 import com.paarth.zeitreise.globe.SPHERE_STRIDE
+import com.paarth.zeitreise.globe.boundingCap
 import com.paarth.zeitreise.globe.isPointInRing
 import com.paarth.zeitreise.globe.toSpherePoint
 
 /**
- * One closed outline of a country's coastline or border.
+ * One closed outline of a territory's coastline or border.
  *
  * Each ring is held twice: once in geographic degrees for hit testing, which the camera never
  * affects, and once as unit-sphere vectors for drawing, which the renderer only has to rotate.
@@ -35,7 +37,7 @@ public class CountryRing internal constructor(internal val geographic: DoubleArr
 }
 
 /**
- * A single landmass of a country: its coastline, plus any rings cut out of it.
+ * A single landmass of a territory: its coastline, plus any rings cut out of it.
  *
  * @property exterior the outer boundary.
  * @property holes boundaries of enclaves that are not part of the country.
@@ -54,42 +56,27 @@ public class CountryOutline internal constructor(
  *
  * @property name the English name, as shown in the UI and sent to the AI guide.
  * @property isoA2 two-letter ISO 3166-1 code, or `null` for territories that have none. The flag
- *   emoji is derived from it.
+ *   emoji and the file of the country's states are found through it.
  * @property isoA3 three-letter ISO 3166-1 code, or `null` for territories that have none.
  * @property continent the continent the country is counted under.
  * @property outlines the landmasses the country is drawn from, largest first.
  */
 public class Country internal constructor(
-    public val name: String,
+    override val name: String,
     public val isoA2: String?,
     public val isoA3: String?,
     public val continent: String,
-    public val outlines: List<CountryOutline>,
-) {
-    /**
-     * Total number of outline vertices, used as a cheap stand-in for the country's size when two
-     * countries both claim a tap.
-     */
-    internal val vertexCount: Int = outlines.sumOf { outline -> outline.exterior.vertexCount }
+    override val outlines: List<CountryOutline>,
+) : Territory {
+    init {
+        require(outlines.isNotEmpty()) { "Country $name has no outlines" }
+    }
 
-    /** Whether [point] falls on any of this country's landmasses. */
-    public fun contains(point: GeoPoint): Boolean = outlines.any { it.contains(point) }
+    /**
+     * The region the camera frames when the country is selected: its largest landmass, so that
+     * an outlying island does not pull the view away from the mainland.
+     */
+    public val focus: GeoCap by lazy { boundingCap(outlines.first().exterior.sphere) }
 
     override fun toString(): String = "Country($name)"
-}
-
-/**
- * The country [point] falls on, or `null` for open ocean.
- *
- * When two countries both claim the point, the smaller one wins, so that a country enclosed by
- * another, such as Lesotho inside South Africa, is selected rather than the country around it.
- */
-public fun List<Country>.countryAt(point: GeoPoint): Country? {
-    var hit: Country? = null
-    forEach { country ->
-        if (country.contains(point) && (hit == null || country.vertexCount < hit.vertexCount)) {
-            hit = country
-        }
-    }
-    return hit
 }

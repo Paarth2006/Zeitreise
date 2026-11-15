@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.PathFillType
 import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.CountryOutline
 import com.paarth.zeitreise.domain.CountryRing
+import com.paarth.zeitreise.domain.Territory
 import com.paarth.zeitreise.globe.GlobeProjection
 import com.paarth.zeitreise.globe.PAIR_STRIDE
 
@@ -72,16 +73,32 @@ internal class OutlineGeometry(outline: CountryOutline) {
     }
 }
 
-/** Re-projects every landmass of one country each frame. */
-internal class CountryGeometry(val country: Country) {
-    private val outlines: List<OutlineGeometry> = country.outlines.map(::OutlineGeometry)
-    private val drawable = ArrayList<Path>(country.outlines.size)
+/** Latitude past which a country's main landmass is drawn as ice: Greenland, not Russia. */
+private const val ICE_LATITUDE = 70.0
+
+/** Continent whose every landmass is drawn as ice. */
+private const val ANTARCTICA = "Antarctica"
+
+/**
+ * Re-projects every landmass of one territory, a country or a state, each frame.
+ *
+ * @param isIce whether the territory is polar and is drawn as ice rather than land.
+ */
+internal class TerritoryGeometry(val territory: Territory, val isIce: Boolean = false) {
+    /**
+     * Which of the palette's land shades the territory is filled with. Taken from its name, so it
+     * stays the same between launches and neighbours rarely share one.
+     */
+    val shade: Int = territory.name.hashCode()
+
+    private val outlines: List<OutlineGeometry> = territory.outlines.map(::OutlineGeometry)
+    private val drawable = ArrayList<Path>(territory.outlines.size)
 
     /**
-     * Re-projects the country for [projection].
+     * Re-projects the territory for [projection].
      *
      * @return the paths to draw, reusing the same list every frame. Empty when nothing of the
-     *   country is visible.
+     *   territory is visible.
      */
     fun update(projection: GlobeProjection): List<Path> {
         drawable.clear()
@@ -97,7 +114,9 @@ internal class CountryGeometry(val country: Country) {
  */
 internal class GlobeGeometryCache(countries: List<Country>) {
     /** Countries in draw order, largest first, so small neighbours end up on top. */
-    val countries: List<CountryGeometry> = countries.map(::CountryGeometry)
+    val countries: List<TerritoryGeometry> = countries.map { country ->
+        TerritoryGeometry(country, isIce = country.isPolar())
+    }
 
     /** The graticule, re-projected alongside the countries. */
     val graticule: GraticuleGeometry = GraticuleGeometry()
@@ -114,3 +133,6 @@ private fun appendClosedRing(path: Path, screen: FloatArray) {
     }
     path.close()
 }
+
+/** Whether the country is polar enough to be drawn as ice. */
+private fun Country.isPolar(): Boolean = continent == ANTARCTICA || focus.center.latitude > ICE_LATITUDE

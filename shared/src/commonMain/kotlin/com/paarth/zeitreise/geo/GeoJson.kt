@@ -11,17 +11,19 @@ internal const val GEOMETRY_POLYGON = "Polygon"
 internal const val GEOMETRY_MULTI_POLYGON = "MultiPolygon"
 
 /**
- * A GeoJSON `FeatureCollection`, as bundled in `countries.json`.
+ * A GeoJSON `FeatureCollection`, as bundled in `countries.json` and in each file under `states/`.
  *
  * Only the fields the app uses are declared; the data preparation tool has already stripped the
  * rest from the Natural Earth source.
+ *
+ * @param P the properties each feature carries.
  */
 @Serializable
-internal data class GeoJsonFeatureCollection(val features: List<GeoJsonFeature> = emptyList())
+internal data class GeoJsonFeatureCollection<P>(val features: List<GeoJsonFeature<P>> = emptyList())
 
-/** One GeoJSON `Feature`: a country's properties together with its geometry. */
+/** One GeoJSON `Feature`: a territory's properties together with its geometry. */
 @Serializable
-internal data class GeoJsonFeature(val properties: GeoJsonCountryProperties, val geometry: GeoJsonGeometry)
+internal data class GeoJsonFeature<P>(val properties: P, val geometry: GeoJsonGeometry)
 
 /** The four country properties the data preparation tool keeps. */
 @Serializable
@@ -30,6 +32,17 @@ internal data class GeoJsonCountryProperties(
     @SerialName("isoA2") val isoA2: String? = null,
     @SerialName("isoA3") val isoA3: String? = null,
     val continent: String = "",
+)
+
+/** The state and province properties the data preparation tool keeps. */
+@Serializable
+internal data class GeoJsonSubdivisionProperties(
+    val name: String,
+    val kind: String = "",
+    val isoCode: String? = null,
+    val wikidataId: String? = null,
+    val labelLatitude: Double,
+    val labelLongitude: Double,
 )
 
 /**

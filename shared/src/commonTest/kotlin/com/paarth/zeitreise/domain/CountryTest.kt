@@ -50,19 +50,19 @@ class CountryTest {
             square("Westland", origin = 0, size = 10),
             square("Eastland", origin = 20, size = 10),
         )
-        assertEquals("Westland", countries.countryAt(GeoPoint(latitude = 5.0, longitude = 5.0))?.name)
-        assertEquals("Eastland", countries.countryAt(GeoPoint(latitude = 25.0, longitude = 25.0))?.name)
+        assertEquals("Westland", countries.territoryAt(GeoPoint(latitude = 5.0, longitude = 5.0))?.name)
+        assertEquals("Eastland", countries.territoryAt(GeoPoint(latitude = 25.0, longitude = 25.0))?.name)
     }
 
     @Test
     fun findsNoCountryInTheOpenOcean() {
         val countries = countriesOf(square("Westland", origin = 0, size = 10))
-        assertNull(countries.countryAt(GeoPoint(latitude = 50.0, longitude = 50.0)))
+        assertNull(countries.territoryAt(GeoPoint(latitude = 50.0, longitude = 50.0)))
     }
 
     @Test
     fun findsNoCountryInAnEmptyWorld() {
-        assertNull(emptyList<Country>().countryAt(GeoPoint(latitude = 0.0, longitude = 0.0)))
+        assertNull(emptyList<Country>().territoryAt(GeoPoint(latitude = 0.0, longitude = 0.0)))
     }
 
     @Test
@@ -71,7 +71,7 @@ class CountryTest {
         val enclosing = blob("Enclosingland", origin = 0, size = 40, vertices = 60)
         val enclosed = square("Enclavia", origin = 18, size = 4)
         val countries = countriesOf(enclosing, enclosed)
-        assertEquals("Enclavia", countries.countryAt(GeoPoint(latitude = 20.0, longitude = 20.0))?.name)
+        assertEquals("Enclavia", countries.territoryAt(GeoPoint(latitude = 20.0, longitude = 20.0))?.name)
     }
 
     @Test

@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paarth.zeitreise.domain.Country
+import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.ui.onboarding.CoachHint
 import com.paarth.zeitreise.ui.onboarding.OnboardingEvent
 import com.paarth.zeitreise.ui.onboarding.OnboardingStep
@@ -81,6 +82,7 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
                     viewModel.select(country)
                     if (country != null) onboarding.onEvent(OnboardingEvent.CountrySelected)
                 },
+                onSelectSubdivision = viewModel::selectSubdivision,
                 onOnboardingEvent = onboarding::onEvent,
             )
         }
@@ -92,15 +94,16 @@ private fun BoxScope.ReadyGlobe(
     state: GlobeUiState.Ready,
     step: OnboardingStep,
     onSelect: (Country?) -> Unit,
+    onSelectSubdivision: (Subdivision?) -> Unit,
     onOnboardingEvent: (OnboardingEvent) -> Unit,
 ) {
     val intro = remember { Animatable(0f) }
     LaunchedEffect(intro) { intro.animateTo(1f, tween(INTRO_MILLIS, easing = FastOutSlowInEasing)) }
 
     GlobeView(
-        countries = state.countries,
-        selected = state.selected,
-        onSelect = onSelect,
+        content = state,
+        onSelectCountry = onSelect,
+        onSelectSubdivision = onSelectSubdivision,
         onTurned = { onOnboardingEvent(OnboardingEvent.GlobeTurned) },
         modifier = Modifier.graphicsLayer {
             val progress = intro.value
@@ -111,7 +114,9 @@ private fun BoxScope.ReadyGlobe(
     )
     CountrySheet(
         country = state.selected,
-        onClose = { onSelect(null) },
+        subdivision = state.selectedSubdivision,
+        // Closing a state's sheet steps back to its country; closing the country's leaves it.
+        onClose = { if (state.selectedSubdivision != null) onSelectSubdivision(null) else onSelect(null) },
         modifier = Modifier.align(Alignment.BottomCenter),
     )
     CoachHint(

@@ -39,6 +39,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.paarth.zeitreise.domain.Country
+import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
@@ -85,11 +86,17 @@ private const val NAME_MAX_LINES = 2
  * indicator; in a wide one, on the web or a tablet, it floats as a card of readable width.
  *
  * @param country the selected country, or `null` to hide the sheet.
+ * @param subdivision the state tapped inside [country], which the sheet names instead, if any.
  * @param onClose called when the close button is tapped.
  * @param modifier applied to the root element.
  */
 @Composable
-internal fun CountrySheet(country: Country?, onClose: () -> Unit, modifier: Modifier = Modifier) {
+internal fun CountrySheet(
+    country: Country?,
+    subdivision: Subdivision?,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     // The sheet has to keep naming a country while it slides away, after the selection is gone.
     var lastNamed by remember { mutableStateOf<Country?>(null) }
     LaunchedEffect(country) { if (country != null) lastNamed = country }
@@ -121,8 +128,11 @@ internal fun CountrySheet(country: Country?, onClose: () -> Unit, modifier: Modi
                 },
             ) {
                 SheetContent(
-                    name = shown?.name.orEmpty(),
-                    continent = shown?.continent.orEmpty(),
+                    title = subdivision?.name ?: shown?.name.orEmpty(),
+                    subtitle = when {
+                        subdivision != null -> subdivision.subtitleIn(shown)
+                        else -> shown?.continent.orEmpty()
+                    },
                     onClose = onClose,
                     modifier = if (floating) {
                         Modifier
@@ -138,7 +148,7 @@ internal fun CountrySheet(country: Country?, onClose: () -> Unit, modifier: Modi
 }
 
 @Composable
-private fun SheetContent(name: String, continent: String, onClose: () -> Unit, modifier: Modifier = Modifier) {
+private fun SheetContent(title: String, subtitle: String, onClose: () -> Unit, modifier: Modifier = Modifier) {
     Row(
         verticalAlignment = Alignment.Top,
         modifier = modifier
@@ -150,14 +160,14 @@ private fun SheetContent(name: String, continent: String, onClose: () -> Unit, m
             modifier = Modifier.weight(1f),
         ) {
             Text(
-                text = name,
+                text = title,
                 style = MaterialTheme.typography.titleLarge,
                 maxLines = NAME_MAX_LINES,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.semantics { heading() },
             )
             Text(
-                text = continent,
+                text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = SECONDARY_TEXT_ALPHA),
             )
@@ -188,4 +198,10 @@ private fun CloseGlyph(tint: Color, modifier: Modifier = Modifier) {
         drawLine(tint, Offset.Zero, Offset(size.width, size.height), stroke, StrokeCap.Round)
         drawLine(tint, Offset(size.width, 0f), Offset(0f, size.height), stroke, StrokeCap.Round)
     }
+}
+
+/** "State · India", or just the country's name where the state's kind is unknown. */
+private fun Subdivision.subtitleIn(country: Country?): String {
+    val countryName = country?.name.orEmpty()
+    return if (kind.isBlank()) countryName else "$kind · $countryName"
 }

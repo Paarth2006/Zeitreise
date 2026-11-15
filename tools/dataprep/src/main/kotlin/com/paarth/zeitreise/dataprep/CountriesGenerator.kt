@@ -11,15 +11,8 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.nio.file.Path
-import java.time.Duration
 import kotlin.io.path.writeText
-import kotlin.math.pow
-import kotlin.math.roundToLong
 
 /**
  * Natural Earth 1:110m admin-0 countries, served from the project's own GeoJSON build.
@@ -41,16 +34,6 @@ private const val COORDINATE_DECIMALS = 3
 
 /** Natural Earth writes this sentinel instead of leaving a missing code blank. */
 private const val MISSING_CODE = "-99"
-
-/** Bytes in a kibibyte, for the size the generator reports. */
-private const val BYTES_PER_KIB = 1024
-
-/** Seconds to wait for the connection and for the whole download. */
-private const val CONNECT_TIMEOUT_SECONDS = 30L
-private const val REQUEST_TIMEOUT_SECONDS = 120L
-
-/** The only HTTP status the download accepts. */
-private const val HTTP_OK = 200
 
 private val JSON = Json { prettyPrint = false }
 
@@ -115,10 +98,6 @@ private fun code(properties: JsonObject, primary: String, fallback: String): Jso
     return value?.let(::JsonPrimitive) ?: JsonNull
 }
 
-private fun JsonObject.text(key: String): String = this[key]?.jsonPrimitive?.contentOrNull().orEmpty()
-
-private fun JsonPrimitive.contentOrNull(): String? = if (this is JsonNull) null else content
-
 /** Rounds every coordinate in a `Polygon` or `MultiPolygon` geometry, keeping its nesting. */
 private fun roundGeometry(geometry: JsonObject): JsonObject = buildJsonObject {
     put("type", geometry.getValue("type"))
@@ -131,13 +110,8 @@ private fun roundGeometry(geometry: JsonObject): JsonObject = buildJsonObject {
  */
 private fun roundCoordinates(element: JsonElement): JsonElement = when (element) {
     is JsonArray -> buildJsonArray { element.forEach { add(roundCoordinates(it)) } }
-    is JsonPrimitive -> JsonPrimitive(round(element.content.toDouble()))
+    is JsonPrimitive -> JsonPrimitive(round(element.content.toDouble(), COORDINATE_DECIMALS))
     else -> element
-}
-
-private fun round(value: Double): Double {
-    val factor = 10.0.pow(COORDINATE_DECIMALS)
-    return (value * factor).roundToLong() / factor
 }
 
 private fun countVertices(geometry: JsonObject): Int {
@@ -147,17 +121,4 @@ private fun countVertices(geometry: JsonObject): Int {
         else -> coordinates.jsonArray.map { it.jsonArray }
     }
     return polygons.sumOf { polygon -> polygon.sumOf { ring -> ring.jsonArray.size } }
-}
-
-private fun download(url: String): String {
-    HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(CONNECT_TIMEOUT_SECONDS)).build().use { client ->
-        val request = HttpRequest.newBuilder(URI.create(url))
-            .header("User-Agent", "Zeitreise-dataprep/1.0 (https://github.com/paarth/zeitreise)")
-            .timeout(Duration.ofSeconds(REQUEST_TIMEOUT_SECONDS))
-            .GET()
-            .build()
-        val response = client.send(request, HttpResponse.BodyHandlers.ofString())
-        check(response.statusCode() == HTTP_OK) { "GET $url returned HTTP ${response.statusCode()}" }
-        return response.body()
-    }
 }

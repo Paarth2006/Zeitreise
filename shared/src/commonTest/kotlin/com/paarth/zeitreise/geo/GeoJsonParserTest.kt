@@ -1,5 +1,6 @@
 package com.paarth.zeitreise.geo
 
+import com.paarth.zeitreise.domain.contains
 import com.paarth.zeitreise.globe.GeoPoint
 import kotlinx.serialization.SerializationException
 import kotlin.test.Test
@@ -177,4 +178,66 @@ class GeoJsonParserTest {
     fun failsOnSomethingThatIsNotGeoJson() {
         assertFailsWith<SerializationException> { parser.parseCountries("""{ "nope": true, "features": 3 }""") }
     }
+
+    @Test
+    fun readsAStateWithItsKindCodesAndLabelPoint() {
+        val kerala = """
+            {
+              "type": "Feature",
+              "properties": {
+                "name": "Kerala", "kind": "State", "isoCode": "IN-KL", "wikidataId": "Q1186",
+                "labelLatitude": 10.4, "labelLongitude": 76.4
+              },
+              "geometry": { "type": "MultiPolygon", "coordinates": [[[[75,8],[77,8],[77,12],[75,12],[75,8]]]] }
+            }
+        """.trimIndent()
+
+        val state = parser.parseSubdivisions(collectionOf(kerala)).single()
+
+        assertEquals("Kerala", state.name)
+        assertEquals("State", state.kind)
+        assertEquals("IN-KL", state.isoCode)
+        assertEquals("Q1186", state.wikidataId)
+        assertEquals(GeoPoint(latitude = 10.4, longitude = 76.4), state.labelPoint)
+        assertTrue(state.contains(GeoPoint(latitude = 10.0, longitude = 76.0)))
+    }
+
+    @Test
+    fun readsAStateWithoutOptionalCodes() {
+        val bare = """
+            {
+              "type": "Feature",
+              "properties": { "name": "Nowhere", "labelLatitude": 1.0, "labelLongitude": 1.0 },
+              "geometry": { "type": "Polygon", "coordinates": [[[0,0],[2,0],[2,2],[0,2],[0,0]]] }
+            }
+        """.trimIndent()
+
+        val state = parser.parseSubdivisions(collectionOf(bare)).single()
+
+        assertNull(state.isoCode)
+        assertNull(state.wikidataId)
+        assertEquals("", state.kind)
+    }
+
+    @Test
+    fun ordersStatesWithTheMostDetailedOutlineFirst() {
+        val coarse = stateFeature(name = "Coarse", ring = "[0,0],[2,0],[2,2],[0,2],[0,0]")
+        val detailed = stateFeature(
+            name = "Detailed",
+            ring = "[10,10],[12,10],[14,11],[16,10],[18,12],[16,14],[12,14],[10,12],[10,10]",
+        )
+
+        val states = parser.parseSubdivisions(collectionOf(coarse, detailed))
+
+        assertEquals(listOf("Detailed", "Coarse"), states.map { it.name })
+    }
 }
+
+/** A state feature with a single ring, given as GeoJSON positions. */
+private fun stateFeature(name: String, ring: String) = """
+    {
+      "type": "Feature",
+      "properties": { "name": "$name", "labelLatitude": 0.0, "labelLongitude": 0.0 },
+      "geometry": { "type": "Polygon", "coordinates": [[$ring]] }
+    }
+""".trimIndent()

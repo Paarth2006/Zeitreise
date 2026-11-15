@@ -1,5 +1,6 @@
 package com.paarth.zeitreise.ui.globe
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -7,9 +8,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.Velocity
 import com.paarth.zeitreise.globe.DEGREES_PER_HALF_TURN
-import com.paarth.zeitreise.globe.GeoPoint
+import com.paarth.zeitreise.globe.GeoCap
 import com.paarth.zeitreise.globe.GlobeCamera
 import com.paarth.zeitreise.globe.GlobeProjection
+import com.paarth.zeitreise.globe.MIN_ZOOM
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.exp
@@ -40,10 +42,19 @@ private const val FLING_STOP_DEGREES_PER_SECOND = 1.0
 /** How much of a mouse wheel notch turns into zoom. */
 private const val SCROLL_ZOOM_SENSITIVITY = 0.12f
 
+/** Seconds a fly-to takes, long enough to read as a journey and short enough not to wait on. */
+private const val FLIGHT_SECONDS = 1.4f
+
 /**
- * Camera, inertia and idle drift of the globe.
+ * Share of the globe's radius at zoom one that a framed country spans, leaving room around it
+ * and for the sheet below.
+ */
+private const val FRAME_FILL = 0.7
+
+/**
+ * Camera, inertia, idle drift and fly-to animations of the globe.
  *
- * Held across recompositions by [rememberGlobeInteractionState]. The camera is Compose state read
+ * Remembered by [GlobeView] across recompositions. The camera is Compose state read
  * inside the draw lambda, so a new frame redraws the globe without recomposing anything.
  */
 internal class GlobeInteractionState {
@@ -58,6 +69,7 @@ internal class GlobeInteractionState {
     private var flingYaw = 0.0
     private var flingPitch = 0.0
     private var stillSeconds = 0f
+    private var flight: Flight? = null
 
     /** Radius of the globe at the current zoom, in pixels. */
     val radius: Float get() = baseRadius * camera.zoom.toFloat()
@@ -74,6 +86,7 @@ internal class GlobeInteractionState {
 
     /** Stops every automatic movement, because the user has taken hold of the globe. */
     fun onPressed() {
+        flight = null
         flingYaw = 0.0
         flingPitch = 0.0
         stillSeconds = 0f
@@ -83,8 +96,8 @@ internal class GlobeInteractionState {
     fun onDragged(delta: Offset) {
         stillSeconds = 0f
         camera = camera.rotatedBy(
-            deltaYaw = -degreesPerPixel() * delta.x,
-            deltaPitch = degreesPerPixel() * delta.y,
+            deltaYaw = -degreesPerPixel(radius) * delta.x,
+            deltaPitch = degreesPerPixel(radius) * delta.y,
         )
     }
 
@@ -101,8 +114,8 @@ internal class GlobeInteractionState {
 
     /** Lets the globe keep spinning after a drag ends at [velocity] pixels per second. */
     fun onReleased(velocity: Velocity) {
-        flingYaw = -degreesPerPixel() * velocity.x
-        flingPitch = degreesPerPixel() * velocity.y
+        flingYaw = -degreesPerPixel(radius) * velocity.x
+        flingPitch = degreesPerPixel(radius) * velocity.y
     }
 
     /**
@@ -114,6 +127,12 @@ internal class GlobeInteractionState {
      *   since drifting would carry that country out of view while its sheet is still open.
      */
     fun advance(seconds: Float, idle: Boolean) {
+        flight?.let { current ->
+            camera = current.advance(seconds)
+            if (current.isFinished) flight = null
+            return
+        }
+
         val decay = FLING_RETENTION_PER_SECOND.toDouble().pow(seconds.toDouble())
         flingYaw *= decay
         flingPitch *= decay
@@ -131,10 +150,17 @@ internal class GlobeInteractionState {
         }
     }
 
-    /** Points the camera at [target], used when a country is selected. */
-    fun pointAt(target: GeoPoint) {
+    /** Flies the camera to frame [region], used when a country is selected. */
+    fun flyToFrame(region: GeoCap) {
         onPressed()
-        camera = camera.pointingAt(target)
+        flight = Flight(from = camera, to = camera.pointingAt(region.center, zoom = region.framingZoom(FRAME_FILL)))
+    }
+
+    /** Flies the camera back out to the whole globe, keeping the point it faces. */
+    fun flyToWholeGlobe() {
+        if (camera.zoom == MIN_ZOOM) return
+        onPressed()
+        flight = Flight(from = camera, to = camera.copy(zoom = MIN_ZOOM))
     }
 
     /** Fades the idle drift in over [IDLE_RAMP_SECONDS] once the globe has been still long enough. */
@@ -143,16 +169,27 @@ internal class GlobeInteractionState {
         if (elapsed <= 0f) return 0.0
         return min(1f, elapsed / IDLE_RAMP_SECONDS).toDouble()
     }
+}
 
-    /**
-     * Degrees the globe turns per pixel of drag.
-     *
-     * A drag at the centre of the globe moves the surface under the finger: the surface arc is the
-     * radius times the angle, so the angle is the distance divided by the radius.
-     */
-    private fun degreesPerPixel(): Double {
-        val pixels = radius.toDouble()
-        if (pixels <= 0.0) return 0.0
-        return DEGREES_PER_HALF_TURN / PI / pixels
+/**
+ * Degrees the globe turns per pixel of drag, for a globe drawn at [radius] pixels.
+ *
+ * A drag at the centre of the globe moves the surface under the finger: the surface arc is the
+ * radius times the angle, so the angle is the distance divided by the radius.
+ */
+private fun degreesPerPixel(radius: Float): Double = if (radius <= 0f) 0.0 else DEGREES_PER_HALF_TURN / PI / radius
+
+/** One fly-to animation from [from] to [to], eased so it starts and lands gently. */
+private class Flight(private val from: GlobeCamera, private val to: GlobeCamera) {
+    private var elapsed = 0f
+
+    /** Whether the flight has reached [to]. */
+    val isFinished: Boolean get() = elapsed >= FLIGHT_SECONDS
+
+    /** Moves the flight on by [seconds] and returns the camera for that moment. */
+    fun advance(seconds: Float): GlobeCamera {
+        elapsed = min(elapsed + seconds, FLIGHT_SECONDS)
+        val eased = FastOutSlowInEasing.transform(elapsed / FLIGHT_SECONDS)
+        return from.flightTo(to, eased.toDouble())
     }
 }

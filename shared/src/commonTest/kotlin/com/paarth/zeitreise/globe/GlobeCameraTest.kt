@@ -2,6 +2,7 @@ package com.paarth.zeitreise.globe
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 private const val TOLERANCE = 1e-9
 
@@ -83,5 +84,34 @@ class GlobeCameraTest {
         val target = GlobeCamera(yaw = 50.0)
         assertEquals(10.0, start.interpolatedTo(target, fraction = -1.0).yaw, TOLERANCE)
         assertEquals(50.0, start.interpolatedTo(target, fraction = 2.0).yaw, TOLERANCE)
+    }
+
+    @Test
+    fun aFlightStartsAndEndsOnItsTwoCameras() {
+        val from = GlobeCamera(yaw = -40.0, pitch = 10.0, zoom = 1.0)
+        val to = GlobeCamera(yaw = 100.0, pitch = -20.0, zoom = 8.0)
+
+        assertEquals(from, from.flightTo(to, fraction = 0.0))
+        assertEquals(to.zoom, from.flightTo(to, fraction = 1.0).zoom, TOLERANCE)
+        assertEquals(to.yaw, from.flightTo(to, fraction = 1.0).yaw, TOLERANCE)
+    }
+
+    @Test
+    fun aLongFlightPullsBackFurtherThanAShortOneHalfway() {
+        val from = GlobeCamera(yaw = 0.0, zoom = 8.0)
+        val near = from.flightTo(GlobeCamera(yaw = 10.0, zoom = 8.0), fraction = 0.5)
+        val far = from.flightTo(GlobeCamera(yaw = 170.0, zoom = 8.0), fraction = 0.5)
+
+        assertTrue(far.zoom < near.zoom, "far ${far.zoom} should pull back more than near ${near.zoom}")
+        assertTrue(near.zoom < 8.0, "even a short hop pulls back a little")
+    }
+
+    @Test
+    fun aFlightInPlaceOnlyChangesTheZoom() {
+        val from = GlobeCamera(yaw = 30.0, pitch = 20.0, zoom = 1.0)
+        val halfway = from.flightTo(from.copy(zoom = 5.0), fraction = 0.5)
+
+        assertEquals(30.0, halfway.yaw, TOLERANCE)
+        assertEquals(3.0, halfway.zoom, TOLERANCE)
     }
 }

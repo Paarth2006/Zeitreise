@@ -1,5 +1,6 @@
 package com.paarth.zeitreise.globe
 
+import kotlin.math.acos
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -62,3 +63,10 @@ internal fun GeoPoint.toSpherePoint(): SpherePoint {
 internal fun Double.toRadians(): Double = this * kotlin.math.PI / DEGREES_PER_HALF_TURN
 
 internal fun Double.toDegrees(): Double = this * DEGREES_PER_HALF_TURN / kotlin.math.PI
+
+/** The angle between this point and [other] as seen from the centre of the globe, in degrees. */
+internal fun GeoPoint.angleTo(other: GeoPoint): Double {
+    val a = toSpherePoint()
+    val b = other.toSpherePoint()
+    return acos((a.x * b.x + a.y * b.y + a.z * b.z).coerceIn(-1.0, 1.0)).toDegrees()
+}
