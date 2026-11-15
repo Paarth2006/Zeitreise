@@ -33,6 +33,12 @@ private const val SOURCE_URL =
 private const val OUTPUT_DIRECTORY = "states"
 
 /**
+ * File, inside [OUTPUT_DIRECTORY], listing every state's name and country, so search can find a
+ * state without opening every country's file.
+ */
+private const val INDEX_FILE = "index.json"
+
+/**
  * Share of a country's north-south extent that a dropped vertex may stray from its neighbours'
  * line. Latitude rather than longitude, because a country crossing the antimeridian, such as the
  * United States with the Aleutians, would otherwise look 360 degrees wide.
@@ -78,6 +84,21 @@ internal fun generateStates(resources: Path) {
     directory.listDirectoryEntries("*.json").forEach { it.deleteIfExists() }
 
     var totalBytes = 0L
+    val index = buildJsonArray {
+        byCountry.forEach { (code, states) ->
+            states.forEach { state ->
+                val properties = state.getValue("properties").jsonObject
+                add(
+                    buildJsonObject {
+                        put("name", JsonPrimitive(properties.text("name_en").ifBlank { properties.text("name") }))
+                        put("country", JsonPrimitive(code))
+                    },
+                )
+            }
+        }
+    }
+    directory.resolve(INDEX_FILE).writeText(JSON.encodeToString(JsonArray.serializer(), index))
+
     byCountry.forEach { (code, states) ->
         val tolerance = toleranceFor(states)
         val output = buildJsonObject {

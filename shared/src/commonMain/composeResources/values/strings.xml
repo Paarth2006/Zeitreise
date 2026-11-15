@@ -11,4 +11,15 @@
     <string name="hint_turn">Drag to spin the globe</string>
     <string name="hint_select">Now tap a country</string>
     <string name="hint_skip">Skip</string>
+    <string name="search_placeholder">Search countries and states</string>
+    <string name="search_clear">Clear search</string>
+    <string name="search_cancel">Cancel</string>
+    <string name="search_no_results">No countries or states match</string>
+    <string name="search_in_country">In %1$s</string>
+    <string name="about_open">About Zeitreise</string>
+    <string name="about_title">About Zeitreise</string>
+    <string name="about_body">Spin the globe, open a country and explore its states. Zeitreise runs on Android, iOS and the web from one Kotlin Multiplatform codebase.</string>
+    <string name="about_credits_heading">Credits</string>
+    <string name="about_credit_natural_earth">Country, state and province outlines: Natural Earth, in the public domain.</string>
+    <string name="about_close">Done</string>
 </resources>

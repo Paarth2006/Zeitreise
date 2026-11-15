@@ -144,7 +144,7 @@ internal fun GlobeView(
         drawGraticule(geometry.graticule, projection, palette)
         drawCountries(geometry, projection, selected, statesShown = subdivisionAlpha > 0f, palette = palette)
         drawSubdivisions(subdivisionGeometry, projection, content.selectedSubdivision, subdivisionAlpha, palette)
-        labels.draw(this, projection, subdivisionAlpha)
+        labels.draw(this, projection, subdivisionAlpha, content.selectedSubdivision)
         drawAtmosphere(projection, palette)
     }
 }
