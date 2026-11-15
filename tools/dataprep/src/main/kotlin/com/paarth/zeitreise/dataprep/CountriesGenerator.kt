@@ -6,7 +6,6 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -15,22 +14,41 @@ import java.nio.file.Path
 import kotlin.io.path.writeText
 
 /**
- * Natural Earth 1:110m admin-0 countries, served from the project's own GeoJSON build.
+ * Natural Earth 1:50m admin-0 countries, served from the project's own GeoJSON build.
+ *
+ * The 1:50m scale rather than 1:110m, because the coarser map leaves out every country too small to
+ * see on a world map, from Monaco and Singapore to Malta and the Pacific island states.
  *
  * Natural Earth is in the public domain; see https://www.naturalearthdata.com/about/terms-of-use/.
  */
 private const val SOURCE_URL =
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/" +
-        "ne_110m_admin_0_countries.geojson"
+        "ne_50m_admin_0_countries.geojson"
 
 /** Name of the generated file inside the compose resources `files` directory. */
 private const val OUTPUT_FILE = "countries.json"
 
 /**
- * Decimal places kept for every coordinate. Three places is about 110 m at the equator, far
- * finer than the 1:110m source itself, and it roughly halves the size of the file.
+ * Decimal places kept for every coordinate. Three places is about 110 m at the equator, finer
+ * than the 1:50m source itself, and it roughly halves the size of the file.
  */
 private const val COORDINATE_DECIMALS = 3
+
+/**
+ * Common English names for the few countries whose Natural Earth long name is a formal title.
+ * Every other country takes its long name, which spells out what the short name abbreviates.
+ */
+private val NAME_OVERRIDES = mapOf(
+    "Kingdom of eSwatini" to "Eswatini",
+    "Republic of Cabo Verde" to "Cabo Verde",
+    "Vatican" to "Vatican City",
+)
+
+/**
+ * How far, in degrees, a vertex may stray from its neighbours' line and still be dropped: about
+ * 2 km, below what the app keeps anyway, so the file shrinks without any visible change.
+ */
+private const val SIMPLIFY_TOLERANCE_DEGREES = 0.02
 
 /** Natural Earth writes this sentinel instead of leaving a missing code blank. */
 private const val MISSING_CODE = "-99"
@@ -69,21 +87,23 @@ internal fun generateCountries(resources: Path) {
  */
 private fun trimFeature(feature: JsonElement): JsonElement? {
     val properties = feature.jsonObject.getValue("properties").jsonObject
-    val geometry = feature.jsonObject.getValue("geometry")
-    if (geometry is JsonNull) return null
+    val geometry = (feature.jsonObject.getValue("geometry") as? JsonObject)
+        ?.let { simplifiedGeometry(it, SIMPLIFY_TOLERANCE_DEGREES, COORDINATE_DECIMALS) }
+        ?: return null
 
     return buildJsonObject {
         put("type", JsonPrimitive("Feature"))
         put(
             "properties",
             buildJsonObject {
-                put("name", JsonPrimitive(properties.text("NAME")))
+                val longName = properties.text("NAME_LONG").ifBlank { properties.text("NAME") }
+                put("name", JsonPrimitive(NAME_OVERRIDES[longName] ?: longName))
                 put("isoA2", code(properties, "ISO_A2", "ISO_A2_EH"))
                 put("isoA3", code(properties, "ISO_A3", "ISO_A3_EH"))
                 put("continent", JsonPrimitive(properties.text("CONTINENT")))
             },
         )
-        put("geometry", roundGeometry(geometry.jsonObject))
+        put("geometry", geometry)
     }
 }
 
@@ -96,22 +116,6 @@ private fun code(properties: JsonObject, primary: String, fallback: String): Jso
         .map { properties.text(it) }
         .firstOrNull { it.isNotBlank() && it != MISSING_CODE }
     return value?.let(::JsonPrimitive) ?: JsonNull
-}
-
-/** Rounds every coordinate in a `Polygon` or `MultiPolygon` geometry, keeping its nesting. */
-private fun roundGeometry(geometry: JsonObject): JsonObject = buildJsonObject {
-    put("type", geometry.getValue("type"))
-    put("coordinates", roundCoordinates(geometry.getValue("coordinates")))
-}
-
-/**
- * Walks the arbitrarily nested GeoJSON coordinate arrays and rounds the leaf numbers, so the same
- * code handles a `Polygon` and a `MultiPolygon` without knowing which it was given.
- */
-private fun roundCoordinates(element: JsonElement): JsonElement = when (element) {
-    is JsonArray -> buildJsonArray { element.forEach { add(roundCoordinates(it)) } }
-    is JsonPrimitive -> JsonPrimitive(round(element.content.toDouble(), COORDINATE_DECIMALS))
-    else -> element
 }
 
 private fun countVertices(geometry: JsonObject): Int {

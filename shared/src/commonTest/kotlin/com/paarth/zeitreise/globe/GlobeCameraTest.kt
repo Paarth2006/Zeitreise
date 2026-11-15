@@ -30,7 +30,7 @@ class GlobeCameraTest {
 
     @Test
     fun clampsZoomToItsLimits() {
-        assertEquals(MAX_ZOOM, GlobeCamera().zoomedBy(100.0).zoom, TOLERANCE)
+        assertEquals(MAX_ZOOM, GlobeCamera().zoomedBy(1_000_000.0).zoom, TOLERANCE)
         assertEquals(MIN_ZOOM, GlobeCamera().zoomedBy(0.001).zoom, TOLERANCE)
     }
 

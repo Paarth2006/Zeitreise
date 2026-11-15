@@ -7,6 +7,7 @@ import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.domain.vertexCount
 import com.paarth.zeitreise.globe.GeoPoint
 import com.paarth.zeitreise.globe.PAIR_STRIDE
+import com.paarth.zeitreise.globe.ringExtent
 import com.paarth.zeitreise.globe.simplifyRing
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -17,9 +18,9 @@ import kotlinx.serialization.json.jsonPrimitive
 /**
  * How far, in degrees, a vertex may be dropped from the line its neighbours describe.
  *
- * The 1:110m source is already coarse, so this only removes near-collinear vertices: it keeps 91%
- * of them and leaves the silhouettes untouched even at the closest zoom. The draw loop is kept
- * short by back-face culling and by skipping outlines that cover less than a pixel instead.
+ * The 1:50m source carries detail no one can see on the whole globe; this keeps about a third of
+ * its vertices, which still draws crisp coastlines when a country fills the screen. Outlines that
+ * cover less than a pixel, which most small islands do at the widest zoom, are skipped as well.
  */
 private const val SIMPLIFY_TOLERANCE_DEGREES = 0.05
 
@@ -28,6 +29,12 @@ private const val SIMPLIFY_TOLERANCE_DEGREES = 0.05
  * only drops vertices that are practically on a straight line.
  */
 private const val SUBDIVISION_SIMPLIFY_TOLERANCE_DEGREES = 0.0005
+
+/**
+ * Largest share of a ring's own extent its simplification tolerance may reach, so that a country
+ * smaller than the usual tolerance, such as Monaco, keeps its shape instead of collapsing.
+ */
+private const val SMALL_RING_TOLERANCE_SHARE = 0.05
 
 /** Fewest vertices a ring needs before it is worth drawing at all. */
 private const val MIN_RING_VERTICES = 3
@@ -102,7 +109,12 @@ internal class GeoJsonParser(private val json: Json = Json { ignoreUnknownKeys =
             vertices[index * PAIR_STRIDE] = pair[0].jsonPrimitive.double
             vertices[index * PAIR_STRIDE + 1] = pair[1].jsonPrimitive.double
         }
-        val simplified = simplifyRing(vertices, tolerance)
+        val simplified = simplifyRing(
+            vertices,
+            tolerance.coerceAtMost(
+                vertices.ringExtent() * SMALL_RING_TOLERANCE_SHARE,
+            ),
+        )
         if (simplified.size / PAIR_STRIDE < MIN_RING_VERTICES) return null
         return CountryRing(simplified)
     }

@@ -4,9 +4,24 @@ import com.paarth.zeitreise.globe.GeoCap
 import com.paarth.zeitreise.globe.GeoPoint
 import com.paarth.zeitreise.globe.PAIR_STRIDE
 import com.paarth.zeitreise.globe.SPHERE_STRIDE
+import com.paarth.zeitreise.globe.SpherePoint
 import com.paarth.zeitreise.globe.boundingCap
 import com.paarth.zeitreise.globe.isPointInRing
+import com.paarth.zeitreise.globe.ringExtent
+import com.paarth.zeitreise.globe.simplifyRing
 import com.paarth.zeitreise.globe.toSpherePoint
+
+/**
+ * Tolerance, in degrees, of the coarse copy of each ring drawn at the widest zoom: about 20 km, a
+ * pixel or two when the whole globe fills the screen.
+ */
+internal const val COARSE_TOLERANCE_DEGREES = 0.2
+
+/** Largest share of a ring's own extent the coarse tolerance may reach, so islands keep a shape. */
+private const val COARSE_SHARE_OF_EXTENT = 0.1
+
+/** Fewest vertices the coarse copy needs; below this the full ring is used instead. */
+private const val MIN_COARSE_VERTICES = 4
 
 /**
  * One closed outline of a territory's coastline or border.
@@ -19,11 +34,35 @@ import com.paarth.zeitreise.globe.toSpherePoint
  */
 public class CountryRing internal constructor(internal val geographic: DoubleArray) {
     /** Packed `x, y, z` unit-sphere triples, converted once when the country is loaded. */
-    internal val sphere: DoubleArray = DoubleArray(geographic.size / PAIR_STRIDE * SPHERE_STRIDE).also { target ->
+    internal val sphere: DoubleArray = geographic.toSphereTriples()
+
+    /**
+     * A coarser copy of [sphere], simplified to [COARSE_TOLERANCE_DEGREES], drawn when the whole
+     * globe is in view and the dropped detail would be smaller than a pixel or two. A ring that
+     * small already is kept as it is.
+     */
+    internal val coarseSphere: DoubleArray = simplifyRing(
+        geographic,
+        COARSE_TOLERANCE_DEGREES.coerceAtMost(geographic.ringExtent() * COARSE_SHARE_OF_EXTENT),
+    ).let { coarse -> if (coarse.size / PAIR_STRIDE >= MIN_COARSE_VERTICES) coarse.toSphereTriples() else sphere }
+
+    /** The circle on the sphere that holds the whole ring, for skipping it when it is off screen. */
+    internal val bounds: GeoCap = boundingCap(sphere)
+
+    /** Centre of [bounds] as a unit-sphere vector, which the visibility check works with. */
+    internal val boundsCenter: SpherePoint = bounds.center.toSpherePoint()
+
+    /** How many vertices the ring has. */
+    public val vertexCount: Int get() = geographic.size / PAIR_STRIDE
+}
+
+/** Converts packed `longitude, latitude` pairs to packed unit-sphere triples. */
+private fun DoubleArray.toSphereTriples(): DoubleArray =
+    DoubleArray(size / PAIR_STRIDE * SPHERE_STRIDE).also { target ->
         var source = 0
         var index = 0
-        while (source < geographic.size) {
-            val point = GeoPoint(latitude = geographic[source + 1], longitude = geographic[source]).toSpherePoint()
+        while (source < size) {
+            val point = GeoPoint(latitude = this[source + 1], longitude = this[source]).toSpherePoint()
             target[index] = point.x
             target[index + 1] = point.y
             target[index + 2] = point.z
@@ -31,10 +70,6 @@ public class CountryRing internal constructor(internal val geographic: DoubleArr
             index += SPHERE_STRIDE
         }
     }
-
-    /** How many vertices the ring has. */
-    public val vertexCount: Int get() = geographic.size / PAIR_STRIDE
-}
 
 /**
  * A single landmass of a territory: its coastline, plus any rings cut out of it.

@@ -1,5 +1,7 @@
 package com.paarth.zeitreise.globe
 
+import kotlin.math.PI
+import kotlin.math.acos
 import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -41,10 +43,32 @@ public class GlobeProjection(
     /** Radius of the globe at the camera's zoom level, in pixels. */
     public val scaledRadius: Double = baseRadius * camera.zoom
 
+    /** How many pixels one degree of arc covers at the centre of the view. */
+    internal val pixelsPerDegree: Double = scaledRadius * PI / DEGREES_PER_HALF_TURN
+
     private val sinYaw = sin(camera.yaw.toRadians())
     private val cosYaw = cos(camera.yaw.toRadians())
     private val sinPitch = sin(camera.pitch.toRadians())
     private val cosPitch = cos(camera.pitch.toRadians())
+
+    /**
+     * Angle, in radians, from the centre of the view to the farthest point of the globe still on
+     * screen: the whole visible hemisphere when the globe fits, much less when zoomed in.
+     */
+    private val visibleAngle: Double = run {
+        val reach = sqrt(centerX * centerX + centerY * centerY) / scaledRadius
+        if (reach >= 1.0) PI / 2 else asin(reach)
+    }
+
+    /**
+     * Whether any part of a region within [radiusDegrees] of [center] can be on screen, checked
+     * from the region's bounding circle alone, so an off-screen outline is skipped before any of
+     * its vertices is projected.
+     */
+    internal fun mayShow(center: SpherePoint, radiusDegrees: Double): Boolean {
+        val angleFromView = acos(depthOf(center).coerceIn(-1.0, 1.0))
+        return angleFromView <= visibleAngle + radiusDegrees.toRadians()
+    }
 
     /** Whether [point] lies on the hemisphere facing the viewer. */
     public fun isVisible(point: GeoPoint): Boolean = depthOf(point.toSpherePoint()) >= 0.0

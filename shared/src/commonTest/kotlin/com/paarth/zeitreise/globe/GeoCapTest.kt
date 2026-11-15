@@ -71,6 +71,6 @@ class GeoCapTest {
 
     @Test
     fun clampsATinyRegionToTheClosestZoom() {
-        assertEquals(MAX_ZOOM, GeoCap(GeoPoint(0.0, 0.0), radiusDegrees = 0.01).framingZoom(fill = 0.9), TOLERANCE)
+        assertEquals(MAX_ZOOM, GeoCap(GeoPoint(0.0, 0.0), radiusDegrees = 0.00001).framingZoom(fill = 0.9), TOLERANCE)
     }
 }

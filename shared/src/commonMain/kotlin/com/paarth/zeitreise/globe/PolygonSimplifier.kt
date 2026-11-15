@@ -91,3 +91,20 @@ private fun perpendicularDistance(
     val area = abs(deltaX * (startY - pointY) - (startX - pointX) * deltaY)
     return area / kotlin.math.hypot(deltaX, deltaY)
 }
+
+/** The larger of the ring's east-west and north-south spans, in degrees, from packed pairs. */
+internal fun DoubleArray.ringExtent(): Double {
+    var minLongitude = Double.MAX_VALUE
+    var maxLongitude = -Double.MAX_VALUE
+    var minLatitude = Double.MAX_VALUE
+    var maxLatitude = -Double.MAX_VALUE
+    var index = 0
+    while (index < size) {
+        minLongitude = minOf(minLongitude, this[index])
+        maxLongitude = maxOf(maxLongitude, this[index])
+        minLatitude = minOf(minLatitude, this[index + 1])
+        maxLatitude = maxOf(maxLatitude, this[index + 1])
+        index += PAIR_STRIDE
+    }
+    return maxOf(maxLongitude - minLongitude, maxLatitude - minLatitude)
+}

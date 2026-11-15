@@ -4,6 +4,7 @@ import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -138,6 +139,35 @@ class GlobeProjectionTest {
     fun refusesAScreenBufferThatIsTooSmall() {
         val sphere = sphereOf(GeoPoint(latitude = 0.0, longitude = 0.0))
         assertFailsWith<IllegalArgumentException> { projection().projectOutline(sphere, FloatArray(1)) }
+    }
+
+    @Test
+    fun measuresHowManyPixelsADegreeCovers() {
+        assertEquals(100.0 * kotlin.math.PI / 180.0, projection().pixelsPerDegree, TOLERANCE)
+    }
+
+    @Test
+    fun mayShowARegionAtTheCentreOfTheView() {
+        assertTrue(projection().mayShow(GeoPoint(0.0, 0.0).toSpherePoint(), radiusDegrees = 1.0))
+    }
+
+    @Test
+    fun skipsASmallRegionOnTheFarSide() {
+        assertFalse(projection().mayShow(GeoPoint(0.0, 180.0).toSpherePoint(), radiusDegrees = 5.0))
+    }
+
+    @Test
+    fun keepsARegionWhoseEdgeReachesOverTheHorizon() {
+        assertTrue(projection().mayShow(GeoPoint(0.0, 95.0).toSpherePoint(), radiusDegrees = 10.0))
+    }
+
+    @Test
+    fun skipsARegionBeyondTheEdgeOfTheScreenWhenZoomedIn() {
+        // At zoom 20 only about eight degrees around the centre fit on this screen.
+        val zoomed = projection(GlobeCamera(zoom = 20.0))
+
+        assertTrue(zoomed.mayShow(GeoPoint(0.0, 5.0).toSpherePoint(), radiusDegrees = 1.0))
+        assertFalse(zoomed.mayShow(GeoPoint(0.0, 30.0).toSpherePoint(), radiusDegrees = 1.0))
     }
 }
 

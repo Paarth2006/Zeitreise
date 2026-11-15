@@ -11,10 +11,10 @@ public const val MAX_PITCH_DEGREES: Double = 85.0
 public const val MIN_ZOOM: Double = 1.0
 
 /**
- * Closest the camera may zoom in: far enough to fill the screen with a small country such as
- * Luxembourg, whose states are drawn once it is selected.
+ * Closest the camera may zoom in: far enough to frame the smallest country, Vatican City, which is
+ * under a kilometre across, so every country can be opened from search.
  */
-public const val MAX_ZOOM: Double = 40.0
+public const val MAX_ZOOM: Double = 8_000.0
 
 /**
  * Share of its zoom a flight between opposite sides of the globe gives up at its midpoint, so a

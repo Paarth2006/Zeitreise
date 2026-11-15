@@ -2,12 +2,14 @@ package com.paarth.zeitreise.ui.globe
 
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
+import com.paarth.zeitreise.domain.COARSE_TOLERANCE_DEGREES
 import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.CountryOutline
 import com.paarth.zeitreise.domain.CountryRing
 import com.paarth.zeitreise.domain.Territory
 import com.paarth.zeitreise.globe.GlobeProjection
 import com.paarth.zeitreise.globe.PAIR_STRIDE
+import com.paarth.zeitreise.globe.SPHERE_STRIDE
 
 /**
  * Smallest screen extent, in pixels, an outline must cover before it is worth drawing. Below this
@@ -19,17 +21,28 @@ private const val MIN_DRAWN_EXTENT_PIXELS = 1.5f
 private const val MIN_RING_VALUES = 6
 
 /**
+ * Greatest error, in pixels, the coarse copy of an outline may show before the full outline is
+ * drawn instead: below this the dropped detail cannot be seen.
+ */
+private const val MAX_COARSE_ERROR_PIXELS = 2.5
+
+/**
  * Re-projects one landmass each frame into a reusable [Path].
  *
  * Every buffer and the path itself are allocated once, when the globe loads. Turning the globe
- * then only rewrites their contents, so a frame allocates nothing.
+ * then only rewrites their contents, so a frame allocates nothing. A landmass whose bounding
+ * circle is off screen is skipped before any vertex is projected, and the whole globe is drawn
+ * from the coarse copy of each outline, switching to full detail once zoomed in.
  */
 internal class OutlineGeometry(outline: CountryOutline) {
     private val rings: List<CountryRing> = buildList {
         add(outline.exterior)
         addAll(outline.holes)
     }
-    private val buffers: List<FloatArray> = rings.map { FloatArray(it.vertexCount * PAIR_STRIDE) }
+    private val fineBuffers: List<FloatArray> = rings.map { FloatArray(it.sphere.size / SPHERE_STRIDE * PAIR_STRIDE) }
+    private val coarseBuffers: List<FloatArray> = rings.map {
+        FloatArray(it.coarseSphere.size / SPHERE_STRIDE * PAIR_STRIDE)
+    }
 
     /** The projected outline, with holes cut out of it. Only valid after [update] returned `true`. */
     val path: Path = Path().apply { fillType = PathFillType.EvenOdd }
@@ -37,16 +50,21 @@ internal class OutlineGeometry(outline: CountryOutline) {
     /**
      * Re-projects the landmass for [projection].
      *
-     * @return whether the result is worth drawing, which it is not when the landmass faces away
-     *   from the viewer or is smaller than [MIN_DRAWN_EXTENT_PIXELS] on screen.
+     * @return whether the result is worth drawing, which it is not when the landmass is off
+     *   screen, faces away from the viewer or is smaller than [MIN_DRAWN_EXTENT_PIXELS].
      */
     fun update(projection: GlobeProjection): Boolean {
-        val exterior = buffers[0]
-        val facesViewer = projection.projectOutline(rings[0].sphere, exterior) > 0
-        if (!facesViewer || !coversAPixel(exterior)) return false
+        val exterior = rings[0]
+        val coarse = COARSE_TOLERANCE_DEGREES * projection.pixelsPerDegree <= MAX_COARSE_ERROR_PIXELS
+        val buffers = if (coarse) coarseBuffers else fineBuffers
+        // Each check is cheaper than the next, and the projection only runs for what may be seen.
+        val shown = projection.mayShow(exterior.boundsCenter, exterior.bounds.radiusDegrees) &&
+            projection.projectOutline(exterior.vertices(coarse), buffers[0]) > 0 &&
+            coversAPixel(buffers[0])
+        if (!shown) return false
 
         for (index in 1 until rings.size) {
-            projection.projectOutline(rings[index].sphere, buffers[index])
+            projection.projectOutline(rings[index].vertices(coarse), buffers[index])
         }
 
         path.rewind()
@@ -136,3 +154,6 @@ private fun appendClosedRing(path: Path, screen: FloatArray) {
 
 /** Whether the country is polar enough to be drawn as ice. */
 private fun Country.isPolar(): Boolean = continent == ANTARCTICA || focus.center.latitude > ICE_LATITUDE
+
+/** The unit-sphere vertices to draw this ring from: the coarse copy or the full outline. */
+private fun CountryRing.vertices(coarse: Boolean): DoubleArray = if (coarse) coarseSphere else sphere

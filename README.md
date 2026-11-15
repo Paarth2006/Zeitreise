@@ -32,7 +32,7 @@ The long-term goal is a guide that tells you a surprising fact about each countr
 - Drag to turn it, with inertia when you let go
 - Pinch or scroll to zoom
 - Slow idle drift when left alone, which stops while a country is selected
-- 177 countries from Natural Earth, with borders, a graticule and an atmosphere glow
+- All 195 countries and their dependent territories (242 in all) from Natural Earth, with borders, a graticule and an atmosphere glow
 
 ### Country Selection
 - Tap any country to highlight it
