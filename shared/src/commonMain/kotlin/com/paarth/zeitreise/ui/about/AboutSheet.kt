@@ -23,9 +23,11 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
+import com.paarth.zeitreise.ui.ZeitreiseTheme
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.about_body
@@ -138,4 +140,12 @@ private fun DrawScope.drawInfoGlyph(tint: Color) {
     val x = size.width / 2
     drawCircle(tint, radius = stroke, center = Offset(x, size.height * DOT_Y))
     drawLine(tint, Offset(x, size.height * STEM_TOP), Offset(x, size.height * STEM_BOTTOM), stroke, StrokeCap.Round)
+}
+
+@Preview
+@Composable
+private fun InfoButtonPreview() {
+    ZeitreiseTheme {
+        InfoButton(onClick = {})
+    }
 }

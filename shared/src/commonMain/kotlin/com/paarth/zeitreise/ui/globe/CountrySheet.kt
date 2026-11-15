@@ -37,10 +37,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.Subdivision
+import com.paarth.zeitreise.ui.PreviewSamples
 import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
+import com.paarth.zeitreise.ui.ZeitreiseTheme
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.close_country
@@ -204,4 +207,20 @@ private fun CloseGlyph(tint: Color, modifier: Modifier = Modifier) {
 private fun Subdivision.subtitleIn(country: Country?): String {
     val countryName = country?.name.orEmpty()
     return if (kind.isBlank()) countryName else "$kind · $countryName"
+}
+
+@Preview
+@Composable
+private fun CountrySheetPreview() {
+    ZeitreiseTheme {
+        CountrySheet(country = PreviewSamples.india, subdivision = null, onClose = {})
+    }
+}
+
+@Preview
+@Composable
+private fun StateSheetPreview() {
+    ZeitreiseTheme {
+        CountrySheet(country = PreviewSamples.india, subdivision = PreviewSamples.kerala, onClose = {})
+    }
 }

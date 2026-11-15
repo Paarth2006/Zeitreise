@@ -18,8 +18,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
+import com.paarth.zeitreise.ui.ZeitreiseTheme
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
@@ -91,4 +93,12 @@ private fun OnboardingStep.hint(): StringResource? = when (this) {
     OnboardingStep.TryTurning -> Res.string.hint_turn
     OnboardingStep.TrySelecting -> Res.string.hint_select
     OnboardingStep.Checking, OnboardingStep.Welcome, OnboardingStep.Finished -> null
+}
+
+@Preview
+@Composable
+private fun CoachHintPreview() {
+    ZeitreiseTheme {
+        CoachHint(step = OnboardingStep.TryTurning, onSkip = {})
+    }
 }

@@ -43,9 +43,12 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.paarth.zeitreise.domain.SearchResult
+import com.paarth.zeitreise.ui.PreviewSamples
 import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
+import com.paarth.zeitreise.ui.ZeitreiseTheme
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.search_cancel
@@ -280,5 +283,27 @@ private fun ClearButton(tint: Color, onClick: () -> Unit) {
             drawLine(tint, Offset.Zero, Offset(size.width, size.height), stroke, StrokeCap.Round)
             drawLine(tint, Offset(size.width, 0f), Offset(0f, size.height), stroke, StrokeCap.Round)
         }
+    }
+}
+
+@Preview
+@Composable
+private fun SearchBarPreview() {
+    ZeitreiseTheme {
+        SearchBar(query = "", results = emptyList(), onQueryChange = {}, onChoose = {}, onSubmit = {})
+    }
+}
+
+@Preview
+@Composable
+private fun SearchResultsPreview() {
+    ZeitreiseTheme {
+        SearchResults(
+            results = listOf(
+                SearchResult.CountryMatch(PreviewSamples.india),
+                SearchResult.SubdivisionMatch(name = "Kerala", country = PreviewSamples.india),
+            ),
+            onChoose = {},
+        )
     }
 }
