@@ -5,6 +5,7 @@ import com.paarth.zeitreise.globe.GeoPoint
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /** A square country, with [size] degrees of side, whose south-west corner is at [origin]. */
 private fun square(name: String, origin: Int, size: Int) = """
@@ -78,5 +79,28 @@ class CountryTest {
     fun namesItselfInItsStringForm() {
         val country = countriesOf(square("Namedland", origin = 0, size = 10)).single()
         assertEquals("Country(Namedland)", country.toString())
+    }
+
+    @Test
+    fun framesTheMainlandWithItsNearbyIslandsButNotAFarTerritory() {
+        val country = GeoJsonParser().parseCountries(
+            """
+            { "type": "FeatureCollection", "features": [ {
+              "type": "Feature",
+              "properties": { "name": "Islandia", "isoA2": "IS", "isoA3": "ISL", "continent": "Atlantis" },
+              "geometry": { "type": "MultiPolygon", "coordinates": [
+                [[[90,0],[91,0],[91,1],[90,1],[90,0]]],
+                [[[0,0],[10,0],[10,10],[0,10],[0,0]]],
+                [[[14,4],[15,4],[15,5],[14,5],[14,4]]]
+              ] }
+            } ] }
+            """.trimIndent(),
+        ).single()
+
+        val focus = country.focus
+
+        assertTrue(focus.radiusDegrees > 8.0, "the nearby island widens the frame: ${focus.radiusDegrees}")
+        assertTrue(focus.radiusDegrees < 20.0, "the far territory stays out: ${focus.radiusDegrees}")
+        assertTrue(focus.center.longitude in 0.0..15.0, "centred on the mainland: ${focus.center}")
     }
 }

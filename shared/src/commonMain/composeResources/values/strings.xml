@@ -35,4 +35,6 @@
     <string name="story_no_article">Wikipedia has no article about this place yet.</string>
     <string name="story_failed">Couldn’t reach Wikipedia.</string>
     <string name="story_retry">Try again</string>
+    <string name="story_did_you_know">Did you know?</string>
+    <string name="story_next_fact">Next fact</string>
 </resources>

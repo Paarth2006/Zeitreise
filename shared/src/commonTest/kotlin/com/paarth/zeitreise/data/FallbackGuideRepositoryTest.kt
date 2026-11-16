@@ -3,8 +3,10 @@ package com.paarth.zeitreise.data
 import com.paarth.zeitreise.ai.Guide
 import com.paarth.zeitreise.ai.GuidePlace
 import com.paarth.zeitreise.ai.GuideUnavailableException
+import com.paarth.zeitreise.domain.GuideFact
 import com.paarth.zeitreise.domain.GuideNotice
 import com.paarth.zeitreise.domain.GuideStory
+import com.paarth.zeitreise.domain.SourcedFact
 import com.paarth.zeitreise.domain.StorySource
 import com.paarth.zeitreise.domain.WikiArticle
 import kotlinx.coroutines.test.runTest
@@ -21,20 +23,27 @@ private val ARTICLE = WikiArticle(
     pageUrl = "https://en.wikipedia.org/wiki/Australia",
 )
 
-private val AI_STORY = GuideStory(headline = "From the AI", fact = "AI fact.")
-private val CURATED_STORY = GuideStory(headline = "Bundled", fact = "Bundled fact.")
+private val AI_STORY = GuideStory(facts = listOf(GuideFact("From the AI", "AI fact.")), knownFor = listOf("AI pick"))
+private val CURATED_STORY =
+    GuideStory(facts = listOf(GuideFact("Bundled", "Bundled fact.")), knownFor = listOf("Uluru"))
+private val NOTABLE = listOf("Australia has the largest ancient reef in the world, which is 2,300 km long.")
 
 /** A Wikipedia that knows only Australia. */
 private object FakeWikipedia : WikipediaRepository {
     override suspend fun article(wikidataId: String?, fallbackTitle: String): WikiArticle? =
         ARTICLE.takeIf { wikidataId == PLACE.wikidataId }
+
+    override suspend fun notableFacts(article: WikiArticle): List<String> = NOTABLE
 }
 
 /** A guide that answers with [story], or fails the way the AI guide does when [failure] is set. */
 private class FakeGuide(private val story: GuideStory?, private val failure: Throwable? = null) : Guide {
     var calls = 0
 
-    override suspend fun tell(place: GuidePlace, article: WikiArticle): GuideStory? {
+    var notableSeen: List<String>? = null
+
+    override suspend fun tell(place: GuidePlace, article: WikiArticle, notableFacts: List<String>): GuideStory? {
+        notableSeen = notableFacts
         calls++
         failure?.let { throw it }
         return story
@@ -44,21 +53,25 @@ private class FakeGuide(private val story: GuideStory?, private val failure: Thr
 class FallbackGuideRepositoryTest {
 
     @Test
-    fun prefersTheAiGuideWhenItAnswers() = runTest {
-        val answer = FallbackGuideRepository(FakeWikipedia, FakeGuide(AI_STORY), FakeGuide(CURATED_STORY))
-            .storyFor(PLACE)
+    fun prefersTheAiGuidesFactsWhenItAnswers() = runTest {
+        val ai = FakeGuide(AI_STORY)
 
-        assertEquals(AI_STORY, answer?.story)
-        assertEquals(StorySource.Ai, answer?.source)
+        val answer = FallbackGuideRepository(FakeWikipedia, ai, FakeGuide(CURATED_STORY)).storyFor(PLACE)
+
+        assertEquals(listOf(SourcedFact(AI_STORY.facts.single(), StorySource.Ai)), answer?.facts)
+        assertEquals(listOf("AI pick"), answer?.knownFor)
         assertNull(answer?.notice)
+        assertEquals(NOTABLE, ai.notableSeen, "the AI is grounded on the article's notable sentences too")
     }
 
     @Test
-    fun usesTheBundledStoryWithoutANoticeWhenThereIsNoAiGuide() = runTest {
+    fun followsTheBundledFactWithTheArticlesOwnWhenThereIsNoAiGuide() = runTest {
         val answer = FallbackGuideRepository(FakeWikipedia, aiGuide = null, demoGuide = FakeGuide(CURATED_STORY))
             .storyFor(PLACE)
 
-        assertEquals(StorySource.Curated, answer?.source)
+        assertEquals(listOf(StorySource.Curated, StorySource.Wikipedia), answer?.facts?.map { it.source })
+        assertEquals(NOTABLE.single(), answer?.facts?.last()?.fact?.text)
+        assertEquals(listOf("Uluru"), answer?.knownFor)
         assertNull(answer?.notice)
     }
 
@@ -68,7 +81,7 @@ class FallbackGuideRepositoryTest {
 
         val answer = FallbackGuideRepository(FakeWikipedia, limited, FakeGuide(CURATED_STORY)).storyFor(PLACE)
 
-        assertEquals(StorySource.Curated, answer?.source)
+        assertEquals(StorySource.Curated, answer?.facts?.first()?.source)
         assertEquals(GuideNotice.RateLimited, answer?.notice)
     }
 
@@ -78,8 +91,7 @@ class FallbackGuideRepositoryTest {
 
         val answer = FallbackGuideRepository(FakeWikipedia, broken, FakeGuide(story = null)).storyFor(PLACE)
 
-        assertEquals(StorySource.Wikipedia, answer?.source)
-        assertEquals("Australia is a country.", answer?.story?.fact)
+        assertEquals(listOf(StorySource.Wikipedia), answer?.facts?.map { it.source })
         assertEquals(GuideNotice.Unavailable, answer?.notice)
     }
 
@@ -95,7 +107,7 @@ class FallbackGuideRepositoryTest {
     }
 
     @Test
-    fun alwaysCreditsTheArticleTheStoryIsGroundedOn() = runTest {
+    fun alwaysCreditsTheArticleTheFactsAreGroundedOn() = runTest {
         val answer = FallbackGuideRepository(FakeWikipedia, FakeGuide(AI_STORY), FakeGuide(null)).storyFor(PLACE)
 
         assertEquals(ARTICLE, answer?.article)

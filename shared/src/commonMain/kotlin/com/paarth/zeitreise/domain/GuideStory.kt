@@ -1,26 +1,37 @@
 package com.paarth.zeitreise.domain
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * What the guide says about a place.
+ * One fact the guide can tell about a place.
  *
- * @property headline a short title for the fact, such as "Wider than the Moon".
- * @property fact one surprising, accurate fact, in a sentence or two.
+ * @property headline a short title for the fact, such as "Wider than the Moon", or `null` for a
+ *   fact taken straight from Wikipedia, which the sheet introduces with "Did you know?".
+ * @property text the fact itself, in a sentence or two.
+ */
+@Serializable
+public data class GuideFact(val headline: String? = null, @SerialName("fact") val text: String)
+
+/**
+ * What a guide says about a place: several facts, so each visit can show a different one, and a
+ * few things the place is famous for.
+ *
+ * @property facts the facts, best first.
  * @property knownFor a few things the place is famous for, each a short phrase.
  */
 @Serializable
-public data class GuideStory(val headline: String, val fact: String, val knownFor: List<String> = emptyList())
+public data class GuideStory(val facts: List<GuideFact>, val knownFor: List<String> = emptyList())
 
-/** Where a story came from, which the sheet tells the user. */
+/** Where a fact came from, which the sheet tells the user. */
 public enum class StorySource {
     /** Written by the AI guide from the place's Wikipedia article. */
     Ai,
 
-    /** One of the stories bundled with the app, for when no AI is available. */
+    /** One of the facts bundled with the app, for when no AI is available. */
     Curated,
 
-    /** Taken straight from the Wikipedia article, for places with no bundled story. */
+    /** Taken straight from the Wikipedia article. */
     Wikipedia,
 }
 
@@ -34,16 +45,28 @@ public enum class GuideNotice {
 }
 
 /**
- * A story about a place together with its provenance.
+ * A fact together with where it came from.
  *
- * @property story what to show.
- * @property source where [story] came from.
- * @property article the Wikipedia article the story is grounded on, credited in the sheet.
+ * @property fact what to show.
+ * @property source where [fact] came from, credited beneath it.
+ */
+public data class SourcedFact(val fact: GuideFact, val source: StorySource)
+
+/**
+ * Everything the guide has to say about a place.
+ *
+ * @property facts the facts to show, one per visit, in turn.
+ * @property knownFor a few things the place is famous for.
+ * @property article the Wikipedia article every fact is grounded on, linked from the sheet.
  * @property notice why the AI guide did not answer, when it was asked and could not.
  */
 public data class GuideAnswer(
-    val story: GuideStory,
-    val source: StorySource,
+    val facts: List<SourcedFact>,
+    val knownFor: List<String>,
     val article: WikiArticle,
     val notice: GuideNotice? = null,
-)
+) {
+    init {
+        require(facts.isNotEmpty()) { "An answer about ${article.title} needs at least one fact" }
+    }
+}

@@ -100,7 +100,7 @@ internal class GeoJsonParser(private val json: Json = Json { ignoreUnknownKeys =
      */
     private fun GeoJsonGeometry.toOutlines(tolerance: Double): List<CountryOutline> = toPolygons()
         .mapNotNull { polygon -> toOutline(polygon, tolerance) }
-        .sortedByDescending { it.exterior.bounds.radiusDegrees }
+        .sortedByDescending { it.exterior.area }
 
     private fun toOutline(polygon: JsonArray, tolerance: Double): CountryOutline? {
         val rings = polygon.mapNotNull { ring -> toRing(ring.jsonArray, tolerance) }

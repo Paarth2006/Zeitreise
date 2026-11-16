@@ -20,45 +20,57 @@ class DemoGuideTest {
     private val guide = DemoGuide(
         readStories = {
             reads++
-            """{ "Q408": { "headline": "Wider than the Moon", "fact": "It is.", "knownFor": ["Uluru"] } }"""
+            """
+            { "Q408": { "facts": [{ "headline": "Wider than the Moon", "fact": "It is." }], "knownFor": ["Uluru"] } }
+            """
         },
     )
 
     @Test
     fun tellsTheBundledStoryForAPlaceItKnows() = runTest {
-        assertEquals("Wider than the Moon", guide.tell(GuidePlace("Australia", "a country", "Q408"), ARTICLE)?.headline)
+        assertEquals(
+            "Wider than the Moon",
+            guide.tell(GuidePlace("Australia", "a country", "Q408"), ARTICLE, emptyList())?.facts?.single()?.headline,
+        )
     }
 
     @Test
     fun staysQuietAboutAPlaceItDoesNotKnow() = runTest {
-        assertNull(guide.tell(GuidePlace("Fiji", "a country", "Q712"), ARTICLE))
+        assertNull(guide.tell(GuidePlace("Fiji", "a country", "Q712"), ARTICLE, emptyList()))
     }
 
     @Test
     fun staysQuietAboutAPlaceWithoutAWikidataItem() = runTest {
-        assertNull(guide.tell(GuidePlace("Nowhere", "a country", wikidataId = null), ARTICLE))
+        assertNull(guide.tell(GuidePlace("Nowhere", "a country", wikidataId = null), ARTICLE, emptyList()))
     }
 
     @Test
     fun readsTheBundledStoriesOnlyOnce() = runTest {
-        guide.tell(GuidePlace("Australia", "a country", "Q408"), ARTICLE)
-        guide.tell(GuidePlace("Fiji", "a country", "Q712"), ARTICLE)
+        guide.tell(GuidePlace("Australia", "a country", "Q408"), ARTICLE, emptyList())
+        guide.tell(GuidePlace("Fiji", "a country", "Q712"), ARTICLE, emptyList())
 
         assertEquals(1, reads)
     }
 
     @Test
-    fun makesAWikipediaStoryFromTheDescriptionAndOpening() {
-        val story = wikipediaStory(ARTICLE)
+    fun turnsTheArticlesNotableSentencesIntoFactsWithoutHeadlines() {
+        val facts = wikipediaFacts(ARTICLE, listOf("First notable sentence.", "Second notable sentence."))
 
-        assertEquals("Country in Oceania", story.headline)
-        assertEquals("Australia is a country.", story.fact)
-        assertTrue(story.knownFor.isEmpty())
+        assertEquals(listOf("First notable sentence.", "Second notable sentence."), facts.map { it.text })
+        assertTrue(facts.all { it.headline == null })
+    }
+
+    @Test
+    fun fallsBackToTheOpeningUnderTheDescriptionWithoutNotableSentences() {
+        val fact = wikipediaFacts(ARTICLE, emptyList()).single()
+
+        assertEquals("Country in Oceania", fact.headline)
+        assertEquals("Australia is a country.", fact.text)
     }
 
     @Test
     fun usesTheTitleAsHeadlineWhenThereIsNoDescription() {
-        assertEquals("Australia", wikipediaStory(ARTICLE.copy(description = null)).headline)
+        assertEquals("Australia", wikipediaFacts(ARTICLE.copy(description = null), emptyList()).single().headline)
     }
 
     @Test

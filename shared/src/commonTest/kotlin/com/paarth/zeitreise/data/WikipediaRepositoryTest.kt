@@ -121,4 +121,37 @@ class WikipediaRepositoryTest {
 
         assertFailsWith<IllegalStateException> { wikipedia.article(null, "India") }
     }
+
+    @Test
+    fun picksNotableSentencesFromTheWholeArticle() = runTest {
+        val notable = "India has the largest number of languages of any country in the world, over 400 of them."
+        val wikipedia = repository { request ->
+            when (request.url.host + request.url.encodedPath) {
+                "en.wikipedia.org/w/api.php" -> respond(
+                    """{ "query": { "pages": [ { "extract": "History\n$notable\nThe land is wide." } ] } }""",
+                    headers = JSON_HEADERS,
+                )
+                else -> answerFor(request, title = "India")
+            }
+        }
+        val article = wikipedia.article("Q668", fallbackTitle = "India")
+
+        val facts = wikipedia.notableFacts(requireNotNull(article))
+
+        assertEquals(listOf(notable), facts)
+        assertEquals("India", requests.last().url.parameters["titles"])
+    }
+
+    @Test
+    fun goesWithoutNotableSentencesWhenTheFullTextCannotBeRead() = runTest {
+        val wikipedia = repository { request ->
+            when (request.url.host + request.url.encodedPath) {
+                "en.wikipedia.org/w/api.php" -> respond("", HttpStatusCode.ServiceUnavailable)
+                else -> answerFor(request, title = "India")
+            }
+        }
+        val article = requireNotNull(wikipedia.article("Q668", fallbackTitle = "India"))
+
+        assertEquals(emptyList(), wikipedia.notableFacts(article))
+    }
 }

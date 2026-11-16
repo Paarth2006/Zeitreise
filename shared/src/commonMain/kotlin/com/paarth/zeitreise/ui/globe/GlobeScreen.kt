@@ -123,6 +123,8 @@ private class GlobeScreenActions(private val globe: GlobeViewModel, private val 
     fun onboardingEvent(event: OnboardingEvent) = onboarding.onEvent(event)
 
     fun retryStory() = globe.retryStory()
+
+    fun nextFact() = globe.nextFact()
 }
 
 @Composable
@@ -157,7 +159,6 @@ private fun BoxScope.Controls(
     searchResults: List<SearchResult>,
     actions: GlobeScreenActions,
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
     var showAbout by rememberSaveable { mutableStateOf(false) }
 
     InfoButton(
@@ -167,37 +168,17 @@ private fun BoxScope.Controls(
             .safeDrawingPadding()
             .padding(CONTROL_MARGIN),
     )
-    AnimatedVisibility(
+    SearchControl(
         visible = step == OnboardingStep.Finished && state.selected == null,
-        enter = fadeIn(),
-        exit = fadeOut(),
-        modifier = Modifier
-            .align(Alignment.BottomCenter)
-            .safeDrawingPadding()
-            .padding(CONTROL_MARGIN),
-    ) {
-        SearchBar(
-            query = query,
-            results = searchResults,
-            onQueryChange = { text ->
-                query = text
-                actions.search(text)
-            },
-            onChoose = { result ->
-                query = ""
-                actions.choose(result)
-            },
-            onSubmit = {
-                actions.submitSearch(query)
-                query = ""
-            },
-        )
-    }
+        results = searchResults,
+        actions = actions,
+    )
     CountrySheet(
         country = state.selected,
         subdivision = state.selectedSubdivision,
         story = story,
         onRetryStory = actions::retryStory,
+        onNextFact = actions::nextFact,
         // Closing a state's sheet steps back to its country; closing the country's leaves it.
         onClose = {
             if (state.selectedSubdivision != null) actions.selectSubdivision(null) else actions.selectCountry(null)
@@ -216,6 +197,38 @@ private fun BoxScope.Controls(
         WelcomeOverlay(onContinue = { actions.onboardingEvent(OnboardingEvent.Started) })
     }
     if (showAbout) AboutSheet(onDismiss = { showAbout = false })
+}
+
+/** The search bar at the bottom, shown while no country is open; it holds its own query. */
+@Composable
+private fun BoxScope.SearchControl(visible: Boolean, results: List<SearchResult>, actions: GlobeScreenActions) {
+    var query by rememberSaveable { mutableStateOf("") }
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(),
+        exit = fadeOut(),
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .safeDrawingPadding()
+            .padding(CONTROL_MARGIN),
+    ) {
+        SearchBar(
+            query = query,
+            results = results,
+            onQueryChange = { text ->
+                query = text
+                actions.search(text)
+            },
+            onChoose = { result ->
+                query = ""
+                actions.choose(result)
+            },
+            onSubmit = {
+                actions.submitSearch(query)
+                query = ""
+            },
+        )
+    }
 }
 
 @Composable

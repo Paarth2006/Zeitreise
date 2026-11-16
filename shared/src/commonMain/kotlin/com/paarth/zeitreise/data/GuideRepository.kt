@@ -3,10 +3,12 @@ package com.paarth.zeitreise.data
 import com.paarth.zeitreise.ai.Guide
 import com.paarth.zeitreise.ai.GuidePlace
 import com.paarth.zeitreise.ai.GuideUnavailableException
-import com.paarth.zeitreise.ai.wikipediaStory
+import com.paarth.zeitreise.ai.wikipediaFacts
 import com.paarth.zeitreise.domain.GuideAnswer
+import com.paarth.zeitreise.domain.GuideFact
 import com.paarth.zeitreise.domain.GuideNotice
 import com.paarth.zeitreise.domain.GuideStory
+import com.paarth.zeitreise.domain.SourcedFact
 import com.paarth.zeitreise.domain.StorySource
 import com.paarth.zeitreise.domain.WikiArticle
 
@@ -22,8 +24,9 @@ public interface GuideRepository {
 }
 
 /**
- * Reads the place's Wikipedia article, then asks the guides in order of how much they can say:
- * the AI guide when there is one, then the bundled demo stories, then the article itself. The
+ * Reads the place's Wikipedia article and its notable sentences, then asks the guides in order of
+ * how much they can say: the AI guide when there is one; otherwise the bundled facts followed by
+ * the article's own, so every visit to a place can show something new. The
  * AI failing, for instance on the free tier's rate limit, is never an error; the next guide simply
  * answers, and the answer says why the AI did not.
  *
@@ -37,23 +40,37 @@ internal class FallbackGuideRepository(
 
     override suspend fun storyFor(place: GuidePlace): GuideAnswer? {
         val article = wikipedia.article(place.wikidataId, fallbackTitle = place.name) ?: return null
-        val (aiStory, notice) = askAi(place, article)
-        return when {
-            aiStory != null -> GuideAnswer(aiStory, StorySource.Ai, article)
-            else -> demoGuide.tell(place, article)?.let { GuideAnswer(it, StorySource.Curated, article, notice) }
-                ?: GuideAnswer(wikipediaStory(article), StorySource.Wikipedia, article, notice)
+        val notable = wikipedia.notableFacts(article)
+        val (aiStory, notice) = askAi(place, article, notable)
+        val curated = if (aiStory == null) demoGuide.tell(place, article, notable) else null
+        val facts = when {
+            aiStory != null -> aiStory.facts.sourcedAs(StorySource.Ai)
+            // The bundled fact first, then the article's own, so a second visit still has news.
+            else -> curated?.facts.orEmpty().sourcedAs(StorySource.Curated) +
+                wikipediaFacts(article, notable).sourcedAs(StorySource.Wikipedia)
         }
+        return GuideAnswer(
+            facts = facts,
+            knownFor = (aiStory ?: curated)?.knownFor.orEmpty(),
+            article = article,
+            notice = notice,
+        )
     }
 
     /** The AI's story, or why there is none: no notice when no AI guide is set up at all. */
-    private suspend fun askAi(place: GuidePlace, article: WikiArticle): Pair<GuideStory?, GuideNotice?> =
-        if (aiGuide == null) {
-            null to null
-        } else {
-            try {
-                aiGuide.tell(place, article) to null
-            } catch (unavailable: GuideUnavailableException) {
-                null to if (unavailable.rateLimited) GuideNotice.RateLimited else GuideNotice.Unavailable
-            }
+    private suspend fun askAi(
+        place: GuidePlace,
+        article: WikiArticle,
+        notable: List<String>,
+    ): Pair<GuideStory?, GuideNotice?> = if (aiGuide == null) {
+        null to null
+    } else {
+        try {
+            aiGuide.tell(place, article, notable) to null
+        } catch (unavailable: GuideUnavailableException) {
+            null to if (unavailable.rateLimited) GuideNotice.RateLimited else GuideNotice.Unavailable
         }
+    }
 }
+
+private fun List<GuideFact>.sourcedAs(source: StorySource): List<SourcedFact> = map { SourcedFact(it, source) }

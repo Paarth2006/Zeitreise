@@ -19,7 +19,9 @@ public interface Guide {
      * Tells a story about [place], grounded on its Wikipedia [article] so that it states only what
      * the article supports.
      *
+     * @param notableFacts sentences from further into the article, which give a guide more than
+     *   the opening paragraph to choose facts from.
      * @return the story, or `null` when this guide has nothing to say about [place].
      */
-    public suspend fun tell(place: GuidePlace, article: WikiArticle): GuideStory?
+    public suspend fun tell(place: GuidePlace, article: WikiArticle, notableFacts: List<String>): GuideStory?
 }

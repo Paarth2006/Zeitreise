@@ -9,10 +9,13 @@ class GuideStoryParserTest {
 
     @Test
     fun readsBareJson() {
-        val story = parseGuideStory("""{"headline": "Wider than the Moon", "fact": "It is.", "knownFor": ["Uluru"]}""")
+        val story = parseGuideStory(
+            """{"facts": [{"headline": "Wider than the Moon", "fact": "It is."}], "knownFor": ["Uluru"]}""",
+        )
 
         assertNotNull(story)
-        assertEquals("Wider than the Moon", story.headline)
+        assertEquals("Wider than the Moon", story.facts.single().headline)
+        assertEquals("It is.", story.facts.single().text)
         assertEquals(listOf("Uluru"), story.knownFor)
     }
 
@@ -21,22 +24,38 @@ class GuideStoryParserTest {
         val reply = """
             Here you go!
             ```json
-            {"headline": "A", "fact": "B"}
+            {"facts": [{"headline": "A", "fact": "B"}]}
             ```
         """.trimIndent()
 
-        assertEquals("A", parseGuideStory(reply)?.headline)
+        assertEquals("A", parseGuideStory(reply)?.facts?.single()?.headline)
     }
 
     @Test
-    fun trimsTheTextAndKeepsAtMostThreeNonBlankKnownFor() {
+    fun trimsTheTextAndDropsBlankFactsAndKnownFor() {
         val story = parseGuideStory(
-            """{"headline": "  A  ", "fact": " B ", "knownFor": ["one", " ", "two", "three", "four"]}""",
+            """
+            {"facts": [{"headline": "  A  ", "fact": " B "}, {"headline": "C", "fact": "  "}],
+             "knownFor": ["one", " ", "two", "three", "four"]}
+            """.trimIndent(),
         )
 
-        assertEquals("A", story?.headline)
-        assertEquals("B", story?.fact)
+        assertEquals(1, story?.facts?.size)
+        assertEquals("A", story?.facts?.single()?.headline)
+        assertEquals("B", story?.facts?.single()?.text)
         assertEquals(listOf("one", "two", "three"), story?.knownFor)
+    }
+
+    @Test
+    fun keepsAtMostFiveFacts() {
+        val facts = (1..8).joinToString(",") { """{"headline": "H$it", "fact": "F$it"}""" }
+
+        assertEquals(MAX_FACTS, parseGuideStory("""{"facts": [$facts]}""")?.facts?.size)
+    }
+
+    @Test
+    fun treatsABlankHeadlineAsNone() {
+        assertNull(parseGuideStory("""{"facts": [{"headline": " ", "fact": "B"}]}""")?.facts?.single()?.headline)
     }
 
     @Test
@@ -46,11 +65,11 @@ class GuideStoryParserTest {
 
     @Test
     fun rejectsMalformedJson() {
-        assertNull(parseGuideStory("""{"headline": "A", "fact": """))
+        assertNull(parseGuideStory("""{"facts": [{"headline": "A", "fact": """))
     }
 
     @Test
-    fun rejectsAStoryWithABlankFact() {
-        assertNull(parseGuideStory("""{"headline": "A", "fact": "   "}"""))
+    fun rejectsAStoryWithNoUsableFact() {
+        assertNull(parseGuideStory("""{"facts": [{"headline": "A", "fact": "   "}]}"""))
     }
 }

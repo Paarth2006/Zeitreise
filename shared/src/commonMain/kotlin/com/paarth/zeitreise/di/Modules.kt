@@ -6,11 +6,13 @@ import com.paarth.zeitreise.ai.GeminiGuide
 import com.paarth.zeitreise.data.BundledCountryRepository
 import com.paarth.zeitreise.data.BundledSubdivisionRepository
 import com.paarth.zeitreise.data.CountryRepository
+import com.paarth.zeitreise.data.FactCursor
 import com.paarth.zeitreise.data.FallbackGuideRepository
 import com.paarth.zeitreise.data.GuideRepository
 import com.paarth.zeitreise.data.KtorWikipediaRepository
 import com.paarth.zeitreise.data.OnboardingStore
 import com.paarth.zeitreise.data.ResponseCache
+import com.paarth.zeitreise.data.SettingsFactCursor
 import com.paarth.zeitreise.data.SettingsOnboardingStore
 import com.paarth.zeitreise.data.SettingsResponseCache
 import com.paarth.zeitreise.data.SubdivisionRepository
@@ -44,6 +46,7 @@ public val sharedModule: Module = module {
     // Ktor picks each platform's engine from the classpath: OkHttp, Darwin or the browser's fetch.
     single { HttpClient() }
     single<ResponseCache> { SettingsResponseCache(settings = get()) }
+    single<FactCursor> { SettingsFactCursor(settings = get()) }
     single<CountryRepository> { BundledCountryRepository(dispatcher = get()) }
     single<SubdivisionRepository> { BundledSubdivisionRepository(dispatcher = get()) }
     single<OnboardingStore> { SettingsOnboardingStore(settings = get(), dispatcher = get()) }

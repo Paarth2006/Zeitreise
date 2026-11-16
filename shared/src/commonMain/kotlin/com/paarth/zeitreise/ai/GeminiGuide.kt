@@ -28,19 +28,22 @@ private const val GUIDE_TEMPERATURE = 0.4
 private const val TOO_MANY_REQUESTS = 429
 
 private val GUIDE_INSTRUCTIONS = """
-    You are Zeitreise's travel guide: warm, curious and precise. You are given a place and the
-    opening of its Wikipedia article. Using ONLY facts stated in that article, reply with one JSON
-    object and nothing else:
-    {"headline": "...", "fact": "...", "knownFor": ["...", "...", "..."]}
-    - headline: at most six words, naming what makes the fact surprising.
-    - fact: one or two sentences with the single most surprising fact the article states.
+    You are Zeitreise's travel guide: warm, curious and precise. You are given a place, the opening
+    of its Wikipedia article, and further sentences from the same article. Using ONLY facts stated
+    in that text, reply with one JSON object and nothing else:
+    {"facts": [{"headline": "...", "fact": "..."}], "knownFor": ["...", "...", "..."]}
+    - facts: $MAX_FACTS different facts, most surprising first, each about a different topic
+      (geography, history, people, culture, nature) where the text allows.
+    - headline: at most six words, naming what makes that fact surprising.
+    - fact: one or two sentences.
     - knownFor: up to three short phrases (at most four words each) the place is famous for.
-    Never invent numbers, dates or names that the article does not contain.
+    Never invent numbers, dates or names that the text does not contain.
 """.trimIndent()
 
 /**
- * The AI guide: asks Gemini, through JetBrains' Koog framework, for a story grounded on the
- * place's Wikipedia article, and keeps every answer so a place costs one request at most.
+ * The AI guide: asks Gemini, through JetBrains' Koog framework, for several facts grounded on the
+ * place's Wikipedia article in a single request, and keeps every answer, so a place costs one
+ * request at most however often it is opened.
  *
  * [tell] throws [GuideUnavailableException] when Gemini cannot answer, so the caller can fall back
  * to the bundled stories.
@@ -54,25 +57,26 @@ internal class GeminiGuide(
     private val json: Json = Json,
 ) : Guide {
 
-    override suspend fun tell(place: GuidePlace, article: WikiArticle): GuideStory = withContext(dispatcher) {
-        val key = "guide.${place.wikidataId ?: place.name}"
-        cache.get(key)?.let { return@withContext json.decodeFromString(GuideStory.serializer(), it) }
+    override suspend fun tell(place: GuidePlace, article: WikiArticle, notableFacts: List<String>): GuideStory =
+        withContext(dispatcher) {
+            val key = "story.${place.wikidataId ?: place.name}"
+            cache.get(key)?.let { return@withContext json.decodeFromString(GuideStory.serializer(), it) }
 
-        val reply = try {
-            client.execute(storyPrompt(place, article), GUIDE_MODEL, emptyList()).textContent()
-        } catch (cause: KoogHttpClientException) {
-            throw GuideUnavailableException(rateLimited = cause.isRateLimit(), cause = cause)
-        } catch (cause: LLMClientException) {
-            throw GuideUnavailableException(rateLimited = cause.isRateLimit(), cause = cause)
-        } catch (cause: IOException) {
-            throw GuideUnavailableException(rateLimited = false, cause = cause)
+            val reply = try {
+                client.execute(storyPrompt(place, article, notableFacts), GUIDE_MODEL, emptyList()).textContent()
+            } catch (cause: KoogHttpClientException) {
+                throw GuideUnavailableException(rateLimited = cause.isRateLimit(), cause = cause)
+            } catch (cause: LLMClientException) {
+                throw GuideUnavailableException(rateLimited = cause.isRateLimit(), cause = cause)
+            } catch (cause: IOException) {
+                throw GuideUnavailableException(rateLimited = false, cause = cause)
+            }
+            val story = parseGuideStory(reply) ?: throw GuideUnavailableException(rateLimited = false)
+            cache.put(key, json.encodeToString(GuideStory.serializer(), story))
+            story
         }
-        val story = parseGuideStory(reply) ?: throw GuideUnavailableException(rateLimited = false)
-        cache.put(key, json.encodeToString(GuideStory.serializer(), story))
-        story
-    }
 
-    private fun storyPrompt(place: GuidePlace, article: WikiArticle) = prompt(
+    private fun storyPrompt(place: GuidePlace, article: WikiArticle, notableFacts: List<String>) = prompt(
         id = "zeitreise-place-story",
         params = LLMParams(temperature = GUIDE_TEMPERATURE),
     ) {
@@ -82,6 +86,9 @@ internal class GeminiGuide(
             Place: ${place.name}, ${place.description}
             Wikipedia article "${article.title}":
             ${article.extract}
+
+            Further sentences from the article:
+            ${notableFacts.joinToString(separator = "\n") { "- $it" }}
             """.trimIndent(),
         )
     }

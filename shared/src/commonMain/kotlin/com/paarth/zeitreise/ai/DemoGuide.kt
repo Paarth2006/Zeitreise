@@ -1,5 +1,6 @@
 package com.paarth.zeitreise.ai
 
+import com.paarth.zeitreise.domain.GuideFact
 import com.paarth.zeitreise.domain.GuideStory
 import com.paarth.zeitreise.domain.WikiArticle
 import kotlinx.coroutines.sync.Mutex
@@ -15,7 +16,7 @@ private const val MAX_WIKIPEDIA_FACT_LENGTH = 280
 private const val MIN_SENTENCE_LENGTH = 40
 
 /**
- * The guide that needs no AI: it tells the stories bundled with the app for about ten countries,
+ * The guide that needs no AI: it tells the facts bundled with the app for about ten countries,
  * so the app has something to say with no API key at all, and stays quiet about other places.
  *
  * @param readStories reads the bundled stories, a JSON object keyed by Wikidata item.
@@ -28,7 +29,7 @@ internal class DemoGuide(
     private val storiesLock = Mutex()
     private var stories: Map<String, GuideStory>? = null
 
-    override suspend fun tell(place: GuidePlace, article: WikiArticle): GuideStory? =
+    override suspend fun tell(place: GuidePlace, article: WikiArticle, notableFacts: List<String>): GuideStory? =
         place.wikidataId?.let { loadStories()[it] }
 
     private suspend fun loadStories(): Map<String, GuideStory> = storiesLock.withLock {
@@ -38,14 +39,19 @@ internal class DemoGuide(
 }
 
 /**
- * A plain story taken straight from a Wikipedia article: its description as the headline and its
- * opening sentences as the fact. Used for any place with no AI story and no bundled one, so every
- * place still says something true.
+ * Facts taken straight from a Wikipedia article, for places with no AI or bundled story, so every
+ * place still has several true things to say: the article's notable sentences, or failing those,
+ * its opening under its own description.
  */
-internal fun wikipediaStory(article: WikiArticle): GuideStory = GuideStory(
-    headline = article.description?.replaceFirstChar(Char::uppercaseChar) ?: article.title,
-    fact = leadSentences(article.extract),
-)
+internal fun wikipediaFacts(article: WikiArticle, notableFacts: List<String>): List<GuideFact> =
+    notableFacts.map { GuideFact(text = it) }.ifEmpty {
+        listOf(
+            GuideFact(
+                headline = article.description?.replaceFirstChar(Char::uppercaseChar) ?: article.title,
+                text = leadSentences(article.extract),
+            ),
+        )
+    }
 
 /**
  * The opening sentences of [text] that fit in [maxLength] characters, ending on a full stop; or

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -37,8 +38,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.paarth.zeitreise.domain.GuideAnswer
+import com.paarth.zeitreise.domain.GuideFact
 import com.paarth.zeitreise.domain.GuideNotice
-import com.paarth.zeitreise.domain.GuideStory
+import com.paarth.zeitreise.domain.SourcedFact
 import com.paarth.zeitreise.domain.StorySource
 import com.paarth.zeitreise.domain.WikiArticle
 import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
@@ -47,9 +49,11 @@ import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.story_ai_unavailable
+import zeitreise.shared.generated.resources.story_did_you_know
 import zeitreise.shared.generated.resources.story_failed
 import zeitreise.shared.generated.resources.story_known_for
 import zeitreise.shared.generated.resources.story_loading
+import zeitreise.shared.generated.resources.story_next_fact
 import zeitreise.shared.generated.resources.story_no_article
 import zeitreise.shared.generated.resources.story_rate_limited
 import zeitreise.shared.generated.resources.story_read_more
@@ -87,10 +91,16 @@ private const val MAX_MILLIS_PER_LETTER = 28L
  *
  * @param story what the guide has, or is doing.
  * @param onRetry called when the user asks to try again after Wikipedia could not be reached.
+ * @param onNextFact called when the user asks for another fact about the same place.
  * @param modifier applied to the root element.
  */
 @Composable
-internal fun StoryPanel(story: StoryState, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+internal fun StoryPanel(
+    story: StoryState,
+    onRetry: () -> Unit,
+    onNextFact: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     AnimatedContent(
         targetState = story,
         transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -100,7 +110,7 @@ internal fun StoryPanel(story: StoryState, onRetry: () -> Unit, modifier: Modifi
         when (state) {
             StoryState.Idle -> Unit
             StoryState.Loading -> LoadingLine()
-            is StoryState.Ready -> StoryContent(state.answer)
+            is StoryState.Ready -> StoryContent(state, onNextFact)
             StoryState.NoArticle -> SecondaryText(stringResource(Res.string.story_no_article))
             StoryState.Failed -> FailedLine(onRetry)
         }
@@ -108,19 +118,27 @@ internal fun StoryPanel(story: StoryState, onRetry: () -> Unit, modifier: Modifi
 }
 
 @Composable
-private fun StoryContent(answer: GuideAnswer, modifier: Modifier = Modifier) {
+private fun StoryContent(state: StoryState.Ready, onNextFact: () -> Unit, modifier: Modifier = Modifier) {
     val uriHandler = LocalUriHandler.current
+    val answer = state.answer
+    val shown = state.fact
     Column(verticalArrangement = Arrangement.spacedBy(STORY_SPACING), modifier = modifier.fillMaxWidth()) {
         Text(
-            text = answer.story.headline,
+            text = shown.fact.headline ?: stringResource(Res.string.story_did_you_know),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary,
         )
-        TypewriterText(text = answer.story.fact, style = MaterialTheme.typography.bodyLarge)
-        if (answer.story.knownFor.isNotEmpty()) KnownFor(answer.story.knownFor)
+        TypewriterText(text = shown.fact.text, style = MaterialTheme.typography.bodyLarge)
+        if (answer.knownFor.isNotEmpty()) KnownFor(answer.knownFor)
         answer.notice?.let { notice -> SecondaryText(stringResource(notice.message())) }
+        SecondaryText(stringResource(shown.source.credit()))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            SecondaryText(stringResource(answer.source.credit()), modifier = Modifier.weight(1f))
+            if (answer.facts.size > 1) {
+                TextButton(onClick = onNextFact) {
+                    Text(stringResource(Res.string.story_next_fact), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+            Spacer(Modifier.weight(1f))
             TextButton(onClick = { uriHandler.openUri(answer.article.pageUrl) }) {
                 Text(stringResource(Res.string.story_read_more), style = MaterialTheme.typography.bodyMedium)
             }
@@ -242,12 +260,16 @@ private fun StoryPanelPreview() {
             StoryPanel(
                 story = StoryState.Ready(
                     GuideAnswer(
-                        story = GuideStory(
-                            headline = "Money that speaks 17 languages",
-                            fact = "Every rupee banknote spells out its value in 17 languages.",
-                            knownFor = listOf("The Taj Mahal", "The Himalayas", "Its cuisines"),
+                        facts = listOf(
+                            SourcedFact(
+                                GuideFact(
+                                    headline = "Money that speaks 17 languages",
+                                    text = "Every rupee banknote spells out its value in 17 languages.",
+                                ),
+                                StorySource.Curated,
+                            ),
                         ),
-                        source = StorySource.Curated,
+                        knownFor = listOf("The Taj Mahal", "The Himalayas", "Its cuisines"),
                         article = WikiArticle(
                             title = "India",
                             extract = "India is a country in South Asia.",
@@ -256,6 +278,7 @@ private fun StoryPanelPreview() {
                     ),
                 ),
                 onRetry = {},
+                onNextFact = {},
                 modifier = Modifier.padding(STORY_SPACING),
             )
         }

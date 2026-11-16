@@ -100,6 +100,7 @@ private const val NAME_MAX_LINES = 2
  * @param story what the guide says about the place the sheet names.
  * @param onClose called when the close button is tapped.
  * @param onRetryStory called when the user asks the guide to try again.
+ * @param onNextFact called when the user asks for another fact about the same place.
  * @param modifier applied to the root element.
  */
 @Composable
@@ -109,6 +110,7 @@ internal fun CountrySheet(
     story: StoryState,
     onClose: () -> Unit,
     onRetryStory: () -> Unit,
+    onNextFact: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // The sheet has to keep naming a country while it slides away, after the selection is gone.
@@ -144,6 +146,7 @@ internal fun CountrySheet(
                 SheetContent(
                     story = story,
                     onRetryStory = onRetryStory,
+                    onNextFact = onNextFact,
                     maxHeight = maxHeight * MAX_HEIGHT_SHARE,
                     title = subdivision?.name ?: shown?.name.orEmpty(),
                     subtitle = when {
@@ -172,6 +175,7 @@ private fun SheetContent(
     maxHeight: Dp,
     onClose: () -> Unit,
     onRetryStory: () -> Unit,
+    onNextFact: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -202,7 +206,12 @@ private fun SheetContent(
             }
             CloseButton(onClick = onClose)
         }
-        StoryPanel(story = story, onRetry = onRetryStory, modifier = Modifier.padding(end = SHEET_PADDING))
+        StoryPanel(
+            story = story,
+            onRetry = onRetryStory,
+            onNextFact = onNextFact,
+            modifier = Modifier.padding(end = SHEET_PADDING),
+        )
     }
 }
 
@@ -246,6 +255,7 @@ private fun CountrySheetPreview() {
             story = StoryState.Loading,
             onClose = {},
             onRetryStory = {},
+            onNextFact = {},
         )
     }
 }
@@ -260,6 +270,7 @@ private fun StateSheetPreview() {
             story = StoryState.NoArticle,
             onClose = {},
             onRetryStory = {},
+            onNextFact = {},
         )
     }
 }

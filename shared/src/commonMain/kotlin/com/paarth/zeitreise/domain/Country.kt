@@ -5,8 +5,10 @@ import com.paarth.zeitreise.globe.GeoPoint
 import com.paarth.zeitreise.globe.PAIR_STRIDE
 import com.paarth.zeitreise.globe.SPHERE_STRIDE
 import com.paarth.zeitreise.globe.SpherePoint
+import com.paarth.zeitreise.globe.angleTo
 import com.paarth.zeitreise.globe.boundingCap
 import com.paarth.zeitreise.globe.isPointInRing
+import com.paarth.zeitreise.globe.ringArea
 import com.paarth.zeitreise.globe.ringExtent
 import com.paarth.zeitreise.globe.simplifyRing
 import com.paarth.zeitreise.globe.toSpherePoint
@@ -19,6 +21,12 @@ internal const val COARSE_TOLERANCE_DEGREES = 0.2
 
 /** Largest share of a ring's own extent the coarse tolerance may reach, so islands keep a shape. */
 private const val COARSE_SHARE_OF_EXTENT = 0.1
+
+/**
+ * How far beyond the mainland's own edge, in degrees, an island still counts as part of the view
+ * of a country: about a thousand kilometres, enough for Okinawa or Corsica but not Hawaii.
+ */
+private const val NEARBY_LAND_DEGREES = 10.0
 
 /** Fewest vertices the coarse copy needs; below this the full ring is used instead. */
 private const val MIN_COARSE_VERTICES = 4
@@ -45,6 +53,9 @@ public class CountryRing internal constructor(internal val geographic: DoubleArr
         geographic,
         COARSE_TOLERANCE_DEGREES.coerceAtMost(geographic.ringExtent() * COARSE_SHARE_OF_EXTENT),
     ).let { coarse -> if (coarse.size / PAIR_STRIDE >= MIN_COARSE_VERTICES) coarse.toSphereTriples() else sphere }
+
+    /** The ring's area, for ranking a country's landmasses by size. */
+    internal val area: Double = geographic.ringArea()
 
     /** The circle on the sphere that holds the whole ring, for skipping it when it is off screen. */
     internal val bounds: GeoCap = boundingCap(sphere)
@@ -110,10 +121,18 @@ public class Country internal constructor(
     }
 
     /**
-     * The region the camera frames when the country is selected: its largest landmass, so that
-     * an outlying island does not pull the view away from the mainland.
+     * The region the camera frames when the country is selected: its largest landmass and the
+     * islands close to it, so Japan is framed from Hokkaido to Okinawa, while a far-off territory
+     * such as French Guiana does not pull the view away from France.
      */
-    public val focus: GeoCap by lazy { boundingCap(outlines.first().exterior.sphere) }
+    public val focus: GeoCap by lazy {
+        val mainland = outlines.first().exterior
+        val reach = mainland.bounds.radiusDegrees + NEARBY_LAND_DEGREES
+        val framed = outlines
+            .map { it.exterior }
+            .filter { mainland.bounds.center.angleTo(it.bounds.center) <= reach }
+        boundingCap(framed.flatMap { it.sphere.asList() }.toDoubleArray())
+    }
 
     override fun toString(): String = "Country($name)"
 }

@@ -4,13 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paarth.zeitreise.ai.GuidePlace
 import com.paarth.zeitreise.data.CountryRepository
+import com.paarth.zeitreise.data.FactCursor
 import com.paarth.zeitreise.data.GuideRepository
 import com.paarth.zeitreise.data.SubdivisionRepository
 import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.SearchResult
 import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.domain.searchPlaces
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,8 +26,11 @@ import kotlinx.coroutines.launch
 public class GlobeViewModel(
     private val countries: CountryRepository,
     private val subdivisions: SubdivisionRepository,
-    private val guide: GuideRepository,
+    guide: GuideRepository,
+    factCursor: FactCursor,
 ) : ViewModel() {
+
+    private val storyTeller = StoryTeller(guide, factCursor)
 
     private val _uiState = MutableStateFlow<GlobeUiState>(GlobeUiState.Loading)
 
@@ -39,8 +42,10 @@ public class GlobeViewModel(
     /** The places matching the latest search, best first; empty when nothing is being searched. */
     public val searchResults: StateFlow<List<SearchResult>> = _searchResults.asStateFlow()
 
+    private val _story = MutableStateFlow<StoryState>(StoryState.Idle)
+
     /** What the guide says about the selected place: a state when one is selected, else its country. */
-    public val story: StateFlow<StoryState>
+    public val story: StateFlow<StoryState> = _story.asStateFlow()
 
     private val storyRetries = MutableStateFlow(0)
     private var subdivisionLoad: Job? = null
@@ -48,13 +53,21 @@ public class GlobeViewModel(
 
     init {
         loadCountries()
-        val storyState = MutableStateFlow<StoryState>(StoryState.Idle)
-        story = storyState.asStateFlow()
         viewModelScope.launch {
             // A new selection cancels the story still loading for the old one.
             val focusedPlace = _uiState.map { (it as? GlobeUiState.Ready)?.focusedPlace() }.distinctUntilChanged()
             combine(focusedPlace, storyRetries) { place, _ -> place }
-                .collectLatest { place -> storyState.value = loadStory(place) }
+                .collectLatest { place ->
+                    _story.value = if (place == null) StoryState.Idle else StoryState.Loading
+                    _story.value = storyTeller.storyFor(place)
+                }
+        }
+    }
+
+    /** Shows the selected place's next fact, starting over after the last one. */
+    public fun nextFact() {
+        _story.update { state ->
+            if (state is StoryState.Ready) storyTeller.nextFact(state) else state
         }
     }
 
@@ -128,16 +141,6 @@ public class GlobeViewModel(
                 if (stillSelected) state.copy(subdivisions = loaded, selectedSubdivision = chosen) else state
             }
         }
-    }
-
-    private suspend fun loadStory(place: GuidePlace?): StoryState {
-        if (place == null) return StoryState.Idle
-        val answer = runCatching { guide.storyFor(place) }
-            .onFailure { if (it is CancellationException) throw it }
-        return answer.fold(
-            onSuccess = { found -> found?.let { StoryState.Ready(it) } ?: StoryState.NoArticle },
-            onFailure = { StoryState.Failed },
-        )
     }
 
     private fun loadCountries() {
