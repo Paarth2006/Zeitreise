@@ -39,6 +39,12 @@ The long-term goal is a guide that tells you a surprising fact about each countr
 - A sheet shows the country's name and continent
 - Close button, or tap the ocean, to clear the selection
 
+### Places to Visit
+- "Explore places" in a country's sheet asks the guide for about eight places worth a visit
+- The guide only names places and their Wikipedia titles; every place is checked against Wikipedia, which gives its location and photo, and places that do not check out are dropped
+- Pins drop onto the globe one by one, and tapping a pin opens a card with the place's photo, summary and a few facts from its article
+- Works without an API key: ten countries have bundled places to visit
+
 ### Onboarding
 - A welcome screen on first launch only, laid over the turning globe
 - Short hints that wait for you to try each gesture: drag the globe, then tap a country

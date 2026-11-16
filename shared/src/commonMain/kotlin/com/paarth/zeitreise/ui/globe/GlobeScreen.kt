@@ -36,11 +36,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paarth.zeitreise.domain.Country
+import com.paarth.zeitreise.domain.Landmark
 import com.paarth.zeitreise.domain.SearchResult
 import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.ui.about.AboutSheet
 import com.paarth.zeitreise.ui.about.InfoButton
+import com.paarth.zeitreise.ui.explore.ExplorePanel
+import com.paarth.zeitreise.ui.explore.ExploreState
+import com.paarth.zeitreise.ui.explore.ExploreViewModel
+import com.paarth.zeitreise.ui.explore.LandmarkCard
+import com.paarth.zeitreise.ui.explore.PlaceSheet
+import com.paarth.zeitreise.ui.explore.about
+import com.paarth.zeitreise.ui.explore.landmarksIn
 import com.paarth.zeitreise.ui.glass.LocalGlassBackdrop
+import com.paarth.zeitreise.ui.glass.SHEET_BODY_END_PADDING
 import com.paarth.zeitreise.ui.onboarding.CoachHint
 import com.paarth.zeitreise.ui.onboarding.OnboardingEvent
 import com.paarth.zeitreise.ui.onboarding.OnboardingStep
@@ -93,12 +102,15 @@ private const val INTRO_START_SCALE = 0.82f
 internal fun GlobeScreen(modifier: Modifier = Modifier) {
     val viewModel = koinViewModel<GlobeViewModel>()
     val onboarding = koinViewModel<OnboardingViewModel>()
+    val explore = koinViewModel<ExploreViewModel>()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val story by viewModel.story.collectAsStateWithLifecycle()
     val step by onboarding.step.collectAsStateWithLifecycle()
+    val exploreState by explore.state.collectAsStateWithLifecycle()
+    val openCard by explore.openCard.collectAsStateWithLifecycle()
     val loadingLabel = stringResource(Res.string.loading_world)
-    val actions = remember(viewModel, onboarding) { GlobeScreenActions(viewModel, onboarding) }
+    val actions = remember(viewModel, onboarding, explore) { GlobeScreenActions(viewModel, onboarding, explore) }
 
     Box(modifier = modifier.fillMaxSize()) {
         when (val current = state) {
@@ -110,7 +122,13 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
             is GlobeUiState.Failed -> FailureMessage(current.message)
             is GlobeUiState.Ready -> {
                 val backdrop = rememberHazeState()
-                ReadyGlobe(state = current, actions = actions, modifier = Modifier.hazeSource(backdrop))
+                val places = PlacesOnGlobe.of(exploreState, openCard, current.selected)
+                ReadyGlobe(
+                    state = current,
+                    places = places,
+                    actions = actions,
+                    modifier = Modifier.hazeSource(backdrop),
+                )
                 var showAbout by rememberSaveable { mutableStateOf(false) }
                 CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
                     // The controls are a second layer of the backdrop, above the globe, so the About
@@ -119,6 +137,7 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
                     Box(modifier = Modifier.fillMaxSize().hazeSource(backdrop, zIndex = CONTROLS_LAYER)) {
                         Controls(
                             state = current,
+                            places = places,
                             story = story,
                             step = step,
                             searchResults = searchResults,
@@ -126,6 +145,8 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
                             onShowAbout = { showAbout = true },
                         )
                     }
+                    // Presented modally over the controls, so its glass refracts the country's sheet too.
+                    PlaceSheet(card = places.openCard, onClose = { actions.showLandmark(null) })
                     AboutSheet(visible = showAbout, onDismiss = { showAbout = false })
                 }
             }
@@ -134,11 +155,43 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
 }
 
 /**
- * What the globe screen's parts can ask for, in one place, so the onboarding hears about every
- * selection however it was made: by tapping, by search, or by pressing Search.
+ * The places of the selected country, as the globe and the sheets show them.
+ *
+ * @property explore what the guide has found for the selected country; [ExploreState.Idle] when
+ *   it has found nothing for it yet, even if it has for another country.
+ * @property landmarks the pinned places of the selected country.
+ * @property openCard the card of one of [landmarks], if one is open.
  */
-private class GlobeScreenActions(private val globe: GlobeViewModel, private val onboarding: OnboardingViewModel) {
+private data class PlacesOnGlobe(
+    val explore: ExploreState,
+    val landmarks: List<Landmark>,
+    val openCard: LandmarkCard?,
+) {
+    companion object {
+        /** What of [state] and [card] belongs to [selected], the country on screen. */
+        fun of(state: ExploreState, card: LandmarkCard?, selected: Country?): PlacesOnGlobe {
+            val landmarks = state.landmarksIn(selected)
+            return PlacesOnGlobe(
+                explore = state.about(selected),
+                landmarks = landmarks,
+                openCard = card?.takeIf { it.landmark in landmarks },
+            )
+        }
+    }
+}
+
+/**
+ * What the globe screen's parts can ask for, in one place, so the onboarding hears about every
+ * selection however it was made: by tapping, by search, or by pressing Search; and so a place's
+ * card closes whenever another country is chosen.
+ */
+private class GlobeScreenActions(
+    private val globe: GlobeViewModel,
+    private val onboarding: OnboardingViewModel,
+    private val places: ExploreViewModel,
+) {
     fun selectCountry(country: Country?) {
+        places.close()
         globe.select(country)
         if (country != null) onboarding.onEvent(OnboardingEvent.CountrySelected)
     }
@@ -148,14 +201,21 @@ private class GlobeScreenActions(private val globe: GlobeViewModel, private val 
     fun search(query: String) = globe.search(query)
 
     fun choose(result: SearchResult) {
+        places.close()
         globe.choose(result)
         onboarding.onEvent(OnboardingEvent.CountrySelected)
     }
 
     fun submitSearch(query: String) {
+        places.close()
         globe.submitSearch(query)
         onboarding.onEvent(OnboardingEvent.CountrySelected)
     }
+
+    fun explore(country: Country) = places.explore(country)
+
+    /** Opens the card for [landmark], or closes the open card when it is `null`. */
+    fun showLandmark(landmark: Landmark?) = if (landmark != null) places.open(landmark) else places.close()
 
     fun onboardingEvent(event: OnboardingEvent) = onboarding.onEvent(event)
 
@@ -165,7 +225,12 @@ private class GlobeScreenActions(private val globe: GlobeViewModel, private val 
 }
 
 @Composable
-private fun ReadyGlobe(state: GlobeUiState.Ready, actions: GlobeScreenActions, modifier: Modifier = Modifier) {
+private fun ReadyGlobe(
+    state: GlobeUiState.Ready,
+    places: PlacesOnGlobe,
+    actions: GlobeScreenActions,
+    modifier: Modifier = Modifier,
+) {
     val intro = remember { Animatable(0f) }
     LaunchedEffect(intro) { intro.animateTo(1f, tween(INTRO_MILLIS, easing = FastOutSlowInEasing)) }
 
@@ -173,6 +238,9 @@ private fun ReadyGlobe(state: GlobeUiState.Ready, actions: GlobeScreenActions, m
         content = state,
         onSelectCountry = actions::selectCountry,
         onSelectSubdivision = actions::selectSubdivision,
+        landmarks = places.landmarks,
+        openLandmark = places.openCard?.landmark,
+        onSelectLandmark = actions::showLandmark,
         onTurned = { actions.onboardingEvent(OnboardingEvent.GlobeTurned) },
         modifier = modifier.graphicsLayer {
             val progress = intro.value
@@ -191,6 +259,7 @@ private fun ReadyGlobe(state: GlobeUiState.Ready, actions: GlobeScreenActions, m
 @Composable
 private fun BoxScope.Controls(
     state: GlobeUiState.Ready,
+    places: PlacesOnGlobe,
     story: StoryState,
     step: OnboardingStep,
     searchResults: List<SearchResult>,
@@ -212,15 +281,23 @@ private fun BoxScope.Controls(
     CountrySheet(
         country = state.selected,
         subdivision = state.selectedSubdivision,
-        story = story,
-        onRetryStory = actions::retryStory,
-        onNextFact = actions::nextFact,
         // Closing a state's sheet steps back to its country; closing the country's leaves it.
         onClose = {
             if (state.selectedSubdivision != null) actions.selectSubdivision(null) else actions.selectCountry(null)
         },
         modifier = Modifier.align(Alignment.BottomCenter),
-    )
+    ) {
+        val bodyModifier = Modifier.padding(end = SHEET_BODY_END_PADDING)
+        StoryPanel(
+            story = story,
+            onRetry = actions::retryStory,
+            onNextFact = actions::nextFact,
+            modifier = bodyModifier,
+        )
+        state.selected?.let { country ->
+            ExplorePanel(state = places.explore, onExplore = { actions.explore(country) }, modifier = bodyModifier)
+        }
+    }
     CoachHint(
         step = step,
         onSkip = { actions.onboardingEvent(OnboardingEvent.Skipped) },

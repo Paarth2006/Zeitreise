@@ -1,5 +1,6 @@
 package com.paarth.zeitreise.data
 
+import com.paarth.zeitreise.globe.GeoPoint
 import com.russhwolf.settings.MapSettings
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -32,6 +33,7 @@ private fun summaryAnswer(title: String, type: String = "standard") = """
       "description": "Country in South Asia",
       "extract": "$title is a country in South Asia.",
       "thumbnail": { "source": "https://upload.wikimedia.org/$title.png" },
+      "coordinates": { "lat": 22.8, "lon": 79.0 },
       "content_urls": { "desktop": { "page": "https://en.wikipedia.org/wiki/$title" } }
     }
 """.trimIndent()
@@ -69,6 +71,7 @@ class WikipediaRepositoryTest {
         assertEquals("Country in South Asia", article.description)
         assertEquals("https://en.wikipedia.org/wiki/India", article.pageUrl)
         assertEquals("https://upload.wikimedia.org/India.png", article.thumbnailUrl)
+        assertEquals(GeoPoint(latitude = 22.8, longitude = 79.0), article.location)
         assertEquals("/api/rest_v1/page/summary/India", requests.last().url.encodedPath)
     }
 

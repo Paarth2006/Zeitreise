@@ -24,7 +24,23 @@ class DemoGuideTest {
             { "Q408": { "facts": [{ "headline": "Wider than the Moon", "fact": "It is." }], "knownFor": ["Uluru"] } }
             """
         },
+        readPlaces = {
+            """{ "Q408": { "places": [{ "name": "Uluru", "wikipediaTitle": "Uluru" }] } }"""
+        },
     )
+
+    @Test
+    fun suggestsTheBundledPlacesForACountryItKnows() = runTest {
+        assertEquals(
+            listOf(PlaceSuggestion("Uluru", "Uluru")),
+            guide.suggestPlaces(GuidePlace("Australia", "a country", "Q408"), ARTICLE),
+        )
+    }
+
+    @Test
+    fun suggestsNoPlacesForACountryItDoesNotKnow() = runTest {
+        assertNull(guide.suggestPlaces(GuidePlace("Fiji", "a country", "Q712"), ARTICLE))
+    }
 
     @Test
     fun tellsTheBundledStoryForAPlaceItKnows() = runTest {
@@ -71,6 +87,11 @@ class DemoGuideTest {
     @Test
     fun usesTheTitleAsHeadlineWhenThereIsNoDescription() {
         assertEquals("Australia", wikipediaFacts(ARTICLE.copy(description = null), emptyList()).single().headline)
+    }
+
+    @Test
+    fun closesTheGapsWikipediaLeavesWhereItStripsANativeName() {
+        assertEquals("Shiretoko National Park covers it.", leadSentences("Shiretoko National Park  covers it."))
     }
 
     @Test

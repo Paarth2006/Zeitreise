@@ -1,0 +1,102 @@
+{
+  "Q668": { "places": [
+    { "name": "Taj Mahal", "wikipediaTitle": "Taj Mahal" },
+    { "name": "Golden Temple", "wikipediaTitle": "Golden Temple" },
+    { "name": "Jaipur", "wikipediaTitle": "Jaipur" },
+    { "name": "Varanasi", "wikipediaTitle": "Varanasi" },
+    { "name": "Hampi", "wikipediaTitle": "Hampi" },
+    { "name": "Ajanta Caves", "wikipediaTitle": "Ajanta Caves" },
+    { "name": "Alappuzha backwaters", "wikipediaTitle": "Alappuzha" },
+    { "name": "Leh", "wikipediaTitle": "Leh" }
+  ] },
+  "Q183": { "places": [
+    { "name": "Neuschwanstein Castle", "wikipediaTitle": "Neuschwanstein Castle" },
+    { "name": "Brandenburg Gate", "wikipediaTitle": "Brandenburg Gate" },
+    { "name": "Cologne Cathedral", "wikipediaTitle": "Cologne Cathedral" },
+    { "name": "Heidelberg", "wikipediaTitle": "Heidelberg" },
+    { "name": "Rothenburg ob der Tauber", "wikipediaTitle": "Rothenburg ob der Tauber" },
+    { "name": "Zugspitze", "wikipediaTitle": "Zugspitze" },
+    { "name": "Speicherstadt", "wikipediaTitle": "Speicherstadt" },
+    { "name": "Frauenkirche, Dresden", "wikipediaTitle": "Frauenkirche, Dresden" }
+  ] },
+  "Q17": { "places": [
+    { "name": "Mount Fuji", "wikipediaTitle": "Mount Fuji" },
+    { "name": "Fushimi Inari-taisha", "wikipediaTitle": "Fushimi Inari-taisha" },
+    { "name": "Himeji Castle", "wikipediaTitle": "Himeji Castle" },
+    { "name": "Itsukushima", "wikipediaTitle": "Itsukushima" },
+    { "name": "Hiroshima Peace Memorial", "wikipediaTitle": "Hiroshima Peace Memorial" },
+    { "name": "Tōdai-ji", "wikipediaTitle": "Tōdai-ji" },
+    { "name": "Shirakawa-gō", "wikipediaTitle": "Shirakawa-gō" },
+    { "name": "Shiretoko National Park", "wikipediaTitle": "Shiretoko National Park" }
+  ] },
+  "Q155": { "places": [
+    { "name": "Christ the Redeemer", "wikipediaTitle": "Christ the Redeemer (statue)" },
+    { "name": "Iguazu Falls", "wikipediaTitle": "Iguazu Falls" },
+    { "name": "Sugarloaf Mountain", "wikipediaTitle": "Sugarloaf Mountain" },
+    { "name": "Amazon Theatre", "wikipediaTitle": "Amazon Theatre" },
+    { "name": "Lençóis Maranhenses", "wikipediaTitle": "Lençóis Maranhenses National Park" },
+    { "name": "Pelourinho", "wikipediaTitle": "Pelourinho" },
+    { "name": "Ouro Preto", "wikipediaTitle": "Ouro Preto" },
+    { "name": "Fernando de Noronha", "wikipediaTitle": "Fernando de Noronha" }
+  ] },
+  "Q79": { "places": [
+    { "name": "Pyramids of Giza", "wikipediaTitle": "Giza pyramid complex" },
+    { "name": "Karnak", "wikipediaTitle": "Karnak" },
+    { "name": "Valley of the Kings", "wikipediaTitle": "Valley of the Kings" },
+    { "name": "Abu Simbel", "wikipediaTitle": "Abu Simbel" },
+    { "name": "Philae", "wikipediaTitle": "Philae" },
+    { "name": "Saint Catherine's Monastery", "wikipediaTitle": "Saint Catherine's Monastery" },
+    { "name": "Siwa Oasis", "wikipediaTitle": "Siwa Oasis" },
+    { "name": "White Desert", "wikipediaTitle": "White Desert National Park" }
+  ] },
+  "Q38": { "places": [
+    { "name": "Colosseum", "wikipediaTitle": "Colosseum" },
+    { "name": "Leaning Tower of Pisa", "wikipediaTitle": "Leaning Tower of Pisa" },
+    { "name": "Venice", "wikipediaTitle": "Venice" },
+    { "name": "Pompeii", "wikipediaTitle": "Pompeii" },
+    { "name": "Amalfi Coast", "wikipediaTitle": "Amalfi Coast" },
+    { "name": "Cinque Terre", "wikipediaTitle": "Cinque Terre" },
+    { "name": "Florence Cathedral", "wikipediaTitle": "Florence Cathedral" },
+    { "name": "Valley of the Temples", "wikipediaTitle": "Valle dei Templi" }
+  ] },
+  "Q419": { "places": [
+    { "name": "Machu Picchu", "wikipediaTitle": "Machu Picchu" },
+    { "name": "Lake Titicaca", "wikipediaTitle": "Lake Titicaca" },
+    { "name": "Nazca Lines", "wikipediaTitle": "Nazca Lines" },
+    { "name": "Colca Canyon", "wikipediaTitle": "Colca Canyon" },
+    { "name": "Cusco", "wikipediaTitle": "Cusco" },
+    { "name": "Rainbow Mountain", "wikipediaTitle": "Vinicunca" },
+    { "name": "Huascarán National Park", "wikipediaTitle": "Huascarán National Park" },
+    { "name": "Chan Chan", "wikipediaTitle": "Chan Chan" }
+  ] },
+  "Q408": { "places": [
+    { "name": "Sydney Opera House", "wikipediaTitle": "Sydney Opera House" },
+    { "name": "Uluru", "wikipediaTitle": "Uluru" },
+    { "name": "Great Barrier Reef", "wikipediaTitle": "Great Barrier Reef" },
+    { "name": "Twelve Apostles", "wikipediaTitle": "Port Campbell National Park" },
+    { "name": "Kakadu National Park", "wikipediaTitle": "Kakadu National Park" },
+    { "name": "Daintree Rainforest", "wikipediaTitle": "Daintree Rainforest" },
+    { "name": "Port Arthur", "wikipediaTitle": "Port Arthur, Tasmania" },
+    { "name": "Shark Bay", "wikipediaTitle": "Shark Bay" }
+  ] },
+  "Q16": { "places": [
+    { "name": "Niagara Falls", "wikipediaTitle": "Niagara Falls" },
+    { "name": "Banff National Park", "wikipediaTitle": "Banff National Park" },
+    { "name": "Moraine Lake", "wikipediaTitle": "Moraine Lake" },
+    { "name": "CN Tower", "wikipediaTitle": "CN Tower" },
+    { "name": "Château Frontenac", "wikipediaTitle": "Château Frontenac" },
+    { "name": "Bay of Fundy", "wikipediaTitle": "Bay of Fundy" },
+    { "name": "Gros Morne National Park", "wikipediaTitle": "Gros Morne National Park" },
+    { "name": "Butchart Gardens", "wikipediaTitle": "Butchart Gardens" }
+  ] },
+  "Q189": { "places": [
+    { "name": "Gullfoss", "wikipediaTitle": "Gullfoss" },
+    { "name": "Þingvellir", "wikipediaTitle": "Þingvellir" },
+    { "name": "Jökulsárlón", "wikipediaTitle": "Jökulsárlón" },
+    { "name": "Blue Lagoon", "wikipediaTitle": "Blue Lagoon (geothermal spa)" },
+    { "name": "Hallgrímskirkja", "wikipediaTitle": "Hallgrímskirkja" },
+    { "name": "Skógafoss", "wikipediaTitle": "Skógafoss" },
+    { "name": "Reynisfjara", "wikipediaTitle": "Reynisfjara" },
+    { "name": "Dettifoss", "wikipediaTitle": "Dettifoss" }
+  ] }
+}

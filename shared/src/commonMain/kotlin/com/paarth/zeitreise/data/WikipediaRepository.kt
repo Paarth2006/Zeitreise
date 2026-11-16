@@ -144,6 +144,8 @@ internal class KtorWikipediaRepository(
                 extract = it.extract,
                 thumbnailUrl = it.thumbnail?.source,
                 pageUrl = it.contentUrls?.desktop?.page ?: "https://en.wikipedia.org/wiki/${title.replace(' ', '_')}",
+                latitude = it.coordinates?.lat,
+                longitude = it.coordinates?.lon,
             )
         }
     }
@@ -186,7 +188,11 @@ private data class WikiSummary(
     val extract: String = "",
     val thumbnail: WikiImage? = null,
     @SerialName("content_urls") val contentUrls: WikiContentUrls? = null,
+    val coordinates: WikiCoordinates? = null,
 )
+
+@Serializable
+private data class WikiCoordinates(val lat: Double, val lon: Double)
 
 @Serializable
 private data class WikiImage(val source: String)

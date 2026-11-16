@@ -18,7 +18,7 @@
     <string name="search_in_country">In %1$s</string>
     <string name="about_open">About Zeitreise</string>
     <string name="about_title">About Zeitreise</string>
-    <string name="about_body">Spin the globe, open a country and explore its states. Zeitreise runs on Android, iOS and the web from one Kotlin Multiplatform codebase.</string>
+    <string name="about_body">Spin the globe, open a country, explore its states and the places worth a visit. Zeitreise runs on Android, iOS and the web from one Kotlin Multiplatform codebase.</string>
     <string name="about_credits_heading">Credits</string>
     <string name="about_credit_wikipedia">Place descriptions and facts: Wikipedia, under the Creative Commons Attribution-ShareAlike licence (CC BY-SA). Articles are found through Wikidata.</string>
     <string name="about_credit_ai">With a Gemini API key, the AI guide writes its stories from the Wikipedia article alone.</string>
@@ -37,4 +37,18 @@
     <string name="story_retry">Try again</string>
     <string name="story_did_you_know">Did you know?</string>
     <string name="story_next_fact">Next fact</string>
+    <string name="explore_button">Explore places</string>
+    <string name="explore_loading">Finding places worth a visit…</string>
+    <plurals name="explore_found">
+        <item quantity="one">%1$d place pinned on the globe. Tap it to open it.</item>
+        <item quantity="other">%1$d places pinned on the globe. Tap a pin to open it.</item>
+    </plurals>
+    <string name="explore_none">The guide has no places to suggest here yet.</string>
+    <string name="explore_failed">Couldn’t reach Wikipedia to check the places.</string>
+    <string name="explore_source_ai">Chosen by the AI guide, checked against Wikipedia</string>
+    <string name="explore_source_curated">From the Zeitreise guidebook, checked against Wikipedia</string>
+    <string name="place_photo">Photo of %1$s</string>
+    <string name="place_facts_loading">Reading up on this place…</string>
+    <string name="place_close">Back to the country</string>
+    <string name="place_pin">%1$s, pinned on the globe</string>
 </resources>

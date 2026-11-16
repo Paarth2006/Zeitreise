@@ -3,6 +3,7 @@ package com.paarth.zeitreise.data
 import com.paarth.zeitreise.ai.Guide
 import com.paarth.zeitreise.ai.GuidePlace
 import com.paarth.zeitreise.ai.GuideUnavailableException
+import com.paarth.zeitreise.ai.PlaceSuggestion
 import com.paarth.zeitreise.domain.GuideFact
 import com.paarth.zeitreise.domain.GuideNotice
 import com.paarth.zeitreise.domain.GuideStory
@@ -48,6 +49,8 @@ private class FakeGuide(private val story: GuideStory?, private val failure: Thr
         failure?.let { throw it }
         return story
     }
+
+    override suspend fun suggestPlaces(country: GuidePlace, article: WikiArticle): List<PlaceSuggestion>? = null
 }
 
 class FallbackGuideRepositoryTest {

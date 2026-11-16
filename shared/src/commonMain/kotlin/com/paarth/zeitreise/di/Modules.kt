@@ -6,9 +6,11 @@ import com.paarth.zeitreise.ai.GeminiGuide
 import com.paarth.zeitreise.data.BundledCountryRepository
 import com.paarth.zeitreise.data.BundledSubdivisionRepository
 import com.paarth.zeitreise.data.CountryRepository
+import com.paarth.zeitreise.data.ExploreRepository
 import com.paarth.zeitreise.data.FactCursor
 import com.paarth.zeitreise.data.FallbackGuideRepository
 import com.paarth.zeitreise.data.GuideRepository
+import com.paarth.zeitreise.data.GuidedExploreRepository
 import com.paarth.zeitreise.data.KtorWikipediaRepository
 import com.paarth.zeitreise.data.OnboardingStore
 import com.paarth.zeitreise.data.ResponseCache
@@ -17,6 +19,7 @@ import com.paarth.zeitreise.data.SettingsOnboardingStore
 import com.paarth.zeitreise.data.SettingsResponseCache
 import com.paarth.zeitreise.data.SubdivisionRepository
 import com.paarth.zeitreise.data.WikipediaRepository
+import com.paarth.zeitreise.ui.explore.ExploreViewModel
 import com.paarth.zeitreise.ui.globe.GlobeViewModel
 import com.paarth.zeitreise.ui.onboarding.OnboardingViewModel
 import com.russhwolf.settings.Settings
@@ -31,6 +34,9 @@ import zeitreise.shared.generated.resources.Res
 
 /** Path of the bundled demo stories inside the compose resources. */
 private const val DEMO_STORIES = "files/guide/stories.json"
+
+/** Path of the bundled places to visit inside the compose resources. */
+private const val DEMO_PLACES = "files/guide/places.json"
 
 /**
  * Everything the app needs on every platform.
@@ -51,15 +57,23 @@ public val sharedModule: Module = module {
     single<SubdivisionRepository> { BundledSubdivisionRepository(dispatcher = get()) }
     single<OnboardingStore> { SettingsOnboardingStore(settings = get(), dispatcher = get()) }
     single<WikipediaRepository> { KtorWikipediaRepository(client = get(), cache = get(), dispatcher = get()) }
-    single<GuideRepository> {
-        FallbackGuideRepository(
-            wikipedia = get(),
-            aiGuide = GEMINI_API_KEY.takeIf { it.isNotBlank() }?.let { key ->
-                GeminiGuide.create(apiKey = key, httpClient = get(), cache = get(), dispatcher = get())
-            },
-            demoGuide = DemoGuide(readStories = { Res.readBytes(DEMO_STORIES).decodeToString() }),
+    single<DemoGuide> {
+        DemoGuide(
+            readStories = { Res.readBytes(DEMO_STORIES).decodeToString() },
+            readPlaces = { Res.readBytes(DEMO_PLACES).decodeToString() },
         )
     }
+    // Only defined with an API key, so the repositories find no AI guide without one.
+    GEMINI_API_KEY.takeIf { it.isNotBlank() }?.let { key ->
+        single { GeminiGuide.create(apiKey = key, httpClient = get(), cache = get(), dispatcher = get()) }
+    }
+    single<GuideRepository> {
+        FallbackGuideRepository(wikipedia = get(), aiGuide = getOrNull<GeminiGuide>(), demoGuide = get<DemoGuide>())
+    }
+    single<ExploreRepository> {
+        GuidedExploreRepository(wikipedia = get(), aiGuide = getOrNull<GeminiGuide>(), demoGuide = get<DemoGuide>())
+    }
     viewModelOf(::GlobeViewModel)
+    viewModelOf(::ExploreViewModel)
     viewModelOf(::OnboardingViewModel)
 }

@@ -5,6 +5,7 @@ import com.paarth.zeitreise.domain.GuideStory
 import com.paarth.zeitreise.domain.WikiArticle
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
@@ -15,26 +16,42 @@ private const val MAX_WIKIPEDIA_FACT_LENGTH = 280
 /** Shortest a first sentence may be before it is taken as the end of one, which skips "St." and "U.S.". */
 private const val MIN_SENTENCE_LENGTH = 40
 
+private val WHITESPACE_RUN = Regex("\\s+")
+
 /**
- * The guide that needs no AI: it tells the facts bundled with the app for about ten countries,
- * so the app has something to say with no API key at all, and stays quiet about other places.
+ * The guide that needs no AI: it tells the facts and suggests the places bundled with the app for
+ * about ten countries, so the app has something to say with no API key at all, and stays quiet
+ * about other places.
  *
  * @param readStories reads the bundled stories, a JSON object keyed by Wikidata item.
+ * @param readPlaces reads the bundled places to visit, a JSON object keyed by Wikidata item.
  */
 internal class DemoGuide(
     private val readStories: suspend () -> String,
+    private val readPlaces: suspend () -> String,
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) : Guide {
 
-    private val storiesLock = Mutex()
-    private var stories: Map<String, GuideStory>? = null
+    private val stories = Bundled(MapSerializer(String.serializer(), GuideStory.serializer()), readStories)
+    private val places = Bundled(MapSerializer(String.serializer(), PlaceSuggestions.serializer()), readPlaces)
 
     override suspend fun tell(place: GuidePlace, article: WikiArticle, notableFacts: List<String>): GuideStory? =
-        place.wikidataId?.let { loadStories()[it] }
+        place.wikidataId?.let { stories.load()[it] }
 
-    private suspend fun loadStories(): Map<String, GuideStory> = storiesLock.withLock {
-        stories ?: json.decodeFromString(MapSerializer(String.serializer(), GuideStory.serializer()), readStories())
-            .also { stories = it }
+    override suspend fun suggestPlaces(country: GuidePlace, article: WikiArticle): List<PlaceSuggestion>? =
+        country.wikidataId?.let { places.load()[it]?.places }
+
+    /** A bundled file, read and decoded the first time it is needed and kept from then on. */
+    private inner class Bundled<T>(
+        private val deserializer: DeserializationStrategy<T>,
+        private val read: suspend () -> String,
+    ) {
+        private val lock = Mutex()
+        private var value: T? = null
+
+        suspend fun load(): T = lock.withLock {
+            value ?: json.decodeFromString(deserializer, read()).also { value = it }
+        }
     }
 }
 
@@ -58,7 +75,8 @@ internal fun wikipediaFacts(article: WikiArticle, notableFacts: List<String>): L
  * the text cut at a word boundary when even the first sentence is longer.
  */
 internal fun leadSentences(text: String, maxLength: Int = MAX_WIKIPEDIA_FACT_LENGTH): String {
-    val trimmed = text.trim()
+    // Wikipedia leaves a double space where it strips a pronunciation or a native name.
+    val trimmed = text.trim().replace(WHITESPACE_RUN, " ")
     if (trimmed.length <= maxLength) return trimmed
     val sentenceEnds = generateSequence(trimmed.indexOf(". ")) { previous ->
         trimmed.indexOf(". ", previous + 1).takeIf { it >= 0 }

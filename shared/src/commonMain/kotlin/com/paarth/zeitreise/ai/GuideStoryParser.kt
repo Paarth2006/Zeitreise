@@ -2,6 +2,7 @@ package com.paarth.zeitreise.ai
 
 import com.paarth.zeitreise.domain.GuideFact
 import com.paarth.zeitreise.domain.GuideStory
+import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.json.Json
 
 /** Most "known for" items shown; the sheet has room for a single row of them. */
@@ -18,16 +19,12 @@ private val LENIENT_JSON = Json {
 /**
  * Reads the guide's story out of a model's reply.
  *
- * Models do not always answer with bare JSON: they wrap it in a Markdown code fence or add a line
- * around it. This takes the outermost JSON object in [reply], drops facts with no text, and checks
- * that at least one is left.
+ * Drops facts with no text and checks that at least one is left.
  *
  * @return the story, or `null` when the reply holds no readable fact.
  */
 internal fun parseGuideStory(reply: String): GuideStory? {
-    val start = reply.indexOf('{')
-    val end = reply.lastIndexOf('}')
-    val story = if (start in 0 until end) decodeOrNull(reply.substring(start, end + 1)) else null
+    val story = decodeReply(reply, GuideStory.serializer())
     val facts = story?.facts.orEmpty()
         .filter { it.text.isNotBlank() }
         .map { GuideFact(headline = it.headline?.trim()?.ifBlank { null }, text = it.text.trim()) }
@@ -42,10 +39,22 @@ internal fun parseGuideStory(reply: String): GuideStory? {
     }
 }
 
-/** Decodes a story, or returns `null` for JSON that is malformed or not shaped like a story. */
-private fun decodeOrNull(json: String): GuideStory? = try {
-    LENIENT_JSON.decodeFromString(GuideStory.serializer(), json)
-} catch (_: IllegalArgumentException) {
-    // SerializationException is an IllegalArgumentException, so this covers both.
-    null
+/**
+ * Decodes the outermost JSON object in a model's [reply] with [deserializer].
+ *
+ * Models do not always answer with bare JSON: they wrap it in a Markdown code fence or add a line
+ * around it, so everything outside the outermost braces is ignored.
+ *
+ * @return the decoded value, or `null` when the reply holds no JSON object of that shape.
+ */
+internal fun <T> decodeReply(reply: String, deserializer: DeserializationStrategy<T>): T? {
+    val start = reply.indexOf('{')
+    val end = reply.lastIndexOf('}')
+    if (start !in 0 until end) return null
+    return try {
+        LENIENT_JSON.decodeFromString(deserializer, reply.substring(start, end + 1))
+    } catch (_: IllegalArgumentException) {
+        // SerializationException is an IllegalArgumentException, so this covers both.
+        null
+    }
 }

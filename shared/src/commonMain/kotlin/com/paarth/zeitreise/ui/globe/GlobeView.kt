@@ -1,5 +1,8 @@
 package com.paarth.zeitreise.ui.globe
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -7,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -21,11 +25,13 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import com.paarth.zeitreise.domain.Country
+import com.paarth.zeitreise.domain.Landmark
 import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.domain.territoryAt
 import com.paarth.zeitreise.globe.GeoPoint
@@ -67,6 +73,9 @@ private const val LABEL_HALO_BLUR = 4f
 /** Milliseconds the states take to fade in once they have loaded. */
 private const val SUBDIVISION_FADE_MILLIS = 600
 
+/** Milliseconds the pins take to drop onto the globe, one after another. */
+private const val PIN_DROP_MILLIS = 1_100
+
 private const val NANOS_PER_SECOND = 1_000_000_000.0
 
 /**
@@ -83,6 +92,10 @@ private const val NANOS_PER_SECOND = 1_000_000_000.0
  * @param onSelectSubdivision called with the state that was tapped inside the selected country,
  *   or `null` when the selected country was tapped outside any of its states.
  * @param modifier applied to the root element.
+ * @param landmarks the places pinned on the globe, which drop in one by one when they change.
+ * @param openLandmark the pinned place whose card is open, drawn with a larger pin.
+ * @param onSelectLandmark called with the pinned place that was tapped; a pin wins over the
+ *   country under it.
  * @param onTurned called when the user finishes a drag or pinch.
  */
 @Composable
@@ -91,6 +104,9 @@ internal fun GlobeView(
     onSelectCountry: (Country?) -> Unit,
     onSelectSubdivision: (Subdivision?) -> Unit,
     modifier: Modifier = Modifier,
+    landmarks: List<Landmark> = emptyList(),
+    openLandmark: Landmark? = null,
+    onSelectLandmark: (Landmark) -> Unit = {},
     onTurned: () -> Unit = {},
 ) {
     val selected = content.selected
@@ -101,18 +117,19 @@ internal fun GlobeView(
     val starfield = remember { Starfield() }
     val description = stringResource(Res.string.globe_description)
     val labels = rememberSubdivisionLabels(content.subdivisions, palette)
-    val subdivisionAlpha by animateFloatAsState(
-        targetValue = if (content.subdivisions.isEmpty()) 0f else 1f,
-        animationSpec = tween(SUBDIVISION_FADE_MILLIS),
-    )
+    val subdivisionAlpha by animateSubdivisionAlpha(content.subdivisions)
 
     CameraDriver(state, selected)
+    val pinDrop = rememberPinDrop(landmarks)
+    val density = LocalDensity.current
 
     // The gesture handler is installed once, so it reads the latest state and callbacks through
     // these rather than the ones it was created with.
     val currentContent by rememberUpdatedState(content)
     val currentOnSelectCountry by rememberUpdatedState(onSelectCountry)
     val currentOnSelectSubdivision by rememberUpdatedState(onSelectSubdivision)
+    val currentLandmarks by rememberUpdatedState(landmarks)
+    val currentOnSelectLandmark by rememberUpdatedState(onSelectLandmark)
     val currentOnTurned by rememberUpdatedState(onTurned)
 
     Canvas(
@@ -132,8 +149,14 @@ internal fun GlobeView(
                     currentOnTurned()
                 },
                 onTapped = { position ->
-                    val point = state.projection().unproject(position.x.toDouble(), position.y.toDouble())
-                    currentContent.routeTap(point, currentOnSelectCountry, currentOnSelectSubdivision)
+                    val projection = state.projection()
+                    val pinned = landmarkAt(position, currentLandmarks, projection, density)
+                    if (pinned != null) {
+                        currentOnSelectLandmark(pinned)
+                    } else {
+                        val point = projection.unproject(position.x.toDouble(), position.y.toDouble())
+                        currentContent.routeTap(point, currentOnSelectCountry, currentOnSelectSubdivision)
+                    }
                 },
             ),
     ) {
@@ -146,6 +169,7 @@ internal fun GlobeView(
         drawSubdivisions(subdivisionGeometry, projection, content.selectedSubdivision, subdivisionAlpha, palette)
         labels.draw(this, projection, subdivisionAlpha, content.selectedSubdivision)
         drawAtmosphere(projection, palette)
+        drawLandmarkPins(landmarks, projection, openLandmark, pinDrop.value)
     }
 }
 
@@ -176,6 +200,24 @@ private fun CameraDriver(state: GlobeInteractionState, selected: Country?) {
             }
         }
     }
+}
+
+/** Fades the states in once they have loaded, and out when they are cleared. */
+@Composable
+private fun animateSubdivisionAlpha(subdivisions: List<Subdivision>): State<Float> = animateFloatAsState(
+    targetValue = if (subdivisions.isEmpty()) 0f else 1f,
+    animationSpec = tween(SUBDIVISION_FADE_MILLIS),
+)
+
+/** Runs from 0 to 1 each time a new set of [landmarks] is pinned, dropping their pins in turn. */
+@Composable
+private fun rememberPinDrop(landmarks: List<Landmark>): Animatable<Float, AnimationVector1D> {
+    val drop = remember { Animatable(0f) }
+    LaunchedEffect(landmarks) {
+        drop.snapTo(0f)
+        drop.animateTo(1f, tween(PIN_DROP_MILLIS, easing = LinearEasing))
+    }
+    return drop
 }
 
 /** Measures the selected country's state names once per country, in the palette's label style. */

@@ -1,5 +1,6 @@
 package com.paarth.zeitreise.domain
 
+import com.paarth.zeitreise.globe.GeoPoint
 import kotlinx.serialization.Serializable
 
 /**
@@ -11,6 +12,8 @@ import kotlinx.serialization.Serializable
  * @property extract the article's opening paragraph in plain text.
  * @property thumbnailUrl the lead image, sized for a thumbnail, if the article has one.
  * @property pageUrl the article on Wikipedia, for the "Read on Wikipedia" link.
+ * @property latitude where the article's subject lies, when Wikipedia gives it coordinates.
+ * @property longitude where the article's subject lies, when Wikipedia gives it coordinates.
  */
 @Serializable
 public data class WikiArticle(
@@ -19,4 +22,10 @@ public data class WikiArticle(
     val extract: String,
     val thumbnailUrl: String? = null,
     val pageUrl: String,
-)
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+) {
+    /** Where the article's subject is on the globe, or `null` for an article without coordinates. */
+    val location: GeoPoint?
+        get() = if (latitude != null && longitude != null) GeoPoint(latitude, longitude) else null
+}
