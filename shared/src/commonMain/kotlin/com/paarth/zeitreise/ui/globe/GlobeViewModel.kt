@@ -2,16 +2,23 @@ package com.paarth.zeitreise.ui.globe
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.paarth.zeitreise.ai.GuidePlace
 import com.paarth.zeitreise.data.CountryRepository
+import com.paarth.zeitreise.data.GuideRepository
 import com.paarth.zeitreise.data.SubdivisionRepository
 import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.SearchResult
 import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.domain.searchPlaces
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -19,6 +26,7 @@ import kotlinx.coroutines.launch
 public class GlobeViewModel(
     private val countries: CountryRepository,
     private val subdivisions: SubdivisionRepository,
+    private val guide: GuideRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<GlobeUiState>(GlobeUiState.Loading)
@@ -31,11 +39,28 @@ public class GlobeViewModel(
     /** The places matching the latest search, best first; empty when nothing is being searched. */
     public val searchResults: StateFlow<List<SearchResult>> = _searchResults.asStateFlow()
 
+    /** What the guide says about the selected place: a state when one is selected, else its country. */
+    public val story: StateFlow<StoryState>
+
+    private val storyRetries = MutableStateFlow(0)
     private var subdivisionLoad: Job? = null
     private var searchJob: Job? = null
 
     init {
         loadCountries()
+        val storyState = MutableStateFlow<StoryState>(StoryState.Idle)
+        story = storyState.asStateFlow()
+        viewModelScope.launch {
+            // A new selection cancels the story still loading for the old one.
+            val focusedPlace = _uiState.map { (it as? GlobeUiState.Ready)?.focusedPlace() }.distinctUntilChanged()
+            combine(focusedPlace, storyRetries) { place, _ -> place }
+                .collectLatest { place -> storyState.value = loadStory(place) }
+        }
+    }
+
+    /** Asks the guide again after Wikipedia could not be reached. */
+    public fun retryStory() {
+        storyRetries.update { it + 1 }
     }
 
     /**
@@ -105,6 +130,16 @@ public class GlobeViewModel(
         }
     }
 
+    private suspend fun loadStory(place: GuidePlace?): StoryState {
+        if (place == null) return StoryState.Idle
+        val answer = runCatching { guide.storyFor(place) }
+            .onFailure { if (it is CancellationException) throw it }
+        return answer.fold(
+            onSuccess = { found -> found?.let { StoryState.Ready(it) } ?: StoryState.NoArticle },
+            onFailure = { StoryState.Failed },
+        )
+    }
+
     private fun loadCountries() {
         viewModelScope.launch {
             _uiState.value = runCatching { countries.loadCountries() }
@@ -117,5 +152,17 @@ public class GlobeViewModel(
 
     private inline fun updateReady(transform: (GlobeUiState.Ready) -> GlobeUiState.Ready) {
         _uiState.update { state -> if (state is GlobeUiState.Ready) transform(state) else state }
+    }
+}
+
+/** The place the sheet is about: the selected state if there is one, else the selected country. */
+private fun GlobeUiState.Ready.focusedPlace(): GuidePlace? {
+    val country = selected ?: return null
+    val subdivision = selectedSubdivision
+    return if (subdivision != null) {
+        val kind = subdivision.kind.ifBlank { "region" }.lowercase()
+        GuidePlace(subdivision.name, "a $kind of ${country.name}", subdivision.wikidataId)
+    } else {
+        GuidePlace(country.name, "a country in ${country.continent}", country.wikidataId)
     }
 }

@@ -25,13 +25,14 @@ internal data class GeoJsonFeatureCollection<P>(val features: List<GeoJsonFeatur
 @Serializable
 internal data class GeoJsonFeature<P>(val properties: P, val geometry: GeoJsonGeometry)
 
-/** The four country properties the data preparation tool keeps. */
+/** The country properties the data preparation tool keeps. */
 @Serializable
 internal data class GeoJsonCountryProperties(
     val name: String,
     @SerialName("isoA2") val isoA2: String? = null,
     @SerialName("isoA3") val isoA3: String? = null,
     val continent: String = "",
+    val wikidataId: String? = null,
 )
 
 /** The state and province properties the data preparation tool keeps. */

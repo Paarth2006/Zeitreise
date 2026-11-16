@@ -82,7 +82,7 @@ internal fun generateCountries(resources: Path) {
 }
 
 /**
- * Reduces one source feature to the four properties the app uses, or returns `null` if the
+ * Reduces one source feature to the properties the app uses, or returns `null` if the
  * feature carries no usable geometry.
  */
 private fun trimFeature(feature: JsonElement): JsonElement? {
@@ -101,6 +101,10 @@ private fun trimFeature(feature: JsonElement): JsonElement? {
                 put("isoA2", code(properties, "ISO_A2", "ISO_A2_EH"))
                 put("isoA3", code(properties, "ISO_A3", "ISO_A3_EH"))
                 put("continent", JsonPrimitive(properties.text("CONTINENT")))
+                put(
+                    "wikidataId",
+                    properties.text("WIKIDATAID").takeIf { it.isNotBlank() }?.let(::JsonPrimitive) ?: JsonNull,
+                )
             },
         )
         put("geometry", geometry)

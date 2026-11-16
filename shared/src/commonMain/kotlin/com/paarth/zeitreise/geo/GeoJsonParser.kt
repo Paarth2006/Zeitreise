@@ -76,6 +76,7 @@ internal class GeoJsonParser(private val json: Json = Json { ignoreUnknownKeys =
             isoA3 = feature.properties.isoA3,
             continent = feature.properties.continent,
             outlines = outlines,
+            wikidataId = feature.properties.wikidataId,
         )
     }
 
@@ -93,8 +94,13 @@ internal class GeoJsonParser(private val json: Json = Json { ignoreUnknownKeys =
         )
     }
 
-    private fun GeoJsonGeometry.toOutlines(tolerance: Double): List<CountryOutline> =
-        toPolygons().mapNotNull { polygon -> toOutline(polygon, tolerance) }
+    /**
+     * The landmasses of a geometry, largest first: the source lists them in no particular order,
+     * and the camera frames a country by its first, which must be the mainland.
+     */
+    private fun GeoJsonGeometry.toOutlines(tolerance: Double): List<CountryOutline> = toPolygons()
+        .mapNotNull { polygon -> toOutline(polygon, tolerance) }
+        .sortedByDescending { it.exterior.bounds.radiusDegrees }
 
     private fun toOutline(polygon: JsonArray, tolerance: Double): CountryOutline? {
         val rings = polygon.mapNotNull { ring -> toRing(ring.jsonArray, tolerance) }

@@ -20,6 +20,19 @@
     <string name="about_title">About Zeitreise</string>
     <string name="about_body">Spin the globe, open a country and explore its states. Zeitreise runs on Android, iOS and the web from one Kotlin Multiplatform codebase.</string>
     <string name="about_credits_heading">Credits</string>
+    <string name="about_credit_wikipedia">Place descriptions and facts: Wikipedia, under the Creative Commons Attribution-ShareAlike licence (CC BY-SA). Articles are found through Wikidata.</string>
+    <string name="about_credit_ai">With a Gemini API key, the AI guide writes its stories from the Wikipedia article alone.</string>
     <string name="about_credit_natural_earth">Country, state and province outlines: Natural Earth, in the public domain.</string>
     <string name="about_close">Done</string>
+    <string name="story_loading">Reading up on this place…</string>
+    <string name="story_known_for">Known for</string>
+    <string name="story_source_ai">Written by the AI guide from Wikipedia (CC BY-SA)</string>
+    <string name="story_source_curated">From the Zeitreise guidebook</string>
+    <string name="story_source_wikipedia">From Wikipedia (CC BY-SA)</string>
+    <string name="story_read_more">Read on Wikipedia</string>
+    <string name="story_rate_limited">The AI guide is taking a short break. Try again in a minute.</string>
+    <string name="story_ai_unavailable">The AI guide couldn’t answer this time.</string>
+    <string name="story_no_article">Wikipedia has no article about this place yet.</string>
+    <string name="story_failed">Couldn’t reach Wikipedia.</string>
+    <string name="story_retry">Try again</string>
 </resources>

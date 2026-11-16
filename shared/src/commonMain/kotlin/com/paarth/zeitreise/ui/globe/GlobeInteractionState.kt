@@ -2,6 +2,7 @@ package com.paarth.zeitreise.ui.globe
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
@@ -42,6 +43,12 @@ private const val FLING_STOP_DEGREES_PER_SECOND = 1.0
 /** How much of a mouse wheel notch turns into zoom. */
 private const val SCROLL_ZOOM_SENSITIVITY = 0.12f
 
+/** Half of the screen: where the centre of the globe sits when nothing is framed. */
+private const val HALF = 0.5f
+
+/** How far a framed country is raised, as a share of the screen's height, to clear the sheet. */
+private const val FRAMED_LIFT = 0.16f
+
 /** Seconds a fly-to takes, long enough to read as a journey and short enough not to wait on. */
 private const val FLIGHT_SECONDS = 1.4f
 
@@ -66,6 +73,12 @@ internal class GlobeInteractionState {
     /** Size of the area the globe is drawn in, needed to turn a drag in pixels into degrees. */
     var viewport: Size by mutableStateOf(Size.Zero)
 
+    /**
+     * How far the centre of the globe sits above the middle of the screen, as a share of its
+     * height: raised while a country is framed, so it shows above the sheet rather than under it.
+     */
+    private var lift by mutableFloatStateOf(0f)
+
     private var flingYaw = 0.0
     private var flingPitch = 0.0
     private var stillSeconds = 0f
@@ -80,7 +93,7 @@ internal class GlobeInteractionState {
     fun projection(): GlobeProjection = GlobeProjection(
         camera = camera,
         centerX = (viewport.width / 2f).toDouble(),
-        centerY = (viewport.height / 2f).toDouble(),
+        centerY = (viewport.height * (HALF - lift)).toDouble(),
         baseRadius = baseRadius.toDouble(),
     )
 
@@ -129,6 +142,7 @@ internal class GlobeInteractionState {
     fun advance(seconds: Float, idle: Boolean) {
         flight?.let { current ->
             camera = current.advance(seconds)
+            lift = current.lift
             if (current.isFinished) flight = null
             return
         }
@@ -153,14 +167,19 @@ internal class GlobeInteractionState {
     /** Flies the camera to frame [region], used when a country is selected. */
     fun flyToFrame(region: GeoCap) {
         onPressed()
-        flight = Flight(from = camera, to = camera.pointingAt(region.center, zoom = region.framingZoom(FRAME_FILL)))
+        flight = Flight(
+            from = camera,
+            to = camera.pointingAt(region.center, zoom = region.framingZoom(FRAME_FILL)),
+            fromLift = lift,
+            toLift = FRAMED_LIFT,
+        )
     }
 
     /** Flies the camera back out to the whole globe, keeping the point it faces. */
     fun flyToWholeGlobe() {
         if (camera.zoom == MIN_ZOOM) return
         onPressed()
-        flight = Flight(from = camera, to = camera.copy(zoom = MIN_ZOOM))
+        flight = Flight(from = camera, to = camera.copy(zoom = MIN_ZOOM), fromLift = lift, toLift = 0f)
     }
 
     /** Fades the idle drift in over [IDLE_RAMP_SECONDS] once the globe has been still long enough. */
@@ -180,16 +199,25 @@ internal class GlobeInteractionState {
 private fun degreesPerPixel(radius: Float): Double = if (radius <= 0f) 0.0 else DEGREES_PER_HALF_TURN / PI / radius
 
 /** One fly-to animation from [from] to [to], eased so it starts and lands gently. */
-private class Flight(private val from: GlobeCamera, private val to: GlobeCamera) {
+private class Flight(
+    private val from: GlobeCamera,
+    private val to: GlobeCamera,
+    private val fromLift: Float,
+    private val toLift: Float,
+) {
     private var elapsed = 0f
+    private var eased = 0f
 
     /** Whether the flight has reached [to]. */
     val isFinished: Boolean get() = elapsed >= FLIGHT_SECONDS
 
+    /** How far the globe is raised at this moment, moving in step with the camera. */
+    val lift: Float get() = fromLift + (toLift - fromLift) * eased
+
     /** Moves the flight on by [seconds] and returns the camera for that moment. */
     fun advance(seconds: Float): GlobeCamera {
         elapsed = min(elapsed + seconds, FLIGHT_SECONDS)
-        val eased = FastOutSlowInEasing.transform(elapsed / FLIGHT_SECONDS)
+        eased = FastOutSlowInEasing.transform(elapsed / FLIGHT_SECONDS)
         return from.flightTo(to, eased.toDouble())
     }
 }

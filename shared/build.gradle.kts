@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -7,6 +8,37 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.sqldelight)
+}
+
+// The Gemini key lives in local.properties, which is never committed, and is written into a
+// generated constant at build time, so no source file in the repository ever holds a key. Without
+// one the constant is empty and the app runs on its bundled demo guide.
+val geminiApiKey: String = rootProject.file("local.properties")
+    .takeIf { it.exists() }
+    ?.let { file -> Properties().apply { file.inputStream().use(::load) }.getProperty("GEMINI_API_KEY") }
+    .orEmpty()
+    .trim()
+
+val generateApiKeys by tasks.registering {
+    val key = geminiApiKey
+    val outputDir = layout.buildDirectory.dir("generated/apiKeys/commonMain/kotlin")
+    inputs.property("geminiApiKey", key)
+    outputs.dir(outputDir)
+    doLast {
+        val escaped = key.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
+        outputDir.get().file("com/paarth/zeitreise/ai/ApiKeys.kt").asFile.apply {
+            parentFile.mkdirs()
+            writeText(
+                """
+                |package com.paarth.zeitreise.ai
+                |
+                |/** The Gemini API key from local.properties, or empty when none is set. Generated at build time. */
+                |internal const val GEMINI_API_KEY: String = "$escaped"
+                |
+                """.trimMargin(),
+            )
+        }
+    }
 }
 
 kotlin {
@@ -47,6 +79,9 @@ kotlin {
     }
 
     sourceSets {
+        commonMain {
+            kotlin.srcDir(generateApiKeys)
+        }
         commonMain.dependencies {
             implementation(libs.coil.compose)
             implementation(libs.compose.components.resources)
@@ -59,6 +94,8 @@ kotlin {
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
             implementation(libs.koin.core)
+            implementation(libs.koog.googleClient)
+            implementation(libs.koog.httpKtor)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.ktor.client.core)
@@ -73,6 +110,7 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.ktor.client.mock)
             implementation(libs.multiplatformSettings.test)
         }
         androidMain.dependencies {

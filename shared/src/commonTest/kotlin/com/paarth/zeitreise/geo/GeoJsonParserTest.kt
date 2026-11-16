@@ -180,6 +180,24 @@ class GeoJsonParserTest {
     }
 
     @Test
+    fun putsTheLargestLandmassFirstWhateverOrderTheSourceUses() {
+        val islands = """
+            {
+              "type": "Feature",
+              "properties": { "name": "Archipelago", "isoA2": "AR", "isoA3": "ARC", "continent": "Atlantis" },
+              "geometry": { "type": "MultiPolygon", "coordinates": [
+                [[[0,0],[1,0],[1,1],[0,1],[0,0]]],
+                [[[10,10],[30,10],[30,30],[10,30],[10,10]]]
+              ] }
+            }
+        """.trimIndent()
+
+        val country = parser.parseCountries(collectionOf(islands)).single()
+
+        assertTrue(country.outlines.first().contains(GeoPoint(latitude = 20.0, longitude = 20.0)))
+    }
+
+    @Test
     fun readsAStateWithItsKindCodesAndLabelPoint() {
         val kerala = """
             {

@@ -75,25 +75,10 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
     val onboarding = koinViewModel<OnboardingViewModel>()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
+    val story by viewModel.story.collectAsStateWithLifecycle()
     val step by onboarding.step.collectAsStateWithLifecycle()
     val loadingLabel = stringResource(Res.string.loading_world)
-    val actions = GlobeScreenActions(
-        selectCountry = { country ->
-            viewModel.select(country)
-            if (country != null) onboarding.onEvent(OnboardingEvent.CountrySelected)
-        },
-        selectSubdivision = viewModel::selectSubdivision,
-        search = viewModel::search,
-        choose = { result ->
-            viewModel.choose(result)
-            onboarding.onEvent(OnboardingEvent.CountrySelected)
-        },
-        submitSearch = { query ->
-            viewModel.submitSearch(query)
-            onboarding.onEvent(OnboardingEvent.CountrySelected)
-        },
-        onboarding = onboarding::onEvent,
-    )
+    val actions = remember(viewModel, onboarding) { GlobeScreenActions(viewModel, onboarding) }
 
     Box(modifier = modifier.fillMaxSize()) {
         when (val current = state) {
@@ -105,21 +90,40 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
             is GlobeUiState.Failed -> FailureMessage(current.message)
             is GlobeUiState.Ready -> {
                 ReadyGlobe(state = current, actions = actions)
-                Controls(state = current, step = step, searchResults = searchResults, actions = actions)
+                Controls(state = current, story = story, step = step, searchResults = searchResults, actions = actions)
             }
         }
     }
 }
 
-/** What the globe screen's parts can ask for, gathered so each takes one parameter rather than six. */
-private class GlobeScreenActions(
-    val selectCountry: (Country?) -> Unit,
-    val selectSubdivision: (Subdivision?) -> Unit,
-    val search: (String) -> Unit,
-    val choose: (SearchResult) -> Unit,
-    val submitSearch: (String) -> Unit,
-    val onboarding: (OnboardingEvent) -> Unit,
-)
+/**
+ * What the globe screen's parts can ask for, in one place, so the onboarding hears about every
+ * selection however it was made: by tapping, by search, or by pressing Search.
+ */
+private class GlobeScreenActions(private val globe: GlobeViewModel, private val onboarding: OnboardingViewModel) {
+    fun selectCountry(country: Country?) {
+        globe.select(country)
+        if (country != null) onboarding.onEvent(OnboardingEvent.CountrySelected)
+    }
+
+    fun selectSubdivision(subdivision: Subdivision?) = globe.selectSubdivision(subdivision)
+
+    fun search(query: String) = globe.search(query)
+
+    fun choose(result: SearchResult) {
+        globe.choose(result)
+        onboarding.onEvent(OnboardingEvent.CountrySelected)
+    }
+
+    fun submitSearch(query: String) {
+        globe.submitSearch(query)
+        onboarding.onEvent(OnboardingEvent.CountrySelected)
+    }
+
+    fun onboardingEvent(event: OnboardingEvent) = onboarding.onEvent(event)
+
+    fun retryStory() = globe.retryStory()
+}
 
 @Composable
 private fun ReadyGlobe(state: GlobeUiState.Ready, actions: GlobeScreenActions) {
@@ -128,9 +132,9 @@ private fun ReadyGlobe(state: GlobeUiState.Ready, actions: GlobeScreenActions) {
 
     GlobeView(
         content = state,
-        onSelectCountry = actions.selectCountry,
-        onSelectSubdivision = actions.selectSubdivision,
-        onTurned = { actions.onboarding(OnboardingEvent.GlobeTurned) },
+        onSelectCountry = actions::selectCountry,
+        onSelectSubdivision = actions::selectSubdivision,
+        onTurned = { actions.onboardingEvent(OnboardingEvent.GlobeTurned) },
         modifier = Modifier.graphicsLayer {
             val progress = intro.value
             alpha = progress
@@ -148,6 +152,7 @@ private fun ReadyGlobe(state: GlobeUiState.Ready, actions: GlobeScreenActions) {
 @Composable
 private fun BoxScope.Controls(
     state: GlobeUiState.Ready,
+    story: StoryState,
     step: OnboardingStep,
     searchResults: List<SearchResult>,
     actions: GlobeScreenActions,
@@ -191,6 +196,8 @@ private fun BoxScope.Controls(
     CountrySheet(
         country = state.selected,
         subdivision = state.selectedSubdivision,
+        story = story,
+        onRetryStory = actions::retryStory,
         // Closing a state's sheet steps back to its country; closing the country's leaves it.
         onClose = {
             if (state.selectedSubdivision != null) actions.selectSubdivision(null) else actions.selectCountry(null)
@@ -199,14 +206,14 @@ private fun BoxScope.Controls(
     )
     CoachHint(
         step = step,
-        onSkip = { actions.onboarding(OnboardingEvent.Skipped) },
+        onSkip = { actions.onboardingEvent(OnboardingEvent.Skipped) },
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .safeDrawingPadding()
             .padding(bottom = HINT_BOTTOM_PADDING),
     )
     AnimatedVisibility(visible = step == OnboardingStep.Welcome, enter = EnterTransition.None, exit = fadeOut()) {
-        WelcomeOverlay(onContinue = { actions.onboarding(OnboardingEvent.Started) })
+        WelcomeOverlay(onContinue = { actions.onboardingEvent(OnboardingEvent.Started) })
     }
     if (showAbout) AboutSheet(onDismiss = { showAbout = false })
 }

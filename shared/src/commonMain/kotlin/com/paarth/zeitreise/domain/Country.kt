@@ -95,6 +95,7 @@ public class CountryOutline internal constructor(
  * @property isoA3 three-letter ISO 3166-1 code, or `null` for territories that have none.
  * @property continent the continent the country is counted under.
  * @property outlines the landmasses the country is drawn from, largest first.
+ * @property wikidataId the Wikidata item, which leads to the country's exact Wikipedia article.
  */
 public class Country internal constructor(
     override val name: String,
@@ -102,6 +103,7 @@ public class Country internal constructor(
     public val isoA3: String?,
     public val continent: String,
     override val outlines: List<CountryOutline>,
+    public val wikidataId: String? = null,
 ) : Territory {
     init {
         require(outlines.isNotEmpty()) { "Country $name has no outlines" }

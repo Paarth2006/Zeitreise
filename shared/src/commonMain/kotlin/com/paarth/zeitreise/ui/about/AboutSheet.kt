@@ -32,7 +32,9 @@ import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.about_body
 import zeitreise.shared.generated.resources.about_close
+import zeitreise.shared.generated.resources.about_credit_ai
 import zeitreise.shared.generated.resources.about_credit_natural_earth
+import zeitreise.shared.generated.resources.about_credit_wikipedia
 import zeitreise.shared.generated.resources.about_credits_heading
 import zeitreise.shared.generated.resources.about_open
 import zeitreise.shared.generated.resources.about_title
@@ -117,11 +119,17 @@ internal fun AboutSheet(onDismiss: () -> Unit) {
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.semantics { heading() },
                 )
-                Text(
-                    text = stringResource(Res.string.about_credit_natural_earth),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = SECONDARY_TEXT_ALPHA),
-                )
+                listOf(
+                    Res.string.about_credit_wikipedia,
+                    Res.string.about_credit_natural_earth,
+                    Res.string.about_credit_ai,
+                ).forEach { credit ->
+                    Text(
+                        text = stringResource(credit),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = SECONDARY_TEXT_ALPHA),
+                    )
+                }
                 Button(
                     onClick = onDismiss,
                     shape = RoundedCornerShape(BUTTON_CORNER),

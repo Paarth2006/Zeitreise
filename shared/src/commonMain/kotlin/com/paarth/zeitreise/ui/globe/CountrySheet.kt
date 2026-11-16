@@ -11,13 +11,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -38,6 +41,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.Subdivision
@@ -78,6 +82,9 @@ private val CLOSE_STROKE = 2.dp
 /** Opacity of the sheet over the globe. */
 private const val SHEET_ALPHA = 0.94f
 
+/** Largest share of the window's height the sheet takes; longer stories scroll inside it. */
+private const val MAX_HEIGHT_SHARE = 0.55f
+
 /** Lines the country name may wrap onto before it is ellipsised. */
 private const val NAME_MAX_LINES = 2
 
@@ -90,14 +97,18 @@ private const val NAME_MAX_LINES = 2
  *
  * @param country the selected country, or `null` to hide the sheet.
  * @param subdivision the state tapped inside [country], which the sheet names instead, if any.
+ * @param story what the guide says about the place the sheet names.
  * @param onClose called when the close button is tapped.
+ * @param onRetryStory called when the user asks the guide to try again.
  * @param modifier applied to the root element.
  */
 @Composable
 internal fun CountrySheet(
     country: Country?,
     subdivision: Subdivision?,
+    story: StoryState,
     onClose: () -> Unit,
+    onRetryStory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // The sheet has to keep naming a country while it slides away, after the selection is gone.
@@ -131,6 +142,9 @@ internal fun CountrySheet(
                 },
             ) {
                 SheetContent(
+                    story = story,
+                    onRetryStory = onRetryStory,
+                    maxHeight = maxHeight * MAX_HEIGHT_SHARE,
                     title = subdivision?.name ?: shown?.name.orEmpty(),
                     subtitle = when {
                         subdivision != null -> subdivision.subtitleIn(shown)
@@ -151,31 +165,44 @@ internal fun CountrySheet(
 }
 
 @Composable
-private fun SheetContent(title: String, subtitle: String, onClose: () -> Unit, modifier: Modifier = Modifier) {
-    Row(
-        verticalAlignment = Alignment.Top,
+private fun SheetContent(
+    title: String,
+    subtitle: String,
+    story: StoryState,
+    maxHeight: Dp,
+    onClose: () -> Unit,
+    onRetryStory: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(SHEET_SPACING * 2),
         modifier = modifier
             .fillMaxWidth()
+            .heightIn(max = maxHeight)
+            .verticalScroll(rememberScrollState())
             .padding(start = SHEET_PADDING, top = SHEET_PADDING, end = SHEET_TRAILING_PADDING, bottom = SHEET_PADDING),
     ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(SHEET_SPACING),
-            modifier = Modifier.weight(1f),
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = NAME_MAX_LINES,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.semantics { heading() },
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = SECONDARY_TEXT_ALPHA),
-            )
+        Row(verticalAlignment = Alignment.Top) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(SHEET_SPACING),
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = NAME_MAX_LINES,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { heading() },
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = SECONDARY_TEXT_ALPHA),
+                )
+            }
+            CloseButton(onClick = onClose)
         }
-        CloseButton(onClick = onClose)
+        StoryPanel(story = story, onRetry = onRetryStory, modifier = Modifier.padding(end = SHEET_PADDING))
     }
 }
 
@@ -213,7 +240,13 @@ private fun Subdivision.subtitleIn(country: Country?): String {
 @Composable
 private fun CountrySheetPreview() {
     ZeitreiseTheme {
-        CountrySheet(country = PreviewSamples.india, subdivision = null, onClose = {})
+        CountrySheet(
+            country = PreviewSamples.india,
+            subdivision = null,
+            story = StoryState.Loading,
+            onClose = {},
+            onRetryStory = {},
+        )
     }
 }
 
@@ -221,6 +254,12 @@ private fun CountrySheetPreview() {
 @Composable
 private fun StateSheetPreview() {
     ZeitreiseTheme {
-        CountrySheet(country = PreviewSamples.india, subdivision = PreviewSamples.kerala, onClose = {})
+        CountrySheet(
+            country = PreviewSamples.india,
+            subdivision = PreviewSamples.kerala,
+            story = StoryState.NoArticle,
+            onClose = {},
+            onRetryStory = {},
+        )
     }
 }

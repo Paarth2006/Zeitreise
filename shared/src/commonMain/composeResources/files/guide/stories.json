@@ -1,0 +1,52 @@
+{
+  "Q668": {
+    "headline": "Money that speaks 17 languages",
+    "fact": "India's constitution recognises 22 languages, and every rupee banknote spells out its value in 17 of them.",
+    "knownFor": ["The Taj Mahal", "The Himalayas", "Its cuisines"]
+  },
+  "Q183": {
+    "headline": "Motorways without a speed limit",
+    "fact": "Long stretches of Germany's Autobahn have no general speed limit, only an advisory speed of 130 km/h.",
+    "knownFor": ["The Autobahn", "Oktoberfest", "Castles on the Rhine"]
+  },
+  "Q17": {
+    "headline": "A nation of 14,000 islands",
+    "fact": "Japan is made up of more than 14,000 islands, although most people live on the four largest.",
+    "knownFor": ["Mount Fuji", "Cherry blossoms", "Bullet trains"]
+  },
+  "Q155": {
+    "headline": "Neighbour to almost everyone",
+    "fact": "Brazil shares a border with every country in South America except Chile and Ecuador.",
+    "knownFor": ["The Amazon rainforest", "Carnival in Rio", "Football"]
+  },
+  "Q79": {
+    "headline": "Tallest for 3,800 years",
+    "fact": "The Great Pyramid of Giza was the tallest structure built by people for more than 3,800 years.",
+    "knownFor": ["The Pyramids of Giza", "The River Nile", "The Valley of the Kings"]
+  },
+  "Q38": {
+    "headline": "Two countries inside one",
+    "fact": "Italy completely surrounds two other independent countries: San Marino and Vatican City.",
+    "knownFor": ["The Colosseum", "Renaissance art", "Pasta and pizza"]
+  },
+  "Q419": {
+    "headline": "A lake near the clouds",
+    "fact": "Lake Titicaca, on Peru's border with Bolivia, lies 3,812 metres above sea level and is often called the highest navigable lake in the world.",
+    "knownFor": ["Machu Picchu", "The Andes", "The Nazca Lines"]
+  },
+  "Q408": {
+    "headline": "Wider than the Moon",
+    "fact": "Mainland Australia is about 4,000 km from west to east, wider than the Moon, which is about 3,474 km across.",
+    "knownFor": ["The Great Barrier Reef", "Uluru", "Kangaroos"]
+  },
+  "Q16": {
+    "headline": "The longest coastline on Earth",
+    "fact": "Canada has the longest coastline of any country, stretching along the Atlantic, Pacific and Arctic oceans.",
+    "knownFor": ["The Rocky Mountains", "Niagara Falls", "Maple syrup"]
+  },
+  "Q189": {
+    "headline": "A parliament from the Viking age",
+    "fact": "Iceland's parliament, the Althing, was founded in 930 and is one of the oldest parliaments in the world.",
+    "knownFor": ["The northern lights", "Geysers and volcanoes", "Glaciers"]
+  }
+}

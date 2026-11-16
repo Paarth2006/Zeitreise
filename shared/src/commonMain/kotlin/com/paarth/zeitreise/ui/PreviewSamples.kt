@@ -18,6 +18,7 @@ internal object PreviewSamples {
         isoA3 = "IND",
         continent = "Asia",
         outlines = listOf(square(west = 68.0, south = 8.0, size = 20.0)),
+        wikidataId = "Q668",
     )
 
     /** Kerala, one of India's states. */

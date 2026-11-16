@@ -168,6 +168,20 @@ Or from the terminal:
 
 The app opens at `http://localhost:8080`. Use Google Chrome; Safari does not currently render Compose for Web.
 
+### Optional: the AI guide
+
+The app works fully without any key: every country and state gets a story from its Wikipedia article, and ten countries (India, Germany, Japan, Brazil, Egypt, Italy, Peru, Australia, Canada and Iceland) have hand-written stories.
+
+To let the AI guide write a story for every place, add a free [Gemini API key](https://aistudio.google.com/apikey) to `local.properties` in the project root, then rebuild:
+
+```properties
+GEMINI_API_KEY=your-key-here
+```
+
+`local.properties` is never committed. The guide talks to Gemini through JetBrains' [Koog](https://github.com/JetBrains/koog) framework, writes only from the Wikipedia article, caches every answer, and falls back to the Wikipedia story if the free quota runs out.
+
+> On the web the key is compiled into the downloaded app, so use a key restricted to the Gemini API, and leave it out of any public deployment.
+
 ### Checks
 
 ```bash
@@ -218,7 +232,8 @@ Country Search
 
 ## Credits
 
-Country outlines: [Natural Earth](https://www.naturalearthdata.com/) (public domain).
+- Country, state and province outlines: [Natural Earth](https://www.naturalearthdata.com/) (public domain).
+- Place descriptions and facts: [Wikipedia](https://www.wikipedia.org/), under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); articles are found through [Wikidata](https://www.wikidata.org/).
 
 ## Licence
 
