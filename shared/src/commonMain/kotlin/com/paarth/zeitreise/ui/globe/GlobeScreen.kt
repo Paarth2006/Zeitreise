@@ -4,9 +4,13 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +20,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,11 +40,14 @@ import com.paarth.zeitreise.domain.SearchResult
 import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.ui.about.AboutSheet
 import com.paarth.zeitreise.ui.about.InfoButton
+import com.paarth.zeitreise.ui.glass.LocalGlassBackdrop
 import com.paarth.zeitreise.ui.onboarding.CoachHint
 import com.paarth.zeitreise.ui.onboarding.OnboardingEvent
 import com.paarth.zeitreise.ui.onboarding.OnboardingStep
 import com.paarth.zeitreise.ui.onboarding.OnboardingViewModel
 import com.paarth.zeitreise.ui.onboarding.WelcomeOverlay
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import zeitreise.shared.generated.resources.Res
@@ -53,6 +61,18 @@ private val CONTROL_MARGIN = 16.dp
 
 /** Gap between the onboarding hint and the bottom of the safe area. */
 private val HINT_BOTTOM_PADDING = 24.dp
+
+/** Scale a floating control grows from as it appears, so it seems to well up out of the glass. */
+private const val CONTROL_START_SCALE = 0.9f
+
+/** A lively spring for controls appearing and disappearing, like iOS's bouncy glass morphs. */
+private val CONTROL_SPRING = spring<Float>(
+    dampingRatio = Spring.DampingRatioLowBouncy,
+    stiffness = Spring.StiffnessMediumLow,
+)
+
+/** Backdrop layer of the floating controls, above the globe's (0). */
+private const val CONTROLS_LAYER = 1f
 
 /** Milliseconds the globe takes to grow and fade in when it first appears. */
 private const val INTRO_MILLIS = 1_200
@@ -89,8 +109,25 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
             )
             is GlobeUiState.Failed -> FailureMessage(current.message)
             is GlobeUiState.Ready -> {
-                ReadyGlobe(state = current, actions = actions)
-                Controls(state = current, story = story, step = step, searchResults = searchResults, actions = actions)
+                val backdrop = rememberHazeState()
+                ReadyGlobe(state = current, actions = actions, modifier = Modifier.hazeSource(backdrop))
+                var showAbout by rememberSaveable { mutableStateOf(false) }
+                CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
+                    // The controls are a second layer of the backdrop, above the globe, so the About
+                    // card refracts the open sheet as well as the globe. Glass inside this layer
+                    // only samples what lies behind it: the globe.
+                    Box(modifier = Modifier.fillMaxSize().hazeSource(backdrop, zIndex = CONTROLS_LAYER)) {
+                        Controls(
+                            state = current,
+                            story = story,
+                            step = step,
+                            searchResults = searchResults,
+                            actions = actions,
+                            onShowAbout = { showAbout = true },
+                        )
+                    }
+                    AboutSheet(visible = showAbout, onDismiss = { showAbout = false })
+                }
             }
         }
     }
@@ -128,7 +165,7 @@ private class GlobeScreenActions(private val globe: GlobeViewModel, private val 
 }
 
 @Composable
-private fun ReadyGlobe(state: GlobeUiState.Ready, actions: GlobeScreenActions) {
+private fun ReadyGlobe(state: GlobeUiState.Ready, actions: GlobeScreenActions, modifier: Modifier = Modifier) {
     val intro = remember { Animatable(0f) }
     LaunchedEffect(intro) { intro.animateTo(1f, tween(INTRO_MILLIS, easing = FastOutSlowInEasing)) }
 
@@ -137,7 +174,7 @@ private fun ReadyGlobe(state: GlobeUiState.Ready, actions: GlobeScreenActions) {
         onSelectCountry = actions::selectCountry,
         onSelectSubdivision = actions::selectSubdivision,
         onTurned = { actions.onboardingEvent(OnboardingEvent.GlobeTurned) },
-        modifier = Modifier.graphicsLayer {
+        modifier = modifier.graphicsLayer {
             val progress = intro.value
             alpha = progress
             scaleX = INTRO_START_SCALE + (1f - INTRO_START_SCALE) * progress
@@ -149,7 +186,7 @@ private fun ReadyGlobe(state: GlobeUiState.Ready, actions: GlobeScreenActions) {
 /**
  * Everything floating over the globe: the Info button, the search bar or the country sheet at the
  * bottom, and the onboarding on first launch. The search bar gives way to the sheet whenever a
- * country is open, as the search card does in Apple Maps.
+ * country is open, as the search card does in Apple Maps. The About card goes above all of these.
  */
 @Composable
 private fun BoxScope.Controls(
@@ -158,11 +195,10 @@ private fun BoxScope.Controls(
     step: OnboardingStep,
     searchResults: List<SearchResult>,
     actions: GlobeScreenActions,
+    onShowAbout: () -> Unit,
 ) {
-    var showAbout by rememberSaveable { mutableStateOf(false) }
-
     InfoButton(
-        onClick = { showAbout = true },
+        onClick = onShowAbout,
         modifier = Modifier
             .align(Alignment.TopEnd)
             .safeDrawingPadding()
@@ -196,7 +232,6 @@ private fun BoxScope.Controls(
     AnimatedVisibility(visible = step == OnboardingStep.Welcome, enter = EnterTransition.None, exit = fadeOut()) {
         WelcomeOverlay(onContinue = { actions.onboardingEvent(OnboardingEvent.Started) })
     }
-    if (showAbout) AboutSheet(onDismiss = { showAbout = false })
 }
 
 /** The search bar at the bottom, shown while no country is open; it holds its own query. */
@@ -205,8 +240,8 @@ private fun BoxScope.SearchControl(visible: Boolean, results: List<SearchResult>
     var query by rememberSaveable { mutableStateOf("") }
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(),
-        exit = fadeOut(),
+        enter = fadeIn() + scaleIn(CONTROL_SPRING, initialScale = CONTROL_START_SCALE),
+        exit = fadeOut() + scaleOut(CONTROL_SPRING, targetScale = CONTROL_START_SCALE),
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .safeDrawingPadding()

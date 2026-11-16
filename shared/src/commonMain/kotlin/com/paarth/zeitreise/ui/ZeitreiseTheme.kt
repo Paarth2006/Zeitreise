@@ -12,22 +12,29 @@ import androidx.compose.ui.unit.sp
 /** Deep night sky the globe sits against; the app is dark by default on every platform. */
 private val NIGHT_SKY = Color(0xFF070B14)
 
-/** Pale gold used for the selected country, its border, and the text on the sheet. */
-private val STARLIGHT = Color(0xFFF2D9A0)
+/** Apple's system blue, the accent for buttons and links on light glass. */
+private val SYSTEM_BLUE = Color(0xFF007AFF)
 
-/** Panels such as the country sheet, lifted just clear of the background so they read as panels. */
-private val PANEL = Color(0xFF131E31)
+/** Text over the night sky itself, such as the welcome screen. */
+private val STARLIGHT = Color(0xFFF5F5F7)
 
-/** Opacity of secondary text, matching the secondary label colour of Apple's dark appearance. */
+/**
+ * Opacity of secondary text: black at this opacity matches the secondary label colour of
+ * Apple's light appearance, which is what the glass panels use.
+ */
 internal const val SECONDARY_TEXT_ALPHA = 0.6f
 
+/**
+ * Space behind the globe is dark, but every panel over it is light Liquid Glass with black labels,
+ * as Apple Maps draws its controls over a satellite map: dark backdrop, light glass, blue accent.
+ */
 private val ZEITREISE_COLORS = darkColorScheme(
-    primary = STARLIGHT,
-    onPrimary = NIGHT_SKY,
+    primary = SYSTEM_BLUE,
+    onPrimary = Color.White,
     background = NIGHT_SKY,
     onBackground = STARLIGHT,
-    surface = PANEL,
-    onSurface = STARLIGHT,
+    surface = Color.White,
+    onSurface = Color.Black,
 )
 
 /**

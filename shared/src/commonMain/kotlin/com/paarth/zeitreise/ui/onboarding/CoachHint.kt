@@ -1,15 +1,17 @@
 package com.paarth.zeitreise.ui.onboarding
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -20,8 +22,9 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
 import com.paarth.zeitreise.ui.ZeitreiseTheme
+import com.paarth.zeitreise.ui.glass.CapsuleShape
+import com.paarth.zeitreise.ui.glass.GlassPanel
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
@@ -35,8 +38,14 @@ private val TOUCH_TARGET = 44.dp
 /** Padding before the hint text; the Skip button carries its own padding on the other side. */
 private val HINT_LEADING_PADDING = 20.dp
 
-/** Opacity of the capsule over the globe. */
-private const val CAPSULE_ALPHA = 0.94f
+/** Scale a hint grows from as it appears and shrinks to as it leaves. */
+private const val HINT_START_SCALE = 0.9f
+
+/** A lively spring for hints coming and going, like iOS's bouncy glass morphs. */
+private val HINT_SPRING = spring<Float>(
+    dampingRatio = Spring.DampingRatioLowBouncy,
+    stiffness = Spring.StiffnessMediumLow,
+)
 
 /**
  * A short instruction in a capsule, asking the user to try the gesture it names.
@@ -53,7 +62,10 @@ private const val CAPSULE_ALPHA = 0.94f
 internal fun CoachHint(step: OnboardingStep, onSkip: () -> Unit, modifier: Modifier = Modifier) {
     AnimatedContent(
         targetState = step.hint(),
-        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        transitionSpec = {
+            fadeIn() + scaleIn(HINT_SPRING, initialScale = HINT_START_SCALE) togetherWith
+                fadeOut() + scaleOut(HINT_SPRING, targetScale = HINT_START_SCALE)
+        },
         modifier = modifier,
     ) { hint ->
         if (hint != null) HintCapsule(text = stringResource(hint), onSkip = onSkip)
@@ -62,12 +74,7 @@ internal fun CoachHint(step: OnboardingStep, onSkip: () -> Unit, modifier: Modif
 
 @Composable
 private fun HintCapsule(text: String, onSkip: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface.copy(alpha = CAPSULE_ALPHA),
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = CircleShape,
-        modifier = modifier,
-    ) {
+    GlassPanel(shape = CapsuleShape, modifier = modifier) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.heightIn(min = TOUCH_TARGET).padding(start = HINT_LEADING_PADDING),
@@ -81,7 +88,7 @@ private fun HintCapsule(text: String, onSkip: () -> Unit, modifier: Modifier = M
                 Text(
                     text = stringResource(Res.string.hint_skip),
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = SECONDARY_TEXT_ALPHA),
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         }

@@ -1,8 +1,12 @@
 package com.paarth.zeitreise.ui.globe
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +18,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -22,9 +25,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +38,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
@@ -49,6 +51,9 @@ import com.paarth.zeitreise.domain.SearchResult
 import com.paarth.zeitreise.ui.PreviewSamples
 import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
 import com.paarth.zeitreise.ui.ZeitreiseTheme
+import com.paarth.zeitreise.ui.glass.CapsuleShape
+import com.paarth.zeitreise.ui.glass.GlassButton
+import com.paarth.zeitreise.ui.glass.GlassPanel
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.search_cancel
@@ -83,8 +88,17 @@ private val GLYPH_STROKE = 2.dp
 /** Minimum touch target for the clear button. */
 private val TOUCH_TARGET = 44.dp
 
-/** Opacity of the field and the result card over the globe. */
-private const val SURFACE_ALPHA = 0.94f
+/** Scale the result card and Cancel button grow from as they appear. */
+private const val RESULTS_START_SCALE = 0.92f
+
+/** Where the result card grows from: the middle of its bottom edge, just above the field. */
+private val RESULTS_ORIGIN = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1f)
+
+/** A lively spring for the results and Cancel button, like iOS's bouncy glass morphs. */
+private val SEARCH_SPRING = spring<Float>(
+    dampingRatio = Spring.DampingRatioLowBouncy,
+    stiffness = Spring.StiffnessMediumLow,
+)
 
 /** Where the magnifying glass's lens sits and how far its handle reaches, as shares of its size. */
 private const val LENS_RADIUS = 0.34f
@@ -130,10 +144,17 @@ internal fun SearchBar(
         verticalArrangement = Arrangement.spacedBy(RESULTS_GAP),
         modifier = modifier.widthIn(max = SEARCH_MAX_WIDTH).fillMaxWidth(),
     ) {
-        AnimatedVisibility(visible = focused && query.isNotBlank(), enter = fadeIn(), exit = fadeOut()) {
+        AnimatedVisibility(
+            visible = focused && query.isNotBlank(),
+            enter = fadeIn() + scaleIn(SEARCH_SPRING, initialScale = RESULTS_START_SCALE, RESULTS_ORIGIN),
+            exit = fadeOut() + scaleOut(SEARCH_SPRING, targetScale = RESULTS_START_SCALE, RESULTS_ORIGIN),
+        ) {
             SearchResults(results = results, onChoose = choose)
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(RESULTS_GAP),
+        ) {
             SearchField(
                 query = query,
                 onQueryChange = onQueryChange,
@@ -145,18 +166,19 @@ internal fun SearchBar(
                     .weight(1f)
                     .onFocusChanged { focused = it.isFocused },
             )
-            AnimatedVisibility(visible = focused) {
-                TextButton(
+            AnimatedVisibility(
+                visible = focused,
+                enter = fadeIn() + scaleIn(SEARCH_SPRING, initialScale = RESULTS_START_SCALE),
+                exit = fadeOut() + scaleOut(SEARCH_SPRING, targetScale = RESULTS_START_SCALE),
+            ) {
+                GlassButton(
                     onClick = {
                         onQueryChange("")
                         focusManager.clearFocus()
                     },
+                    modifier = Modifier.heightIn(min = FIELD_HEIGHT),
                 ) {
-                    Text(
-                        text = stringResource(Res.string.search_cancel),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onBackground,
-                    )
+                    Text(text = stringResource(Res.string.search_cancel), style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }
@@ -171,12 +193,7 @@ private fun SearchField(
     modifier: Modifier = Modifier,
 ) {
     val secondary = MaterialTheme.colorScheme.onSurface.copy(alpha = SECONDARY_TEXT_ALPHA)
-    Surface(
-        color = MaterialTheme.colorScheme.surface.copy(alpha = SURFACE_ALPHA),
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = CircleShape,
-        modifier = modifier.heightIn(min = FIELD_HEIGHT),
-    ) {
+    GlassPanel(shape = CapsuleShape, modifier = modifier.heightIn(min = FIELD_HEIGHT)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(HORIZONTAL_PADDING / 2),
@@ -215,12 +232,7 @@ private fun SearchField(
 
 @Composable
 private fun SearchResults(results: List<SearchResult>, onChoose: (SearchResult) -> Unit) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface.copy(alpha = SURFACE_ALPHA),
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = RoundedCornerShape(RESULTS_CORNER),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
+    GlassPanel(shape = RoundedCornerShape(RESULTS_CORNER), modifier = Modifier.fillMaxWidth()) {
         Column {
             if (results.isEmpty()) {
                 Text(

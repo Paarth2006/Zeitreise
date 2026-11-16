@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -17,7 +16,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,6 +43,7 @@ import com.paarth.zeitreise.domain.StorySource
 import com.paarth.zeitreise.domain.WikiArticle
 import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
 import com.paarth.zeitreise.ui.ZeitreiseTheme
+import com.paarth.zeitreise.ui.glass.GlassButton
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
@@ -76,8 +75,8 @@ private val CHIP_PADDING_VERTICAL = 6.dp
 private val LOADING_INDICATOR_SIZE = 16.dp
 private val LOADING_INDICATOR_STROKE = 2.dp
 
-/** Opacity of the "known for" chips' background. */
-private const val CHIP_ALPHA = 0.12f
+/** Opacity of the "known for" chips' grey fill, as quiet as Apple's tertiary fill colour. */
+private const val CHIP_ALPHA = 0.07f
 
 /** Milliseconds the typewriter takes over the whole fact, however long it is. */
 private const val TYPE_DURATION_MILLIS = 1_400L
@@ -126,21 +125,22 @@ private fun StoryContent(state: StoryState.Ready, onNextFact: () -> Unit, modifi
         Text(
             text = shown.fact.headline ?: stringResource(Res.string.story_did_you_know),
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
         )
         TypewriterText(text = shown.fact.text, style = MaterialTheme.typography.bodyLarge)
         if (answer.knownFor.isNotEmpty()) KnownFor(answer.knownFor)
         answer.notice?.let { notice -> SecondaryText(stringResource(notice.message())) }
         SecondaryText(stringResource(shown.source.credit()))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(CHIP_SPACING),
+            modifier = Modifier.fillMaxWidth().padding(top = CHIP_SPACING),
+        ) {
             if (answer.facts.size > 1) {
-                TextButton(onClick = onNextFact) {
-                    Text(stringResource(Res.string.story_next_fact), style = MaterialTheme.typography.bodyMedium)
+                GlassButton(onClick = onNextFact, prominent = true) {
+                    ButtonLabel(stringResource(Res.string.story_next_fact))
                 }
             }
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = { uriHandler.openUri(answer.article.pageUrl) }) {
-                Text(stringResource(Res.string.story_read_more), style = MaterialTheme.typography.bodyMedium)
+            GlassButton(onClick = { uriHandler.openUri(answer.article.pageUrl) }, modifier = Modifier.weight(1f)) {
+                ButtonLabel(stringResource(Res.string.story_read_more))
             }
         }
     }
@@ -155,7 +155,7 @@ private fun KnownFor(items: List<String>, modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(CHIP_SPACING),
         ) {
             items.forEach { item ->
-                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary.copy(alpha = CHIP_ALPHA)) {
+                Surface(shape = CircleShape, color = MaterialTheme.colorScheme.onSurface.copy(alpha = CHIP_ALPHA)) {
                     Text(
                         text = item,
                         style = MaterialTheme.typography.bodyMedium,
@@ -216,10 +216,16 @@ private fun LoadingLine(modifier: Modifier = Modifier) {
 private fun FailedLine(onRetry: () -> Unit, modifier: Modifier = Modifier) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
         SecondaryText(stringResource(Res.string.story_failed), modifier = Modifier.weight(1f))
-        TextButton(onClick = onRetry) {
-            Text(stringResource(Res.string.story_retry), style = MaterialTheme.typography.bodyMedium)
+        GlassButton(onClick = onRetry) {
+            ButtonLabel(stringResource(Res.string.story_retry))
         }
     }
+}
+
+/** A button's label in Apple's Headline weight, so the action reads clearly on the glass. */
+@Composable
+private fun ButtonLabel(text: String, modifier: Modifier = Modifier) {
+    Text(text = text, style = MaterialTheme.typography.titleMedium, maxLines = 1, modifier = modifier)
 }
 
 @Composable
