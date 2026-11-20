@@ -15,6 +15,9 @@ import androidx.compose.ui.graphics.Color
  *   so borders read even where they are thin.
  * @property subdivisionLand the lighter shades a selected country's states are filled with, so
  *   they stand out from the countries around it.
+ * @property pastLand the shades realms of the past are filled with: warmer and more varied than
+ *   today's, so an old map reads as one and its many small realms tell apart.
+ * @property unclaimedLand land no realm held in the year shown, a pale sand.
  * @property ice fill of the polar landmasses, Antarctica and Greenland.
  * @property landSelected fill of the selected country.
  * @property border outline of an unselected country.
@@ -29,6 +32,8 @@ internal data class GlobePalette(
     val ocean: List<Color>,
     val land: List<Color>,
     val subdivisionLand: List<Color>,
+    val pastLand: List<Color>,
+    val unclaimedLand: Color,
     val ice: Color,
     val landSelected: Color,
     val border: Color,
@@ -54,6 +59,17 @@ internal fun rememberGlobePalette(): GlobePalette = remember {
         ocean = listOf(Color(0xFF6AB2F0), Color(0xFF3483D4), Color(0xFF1A559E)),
         land = listOf(Color(0xFFA9C98A), Color(0xFF9CC07F), Color(0xFFB7CF94), Color(0xFF91B677)),
         subdivisionLand = listOf(Color(0xFFCFE1B6), Color(0xFFC0D8A6), Color(0xFFD9E7C2), Color(0xFFB7D29C)),
+        pastLand = listOf(
+            Color(0xFFE3B778),
+            Color(0xFFC98F6B),
+            Color(0xFFB5A26B),
+            Color(0xFFD4A0A0),
+            Color(0xFF9FB585),
+            Color(0xFFC3A9CF),
+            Color(0xFFE0C68F),
+            Color(0xFF8FB3B0),
+        ),
+        unclaimedLand = Color(0xFFDCD3B8),
         ice = Color(0xFFEAF1F5),
         landSelected = Color(0xFFF2C96B),
         border = Color(0x99FFFFFF),

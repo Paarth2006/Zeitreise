@@ -11,6 +11,8 @@ import com.paarth.zeitreise.data.FactCursor
 import com.paarth.zeitreise.data.FallbackGuideRepository
 import com.paarth.zeitreise.data.GuideRepository
 import com.paarth.zeitreise.data.GuidedExploreRepository
+import com.paarth.zeitreise.data.HistoryRepository
+import com.paarth.zeitreise.data.KtorHistoryRepository
 import com.paarth.zeitreise.data.KtorWikipediaRepository
 import com.paarth.zeitreise.data.OnboardingStore
 import com.paarth.zeitreise.data.ResponseCache
@@ -22,6 +24,7 @@ import com.paarth.zeitreise.data.WikipediaRepository
 import com.paarth.zeitreise.ui.explore.ExploreViewModel
 import com.paarth.zeitreise.ui.globe.GlobeViewModel
 import com.paarth.zeitreise.ui.onboarding.OnboardingViewModel
+import com.paarth.zeitreise.ui.timetravel.TimeTravelViewModel
 import com.russhwolf.settings.Settings
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineDispatcher
@@ -70,10 +73,12 @@ public val sharedModule: Module = module {
     single<GuideRepository> {
         FallbackGuideRepository(wikipedia = get(), aiGuide = getOrNull<GeminiGuide>(), demoGuide = get<DemoGuide>())
     }
+    single<HistoryRepository> { KtorHistoryRepository(client = get(), dispatcher = get()) }
     single<ExploreRepository> {
         GuidedExploreRepository(wikipedia = get(), aiGuide = getOrNull<GeminiGuide>(), demoGuide = get<DemoGuide>())
     }
     viewModelOf(::GlobeViewModel)
     viewModelOf(::ExploreViewModel)
+    viewModelOf(::TimeTravelViewModel)
     viewModelOf(::OnboardingViewModel)
 }

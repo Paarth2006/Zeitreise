@@ -125,14 +125,18 @@ public class Country internal constructor(
      * islands close to it, so Japan is framed from Hokkaido to Okinawa, while a far-off territory
      * such as French Guiana does not pull the view away from France.
      */
-    public val focus: GeoCap by lazy {
-        val mainland = outlines.first().exterior
-        val reach = mainland.bounds.radiusDegrees + NEARBY_LAND_DEGREES
-        val framed = outlines
-            .map { it.exterior }
-            .filter { mainland.bounds.center.angleTo(it.bounds.center) <= reach }
-        boundingCap(framed.flatMap { it.sphere.asList() }.toDoubleArray())
-    }
+    public val focus: GeoCap by lazy { outlines.mainlandFocus() }
 
     override fun toString(): String = "Country($name)"
+}
+
+/**
+ * The region to frame for landmasses listed largest first: the largest and those close to it, so
+ * a far-off island does not pull the view away from the mainland.
+ */
+internal fun List<CountryOutline>.mainlandFocus(): GeoCap {
+    val mainland = first().exterior
+    val reach = mainland.bounds.radiusDegrees + NEARBY_LAND_DEGREES
+    val framed = map { it.exterior }.filter { mainland.bounds.center.angleTo(it.bounds.center) <= reach }
+    return boundingCap(framed.flatMap { it.sphere.asList() }.toDoubleArray())
 }

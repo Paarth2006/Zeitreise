@@ -3,6 +3,8 @@ package com.paarth.zeitreise.geo
 import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.CountryOutline
 import com.paarth.zeitreise.domain.CountryRing
+import com.paarth.zeitreise.domain.HistoricalMap
+import com.paarth.zeitreise.domain.Realm
 import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.domain.vertexCount
 import com.paarth.zeitreise.globe.GeoPoint
@@ -39,7 +41,7 @@ private const val SMALL_RING_TOLERANCE_SHARE = 0.05
 /** Fewest vertices a ring needs before it is worth drawing at all. */
 private const val MIN_RING_VERTICES = 3
 
-/** Parses the bundled country and state outlines. */
+/** Parses the bundled country and state outlines, and the historical world maps. */
 internal class GeoJsonParser(private val json: Json = Json { ignoreUnknownKeys = true }) {
     /**
      * Reads a GeoJSON `FeatureCollection` of countries from [source].
@@ -66,6 +68,36 @@ internal class GeoJsonParser(private val json: Json = Json { ignoreUnknownKeys =
             .features
             .mapNotNull(::toSubdivision)
             .sortedByDescending { it.vertexCount }
+
+    /**
+     * Reads one year's world map from [source], a historical-basemaps `FeatureCollection`.
+     *
+     * Features that share a name, such as an empire's scattered lands, become one realm; features
+     * without a name become unclaimed land.
+     *
+     * @throws kotlinx.serialization.SerializationException if [source] is not the expected GeoJSON.
+     */
+    fun parseHistoricalMap(year: Int, source: String): HistoricalMap {
+        val features = json.decodeFromString(
+            GeoJsonFeatureCollection.serializer(GeoJsonRealmProperties.serializer()),
+            source,
+        ).features
+        val (named, unnamed) = features.partition { !it.properties.name.isNullOrBlank() }
+        val realms = named
+            .groupBy { requireNotNull(it.properties.name).trim() }
+            .mapNotNull { (name, parts) ->
+                val outlines = parts.flatMap { it.geometry.toOutlines(SIMPLIFY_TOLERANCE_DEGREES) }
+                    .sortedByDescending { it.exterior.area }
+                val partOf = parts.firstNotNullOfOrNull { it.properties.partOf?.trim() }?.takeIf { it != name }
+                if (outlines.isEmpty()) null else Realm(name, partOf, outlines)
+            }
+            .sortedByDescending { it.vertexCount }
+        return HistoricalMap(
+            year = year,
+            realms = realms,
+            unclaimedLand = unnamed.flatMap { it.geometry.toOutlines(SIMPLIFY_TOLERANCE_DEGREES) },
+        )
+    }
 
     private fun toCountry(feature: GeoJsonFeature<GeoJsonCountryProperties>): Country? {
         val outlines = feature.geometry.toOutlines(SIMPLIFY_TOLERANCE_DEGREES)

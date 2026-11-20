@@ -47,6 +47,16 @@ internal data class GeoJsonSubdivisionProperties(
 )
 
 /**
+ * The properties of a historical-basemaps feature. A feature without a name is land no realm
+ * held that year.
+ */
+@Serializable
+internal data class GeoJsonRealmProperties(
+    @SerialName("NAME") val name: String? = null,
+    @SerialName("PARTOF") val partOf: String? = null,
+)
+
+/**
  * A GeoJSON geometry.
  *
  * `coordinates` is kept as a raw [JsonArray] because a `Polygon` nests its numbers one level less

@@ -11,8 +11,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -36,7 +38,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paarth.zeitreise.domain.Country
+import com.paarth.zeitreise.domain.HistoricalMap
 import com.paarth.zeitreise.domain.Landmark
+import com.paarth.zeitreise.domain.Realm
 import com.paarth.zeitreise.domain.SearchResult
 import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.ui.about.AboutSheet
@@ -55,6 +59,12 @@ import com.paarth.zeitreise.ui.onboarding.OnboardingEvent
 import com.paarth.zeitreise.ui.onboarding.OnboardingStep
 import com.paarth.zeitreise.ui.onboarding.OnboardingViewModel
 import com.paarth.zeitreise.ui.onboarding.WelcomeOverlay
+import com.paarth.zeitreise.ui.timetravel.TimeTravelActions
+import com.paarth.zeitreise.ui.timetravel.TimeTravelButton
+import com.paarth.zeitreise.ui.timetravel.TimeTravelControls
+import com.paarth.zeitreise.ui.timetravel.TimeTravelState
+import com.paarth.zeitreise.ui.timetravel.TimeTravelViewModel
+import com.paarth.zeitreise.ui.timetravel.readyMap
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import org.jetbrains.compose.resources.stringResource
@@ -67,6 +77,9 @@ private val MESSAGE_PADDING = 32.dp
 
 /** Gap between the floating controls and the edges of the safe area. */
 private val CONTROL_MARGIN = 16.dp
+
+/** Gap between the stacked buttons at the top of the screen. */
+private val CONTROL_SPACING = 10.dp
 
 /** Gap between the onboarding hint and the bottom of the safe area. */
 private val HINT_BOTTOM_PADDING = 24.dp
@@ -103,22 +116,21 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
     val viewModel = koinViewModel<GlobeViewModel>()
     val onboarding = koinViewModel<OnboardingViewModel>()
     val explore = koinViewModel<ExploreViewModel>()
+    val timeTravel = koinViewModel<TimeTravelViewModel>()
+    val travel by timeTravel.state.collectAsStateWithLifecycle()
+    val realmStory by timeTravel.story.collectAsStateWithLifecycle()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val story by viewModel.story.collectAsStateWithLifecycle()
     val step by onboarding.step.collectAsStateWithLifecycle()
     val exploreState by explore.state.collectAsStateWithLifecycle()
     val openCard by explore.openCard.collectAsStateWithLifecycle()
-    val loadingLabel = stringResource(Res.string.loading_world)
     val actions = remember(viewModel, onboarding, explore) { GlobeScreenActions(viewModel, onboarding, explore) }
+    val travelActions = remember(timeTravel) { timeTravel.controlActions() }
 
     Box(modifier = modifier.fillMaxSize()) {
         when (val current = state) {
-            is GlobeUiState.Loading -> CircularProgressIndicator(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .semantics { contentDescription = loadingLabel },
-            )
+            is GlobeUiState.Loading -> LoadingWorld()
             is GlobeUiState.Failed -> FailureMessage(current.message)
             is GlobeUiState.Ready -> {
                 val backdrop = rememberHazeState()
@@ -126,7 +138,9 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
                 ReadyGlobe(
                     state = current,
                     places = places,
+                    past = rememberPastGlobe(travel),
                     actions = actions,
+                    onSelectRealm = travelActions.selectRealm,
                     modifier = Modifier.hazeSource(backdrop),
                 )
                 var showAbout by rememberSaveable { mutableStateOf(false) }
@@ -142,8 +156,14 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
                             step = step,
                             searchResults = searchResults,
                             actions = actions,
+                            travelling = travel is TimeTravelState.On,
+                            onStartTimeTravel = {
+                                actions.selectCountry(null)
+                                timeTravel.start()
+                            },
                             onShowAbout = { showAbout = true },
                         )
+                        TimeTravelControls(state = travel, story = realmStory, actions = travelActions)
                     }
                     // Presented modally over the controls, so its glass refracts the country's sheet too.
                     PlaceSheet(card = places.openCard, onClose = { actions.showLandmark(null) })
@@ -153,6 +173,31 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
         }
     }
 }
+
+/**
+ * The historical map for the globe while travelling in time, or `null` for today's world.
+ *
+ * While the next year's map downloads, the last one stays on the globe, so sliding through the
+ * years changes the borders in place instead of flashing today's map in between.
+ */
+@Composable
+private fun rememberPastGlobe(travel: TimeTravelState): PastGlobe? {
+    var lastMap by remember { mutableStateOf<HistoricalMap?>(null) }
+    val on = travel as? TimeTravelState.On
+    val ready = on?.readyMap
+    LaunchedEffect(ready, on == null) { lastMap = if (on == null) null else ready ?: lastMap }
+    return on?.let { PastGlobe(map = ready ?: lastMap, selected = it.selected) }
+}
+
+/** The Time Travel controls' actions, each handed straight to the view model. */
+private fun TimeTravelViewModel.controlActions() = TimeTravelActions(
+    selectYear = ::selectYear,
+    retry = ::retry,
+    selectRealm = ::selectRealm,
+    retryStory = ::retryStory,
+    nextFact = ::nextFact,
+    returnToToday = ::stop,
+)
 
 /**
  * The places of the selected country, as the globe and the sheets show them.
@@ -228,7 +273,9 @@ private class GlobeScreenActions(
 private fun ReadyGlobe(
     state: GlobeUiState.Ready,
     places: PlacesOnGlobe,
+    past: PastGlobe?,
     actions: GlobeScreenActions,
+    onSelectRealm: (Realm?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val intro = remember { Animatable(0f) }
@@ -241,6 +288,8 @@ private fun ReadyGlobe(
         landmarks = places.landmarks,
         openLandmark = places.openCard?.landmark,
         onSelectLandmark = actions::showLandmark,
+        past = past,
+        onSelectRealm = onSelectRealm,
         onTurned = { actions.onboardingEvent(OnboardingEvent.GlobeTurned) },
         modifier = modifier.graphicsLayer {
             val progress = intro.value
@@ -264,17 +313,28 @@ private fun BoxScope.Controls(
     step: OnboardingStep,
     searchResults: List<SearchResult>,
     actions: GlobeScreenActions,
+    travelling: Boolean,
+    onStartTimeTravel: () -> Unit,
     onShowAbout: () -> Unit,
 ) {
-    InfoButton(
-        onClick = onShowAbout,
+    Column(
+        verticalArrangement = Arrangement.spacedBy(CONTROL_SPACING),
         modifier = Modifier
             .align(Alignment.TopEnd)
             .safeDrawingPadding()
             .padding(CONTROL_MARGIN),
-    )
+    ) {
+        InfoButton(onClick = onShowAbout)
+        AnimatedVisibility(
+            visible = step == OnboardingStep.Finished && !travelling,
+            enter = fadeIn() + scaleIn(CONTROL_SPRING, initialScale = CONTROL_START_SCALE),
+            exit = fadeOut() + scaleOut(CONTROL_SPRING, targetScale = CONTROL_START_SCALE),
+        ) {
+            TimeTravelButton(onClick = onStartTimeTravel)
+        }
+    }
     SearchControl(
-        visible = step == OnboardingStep.Finished && state.selected == null,
+        visible = step == OnboardingStep.Finished && state.selected == null && !travelling,
         results = searchResults,
         actions = actions,
     )
@@ -341,6 +401,12 @@ private fun BoxScope.SearchControl(visible: Boolean, results: List<SearchResult>
             },
         )
     }
+}
+
+@Composable
+private fun BoxScope.LoadingWorld() {
+    val label = stringResource(Res.string.loading_world)
+    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center).semantics { contentDescription = label })
 }
 
 @Composable

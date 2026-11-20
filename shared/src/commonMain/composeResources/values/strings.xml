@@ -51,4 +51,19 @@
     <string name="place_facts_loading">Reading up on this place…</string>
     <string name="place_close">Back to the country</string>
     <string name="place_pin">%1$s, pinned on the globe</string>
+    <string name="time_travel_open">Travel in time</string>
+    <string name="time_travel_today">Today</string>
+    <string name="time_travel_year">Year</string>
+    <string name="time_travel_loading">Unrolling the map of %1$s…</string>
+    <string name="time_travel_failed">Couldn’t load the map of %1$s.</string>
+    <plurals name="time_travel_realms">
+        <item quantity="one">%1$d realm on the map. Tap it to meet it.</item>
+        <item quantity="other">%1$d realms on the map. Tap one to meet it.</item>
+    </plurals>
+    <string name="year_bc">%1$s BC</string>
+    <string name="year_ad">%1$s</string>
+    <string name="realm_in_year">In %1$s</string>
+    <string name="realm_part_of">Part of %1$s · %2$s</string>
+    <string name="close_realm">Close</string>
+    <string name="about_credit_history">Historical borders: historical-basemaps by André Ourednik and contributors, under the GNU GPL 3.0. They are downloaded while the app runs and are not part of it.</string>
 </resources>

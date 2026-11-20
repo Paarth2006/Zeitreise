@@ -30,11 +30,14 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Density
 import com.paarth.zeitreise.domain.Country
+import com.paarth.zeitreise.domain.HistoricalMap
 import com.paarth.zeitreise.domain.Landmark
+import com.paarth.zeitreise.domain.Realm
 import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.domain.territoryAt
-import com.paarth.zeitreise.globe.GeoPoint
+import com.paarth.zeitreise.globe.GeoCap
 import com.paarth.zeitreise.globe.GlobeProjection
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
@@ -96,6 +99,8 @@ private const val NANOS_PER_SECOND = 1_000_000_000.0
  * @param openLandmark the pinned place whose card is open, drawn with a larger pin.
  * @param onSelectLandmark called with the pinned place that was tapped; a pin wins over the
  *   country under it.
+ * @param past the historical map to draw instead of today's countries, while travelling in time.
+ * @param onSelectRealm called with the realm of [past] that was tapped, or `null` for the ocean.
  * @param onTurned called when the user finishes a drag or pinch.
  */
 @Composable
@@ -107,29 +112,31 @@ internal fun GlobeView(
     landmarks: List<Landmark> = emptyList(),
     openLandmark: Landmark? = null,
     onSelectLandmark: (Landmark) -> Unit = {},
+    past: PastGlobe? = null,
+    onSelectRealm: (Realm?) -> Unit = {},
     onTurned: () -> Unit = {},
 ) {
-    val selected = content.selected
     val state = remember { GlobeInteractionState() }
     val geometry = remember(content.countries) { GlobeGeometryCache(content.countries) }
     val subdivisionGeometry = remember(content.subdivisions) { content.subdivisions.map(::TerritoryGeometry) }
+    val pastGeometry = remember(past?.map) { past?.map?.let(::PastGeometry) }
     val palette = rememberGlobePalette()
     val starfield = remember { Starfield() }
     val description = stringResource(Res.string.globe_description)
     val labels = rememberSubdivisionLabels(content.subdivisions, palette)
     val subdivisionAlpha by animateSubdivisionAlpha(content.subdivisions)
 
-    CameraDriver(state, selected)
+    CameraDriver(state, focus = if (past != null) past.selected?.focus else content.selected?.focus)
     val pinDrop = rememberPinDrop(landmarks)
-    val density = LocalDensity.current
-
-    // The gesture handler is installed once, so it reads the latest state and callbacks through
-    // these rather than the ones it was created with.
-    val currentContent by rememberUpdatedState(content)
-    val currentOnSelectCountry by rememberUpdatedState(onSelectCountry)
-    val currentOnSelectSubdivision by rememberUpdatedState(onSelectSubdivision)
-    val currentLandmarks by rememberUpdatedState(landmarks)
-    val currentOnSelectLandmark by rememberUpdatedState(onSelectLandmark)
+    val routeTap = rememberTapRouter(
+        TapTargets(
+            content = content,
+            past = past,
+            landmarks = landmarks,
+            callbacks = TapCallbacks(onSelectCountry, onSelectSubdivision, onSelectRealm, onSelectLandmark),
+        ),
+    )
+    // The gesture handler is installed once, so it reads the latest callback through this.
     val currentOnTurned by rememberUpdatedState(onTurned)
 
     Canvas(
@@ -148,16 +155,7 @@ internal fun GlobeView(
                     state.onReleased(velocity)
                     currentOnTurned()
                 },
-                onTapped = { position ->
-                    val projection = state.projection()
-                    val pinned = landmarkAt(position, currentLandmarks, projection, density)
-                    if (pinned != null) {
-                        currentOnSelectLandmark(pinned)
-                    } else {
-                        val point = projection.unproject(position.x.toDouble(), position.y.toDouble())
-                        currentContent.routeTap(point, currentOnSelectCountry, currentOnSelectSubdivision)
-                    }
-                },
+                onTapped = { position -> routeTap(position, state.projection()) },
             ),
     ) {
         drawStars(starfield, palette)
@@ -165,27 +163,40 @@ internal fun GlobeView(
         if (projection.scaledRadius <= 0.0) return@Canvas
         drawOcean(projection, palette)
         drawGraticule(geometry.graticule, projection, palette)
-        drawCountries(geometry, projection, selected, statesShown = subdivisionAlpha > 0f, palette = palette)
-        drawSubdivisions(subdivisionGeometry, projection, content.selectedSubdivision, subdivisionAlpha, palette)
-        labels.draw(this, projection, subdivisionAlpha, content.selectedSubdivision)
+        if (pastGeometry != null) {
+            drawPast(pastGeometry, projection, past?.selected, palette)
+        } else {
+            val selected = content.selectedSubdivision
+            drawCountries(geometry, projection, content.selected, statesShown = subdivisionAlpha > 0f, palette)
+            drawSubdivisions(subdivisionGeometry, projection, selected, subdivisionAlpha, palette)
+            labels.draw(this, projection, subdivisionAlpha, selected)
+        }
         drawAtmosphere(projection, palette)
         drawLandmarkPins(landmarks, projection, openLandmark, pinDrop.value)
     }
 }
 
 /**
- * Moves the camera on its own: flies to [selected] whenever it changes, and advances inertia,
- * drift and flights once per frame.
+ * A historical map for the globe to draw in place of today's countries.
+ *
+ * @property map the map, or `null` while it downloads, when the globe shows bare land and sea.
+ * @property selected the realm the user tapped, which the camera frames.
+ */
+internal data class PastGlobe(val map: HistoricalMap?, val selected: Realm?)
+
+/**
+ * Moves the camera on its own: flies to [focus] whenever it changes, or out to the whole globe
+ * when it is cleared, and advances inertia, drift and flights once per frame.
  */
 @Composable
-private fun CameraDriver(state: GlobeInteractionState, selected: Country?) {
-    LaunchedEffect(selected) {
-        if (selected != null) state.flyToFrame(selected.focus) else state.flyToWholeGlobe()
+private fun CameraDriver(state: GlobeInteractionState, focus: GeoCap?) {
+    LaunchedEffect(focus) {
+        if (focus != null) state.flyToFrame(focus) else state.flyToWholeGlobe()
     }
 
-    // Read inside the frame loop rather than captured, so selecting a country stops the drift
+    // Read inside the frame loop rather than captured, so selecting a place stops the drift
     // without restarting the loop.
-    val selectedNow by rememberUpdatedState(selected)
+    val selectedNow by rememberUpdatedState(focus)
     LaunchedEffect(state) {
         var previous = 0L
         while (true) {
@@ -232,23 +243,53 @@ private fun rememberSubdivisionLabels(subdivisions: List<Subdivision>, palette: 
     return remember(subdivisions, style) { SubdivisionLabels(subdivisions, measurer, style) }
 }
 
-/**
- * Decides what a tap at [point] selects: a state of the selected country first, then the selected
- * country itself, which steps back from its state, then any other country, or the ocean, which
- * clears the selection.
- */
-private fun GlobeUiState.Ready.routeTap(
-    point: GeoPoint?,
-    onSelectCountry: (Country?) -> Unit,
-    onSelectSubdivision: (Subdivision?) -> Unit,
+/** Whom to tell when a tap selects something. */
+private class TapCallbacks(
+    val onSelectCountry: (Country?) -> Unit,
+    val onSelectSubdivision: (Subdivision?) -> Unit,
+    val onSelectRealm: (Realm?) -> Unit,
+    val onSelectLandmark: (Landmark) -> Unit,
+)
+
+/** Everything a tap on the globe can select. */
+private class TapTargets(
+    val content: GlobeUiState.Ready,
+    val past: PastGlobe?,
+    val landmarks: List<Landmark>,
+    val callbacks: TapCallbacks,
 ) {
-    val subdivision = point?.let { subdivisions.territoryAt(it) }
-    val country = point?.let { countries.territoryAt(it) }
-    when {
-        subdivision != null -> onSelectSubdivision(subdivision)
-        country != null && country == selected -> onSelectSubdivision(null)
-        else -> onSelectCountry(country)
+    /**
+     * Decides what a tap at [position] selects. In the past, a realm or the ocean. Today, a pin
+     * first, then a state of the selected country, then the selected country itself, which steps
+     * back from its state, then any other country, or the ocean, which clears the selection.
+     */
+    fun route(position: Offset, projection: GlobeProjection, density: Density) {
+        val point = projection.unproject(position.x.toDouble(), position.y.toDouble())
+        if (past != null) {
+            callbacks.onSelectRealm(point?.let { past.map?.realms?.territoryAt(it) })
+            return
+        }
+        val pinned = landmarkAt(position, landmarks, projection, density)
+        val subdivision = point?.let { content.subdivisions.territoryAt(it) }
+        val country = point?.let { content.countries.territoryAt(it) }
+        when {
+            pinned != null -> callbacks.onSelectLandmark(pinned)
+            subdivision != null -> callbacks.onSelectSubdivision(subdivision)
+            country != null && country == content.selected -> callbacks.onSelectSubdivision(null)
+            else -> callbacks.onSelectCountry(country)
+        }
     }
+}
+
+/**
+ * The tap handler for the gesture detector, which is installed once: it routes each tap through
+ * the latest [targets] rather than the ones it was created with.
+ */
+@Composable
+private fun rememberTapRouter(targets: TapTargets): (Offset, GlobeProjection) -> Unit {
+    val density = LocalDensity.current
+    val current by rememberUpdatedState(targets)
+    return remember(density) { { position, projection -> current.route(position, projection, density) } }
 }
 
 private fun DrawScope.drawStars(starfield: Starfield, palette: GlobePalette) {
