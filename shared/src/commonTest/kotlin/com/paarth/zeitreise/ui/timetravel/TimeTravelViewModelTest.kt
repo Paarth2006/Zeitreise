@@ -3,13 +3,16 @@ package com.paarth.zeitreise.ui.timetravel
 import com.paarth.zeitreise.ai.GuidePlace
 import com.paarth.zeitreise.data.GuideRepository
 import com.paarth.zeitreise.data.HistoryRepository
+import com.paarth.zeitreise.data.LandmarkHistory
 import com.paarth.zeitreise.data.SettingsFactCursor
 import com.paarth.zeitreise.domain.CountryOutline
 import com.paarth.zeitreise.domain.CountryRing
 import com.paarth.zeitreise.domain.GuideAnswer
+import com.paarth.zeitreise.domain.HistoricLandmark
 import com.paarth.zeitreise.domain.HistoricalMap
 import com.paarth.zeitreise.domain.MAP_YEARS
 import com.paarth.zeitreise.domain.Realm
+import com.paarth.zeitreise.globe.GeoPoint
 import com.russhwolf.settings.MapSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -45,6 +48,14 @@ private class FakeHistory(var down: Boolean = false) : HistoryRepository {
     }
 }
 
+/** The Colosseum, built in AD 82, and a landmark that stood only until AD 100. */
+private val COLOSSEUM = HistoricLandmark("Colosseum", "Colosseum", GeoPoint(41.89, 12.49), built = 82)
+private val GONE_BY_100 = HistoricLandmark("Old Tower", "Old Tower", GeoPoint(40.0, 10.0), built = -300, until = 100)
+
+private object Landmarks : LandmarkHistory {
+    override suspend fun standingIn(year: Int) = listOf(GONE_BY_100, COLOSSEUM).filter { it.standsIn(year) }
+}
+
 private object NoGuide : GuideRepository {
     override suspend fun storyFor(place: GuidePlace): GuideAnswer? = null
 }
@@ -58,7 +69,7 @@ class TimeTravelViewModelTest {
     private fun travel(test: suspend TestScope.(TimeTravelViewModel) -> Unit) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
-            test(TimeTravelViewModel(history, NoGuide, SettingsFactCursor(MapSettings())))
+            test(TimeTravelViewModel(history, Landmarks, NoGuide, SettingsFactCursor(MapSettings())))
             // Let the view model finish what the test set going before its dispatcher is taken away.
             advanceUntilIdle()
         } finally {
@@ -111,6 +122,18 @@ class TimeTravelViewModelTest {
         viewModel.selectYear(0)
 
         assertEquals(null, (viewModel.state.value as TimeTravelState.On).selected)
+    }
+
+    @Test
+    fun pinsTheLandmarksThatStoodInTheYearShown() = travel { viewModel ->
+        viewModel.start()
+        viewModel.selectYear(MAP_YEARS.indexOf(-100))
+        advanceUntilIdle()
+        assertEquals(listOf(GONE_BY_100), (viewModel.state.value as TimeTravelState.On).landmarks)
+
+        viewModel.selectYear(MAP_YEARS.indexOf(1492))
+        advanceUntilIdle()
+        assertEquals(listOf(COLOSSEUM), (viewModel.state.value as TimeTravelState.On).landmarks)
     }
 
     @Test

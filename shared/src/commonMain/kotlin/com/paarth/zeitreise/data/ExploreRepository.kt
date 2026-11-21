@@ -6,6 +6,7 @@ import com.paarth.zeitreise.ai.GuideUnavailableException
 import com.paarth.zeitreise.ai.PlaceSuggestion
 import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.GuideNotice
+import com.paarth.zeitreise.domain.HistoricLandmark
 import com.paarth.zeitreise.domain.Landmark
 import com.paarth.zeitreise.domain.PlacesToVisit
 import com.paarth.zeitreise.domain.StorySource
@@ -51,6 +52,9 @@ public interface ExploreRepository {
 
     /** A few notable facts from [landmark]'s Wikipedia article; empty when it cannot be read. */
     public suspend fun factsAbout(landmark: Landmark): List<String>
+
+    /** The card's landmark for the historic landmark [pin], or `null` when its article cannot be read. */
+    public suspend fun landmarkFor(pin: HistoricLandmark): Landmark?
 }
 
 /**
@@ -86,6 +90,9 @@ internal class GuidedExploreRepository(
     override suspend fun factsAbout(landmark: Landmark): List<String> = wikipedia.notableFacts(landmark.article)
         .filterNot { repeats(it, landmark.article.extract) }
         .take(MAX_LANDMARK_FACTS)
+
+    override suspend fun landmarkFor(pin: HistoricLandmark): Landmark? =
+        lookUp(pin.wikipediaTitle)?.let { article -> Landmark(pin.name, article, article.location ?: pin.location) }
 
     /** The suggestions whose Wikipedia articles place them in [country], in the guide's order. */
     private suspend fun verify(suggestions: List<PlaceSuggestion>, country: Country): List<Landmark> = coroutineScope {

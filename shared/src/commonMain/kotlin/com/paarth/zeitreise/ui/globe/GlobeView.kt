@@ -33,7 +33,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Density
 import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.HistoricalMap
-import com.paarth.zeitreise.domain.Landmark
+import com.paarth.zeitreise.domain.Pinned
 import com.paarth.zeitreise.domain.Realm
 import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.domain.territoryAt
@@ -95,10 +95,9 @@ private const val NANOS_PER_SECOND = 1_000_000_000.0
  * @param onSelectSubdivision called with the state that was tapped inside the selected country,
  *   or `null` when the selected country was tapped outside any of its states.
  * @param modifier applied to the root element.
- * @param landmarks the places pinned on the globe, which drop in one by one when they change.
- * @param openLandmark the pinned place whose card is open, drawn with a larger pin.
- * @param onSelectLandmark called with the pinned place that was tapped; a pin wins over the
- *   country under it.
+ * @param pins the places and landmarks pinned on the globe, which drop in one by one when they change.
+ * @param openPin the pin whose card is open, drawn larger.
+ * @param onSelectPin called with the pin that was tapped; a pin wins over the land under it.
  * @param past the historical map to draw instead of today's countries, while travelling in time.
  * @param onSelectRealm called with the realm of [past] that was tapped, or `null` for the ocean.
  * @param onTurned called when the user finishes a drag or pinch.
@@ -109,9 +108,9 @@ internal fun GlobeView(
     onSelectCountry: (Country?) -> Unit,
     onSelectSubdivision: (Subdivision?) -> Unit,
     modifier: Modifier = Modifier,
-    landmarks: List<Landmark> = emptyList(),
-    openLandmark: Landmark? = null,
-    onSelectLandmark: (Landmark) -> Unit = {},
+    pins: List<Pinned> = emptyList(),
+    openPin: Pinned? = null,
+    onSelectPin: (Pinned) -> Unit = {},
     past: PastGlobe? = null,
     onSelectRealm: (Realm?) -> Unit = {},
     onTurned: () -> Unit = {},
@@ -127,13 +126,13 @@ internal fun GlobeView(
     val subdivisionAlpha by animateSubdivisionAlpha(content.subdivisions)
 
     CameraDriver(state, focus = if (past != null) past.selected?.focus else content.selected?.focus)
-    val pinDrop = rememberPinDrop(landmarks)
+    val pinDrop = rememberPinDrop(pins)
     val routeTap = rememberTapRouter(
         TapTargets(
             content = content,
             past = past,
-            landmarks = landmarks,
-            callbacks = TapCallbacks(onSelectCountry, onSelectSubdivision, onSelectRealm, onSelectLandmark),
+            pins = pins,
+            callbacks = TapCallbacks(onSelectCountry, onSelectSubdivision, onSelectRealm, onSelectPin),
         ),
     )
     // The gesture handler is installed once, so it reads the latest callback through this.
@@ -172,7 +171,7 @@ internal fun GlobeView(
             labels.draw(this, projection, subdivisionAlpha, selected)
         }
         drawAtmosphere(projection, palette)
-        drawLandmarkPins(landmarks, projection, openLandmark, pinDrop.value)
+        drawLandmarkPins(pins, projection, openPin, pinDrop.value)
     }
 }
 
@@ -220,11 +219,11 @@ private fun animateSubdivisionAlpha(subdivisions: List<Subdivision>): State<Floa
     animationSpec = tween(SUBDIVISION_FADE_MILLIS),
 )
 
-/** Runs from 0 to 1 each time a new set of [landmarks] is pinned, dropping their pins in turn. */
+/** Runs from 0 to 1 each time a new set of [pins] is pinned, dropping their pins in turn. */
 @Composable
-private fun rememberPinDrop(landmarks: List<Landmark>): Animatable<Float, AnimationVector1D> {
+private fun rememberPinDrop(pins: List<Pinned>): Animatable<Float, AnimationVector1D> {
     val drop = remember { Animatable(0f) }
-    LaunchedEffect(landmarks) {
+    LaunchedEffect(pins) {
         drop.snapTo(0f)
         drop.animateTo(1f, tween(PIN_DROP_MILLIS, easing = LinearEasing))
     }
@@ -248,32 +247,31 @@ private class TapCallbacks(
     val onSelectCountry: (Country?) -> Unit,
     val onSelectSubdivision: (Subdivision?) -> Unit,
     val onSelectRealm: (Realm?) -> Unit,
-    val onSelectLandmark: (Landmark) -> Unit,
+    val onSelectPin: (Pinned) -> Unit,
 )
 
 /** Everything a tap on the globe can select. */
 private class TapTargets(
     val content: GlobeUiState.Ready,
     val past: PastGlobe?,
-    val landmarks: List<Landmark>,
+    val pins: List<Pinned>,
     val callbacks: TapCallbacks,
 ) {
     /**
-     * Decides what a tap at [position] selects. In the past, a realm or the ocean. Today, a pin
-     * first, then a state of the selected country, then the selected country itself, which steps
-     * back from its state, then any other country, or the ocean, which clears the selection.
+     * Decides what a tap at [position] selects: a pin first, wherever it stands. Then, in the past,
+     * a realm or the ocean. Today, a state of the selected country, then the selected country
+     * itself, which steps back from its state, then any other country, or the ocean, which clears
+     * the selection.
      */
     fun route(position: Offset, projection: GlobeProjection, density: Density) {
         val point = projection.unproject(position.x.toDouble(), position.y.toDouble())
-        if (past != null) {
-            callbacks.onSelectRealm(point?.let { past.map?.realms?.territoryAt(it) })
-            return
-        }
-        val pinned = landmarkAt(position, landmarks, projection, density)
+        val pinned = landmarkAt(position, pins, projection, density)
+        val realm = past?.map?.realms?.let { realms -> point?.let { realms.territoryAt(it) } }
         val subdivision = point?.let { content.subdivisions.territoryAt(it) }
         val country = point?.let { content.countries.territoryAt(it) }
         when {
-            pinned != null -> callbacks.onSelectLandmark(pinned)
+            pinned != null -> callbacks.onSelectPin(pinned)
+            past != null -> callbacks.onSelectRealm(realm)
             subdivision != null -> callbacks.onSelectSubdivision(subdivision)
             country != null && country == content.selected -> callbacks.onSelectSubdivision(null)
             else -> callbacks.onSelectCountry(country)

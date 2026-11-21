@@ -7,10 +7,12 @@ import kotlin.system.exitProcess
 
 private const val GENERATOR_COUNTRIES = "countries"
 private const val GENERATOR_STATES = "states"
+private const val GENERATOR_LANDMARKS = "landmarks"
 
 private val GENERATORS = mapOf(
     GENERATOR_COUNTRIES to ::generateCountries,
     GENERATOR_STATES to ::generateStates,
+    GENERATOR_LANDMARKS to ::generateLandmarks,
 )
 
 /**

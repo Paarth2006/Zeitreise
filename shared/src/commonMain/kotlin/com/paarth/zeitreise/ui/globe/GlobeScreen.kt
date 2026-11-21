@@ -38,8 +38,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.paarth.zeitreise.domain.Country
+import com.paarth.zeitreise.domain.HistoricLandmark
 import com.paarth.zeitreise.domain.HistoricalMap
 import com.paarth.zeitreise.domain.Landmark
+import com.paarth.zeitreise.domain.Pinned
 import com.paarth.zeitreise.domain.Realm
 import com.paarth.zeitreise.domain.SearchResult
 import com.paarth.zeitreise.domain.Subdivision
@@ -126,7 +128,7 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
     val exploreState by explore.state.collectAsStateWithLifecycle()
     val openCard by explore.openCard.collectAsStateWithLifecycle()
     val actions = remember(viewModel, onboarding, explore) { GlobeScreenActions(viewModel, onboarding, explore) }
-    val travelActions = remember(timeTravel) { timeTravel.controlActions() }
+    val travelActions = remember(timeTravel, explore) { timeTravel.controlActions(explore) }
 
     Box(modifier = modifier.fillMaxSize()) {
         when (val current = state) {
@@ -134,7 +136,7 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
             is GlobeUiState.Failed -> FailureMessage(current.message)
             is GlobeUiState.Ready -> {
                 val backdrop = rememberHazeState()
-                val places = PlacesOnGlobe.of(exploreState, openCard, current.selected)
+                val places = PlacesOnGlobe.of(exploreState, openCard, current.selected, travel)
                 ReadyGlobe(
                     state = current,
                     places = places,
@@ -166,7 +168,7 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
                         TimeTravelControls(state = travel, story = realmStory, actions = travelActions)
                     }
                     // Presented modally over the controls, so its glass refracts the country's sheet too.
-                    PlaceSheet(card = places.openCard, onClose = { actions.showLandmark(null) })
+                    PlaceSheet(card = places.openCard, onClose = { actions.showPin(null) })
                     AboutSheet(visible = showAbout, onDismiss = { showAbout = false })
                 }
             }
@@ -189,38 +191,44 @@ private fun rememberPastGlobe(travel: TimeTravelState): PastGlobe? {
     return on?.let { PastGlobe(map = ready ?: lastMap, selected = it.selected) }
 }
 
-/** The Time Travel controls' actions, each handed straight to the view model. */
-private fun TimeTravelViewModel.controlActions() = TimeTravelActions(
+/**
+ * The Time Travel controls' actions, handed straight to the view model; coming back to today also
+ * closes the card of a landmark of the past.
+ */
+private fun TimeTravelViewModel.controlActions(places: ExploreViewModel) = TimeTravelActions(
     selectYear = ::selectYear,
     retry = ::retry,
     selectRealm = ::selectRealm,
     retryStory = ::retryStory,
     nextFact = ::nextFact,
-    returnToToday = ::stop,
+    returnToToday = {
+        places.close()
+        stop()
+    },
 )
 
 /**
- * The places of the selected country, as the globe and the sheets show them.
+ * The pins on the globe and the card open over it, as the globe and the sheets show them.
  *
  * @property explore what the guide has found for the selected country; [ExploreState.Idle] when
  *   it has found nothing for it yet, even if it has for another country.
- * @property landmarks the pinned places of the selected country.
- * @property openCard the card of one of [landmarks], if one is open.
+ * @property pins today, the places pinned for the selected country; in the past, the landmarks
+ *   that stood in the year shown.
+ * @property openCard the card of one of [pins], if one is open.
  */
-private data class PlacesOnGlobe(
-    val explore: ExploreState,
-    val landmarks: List<Landmark>,
-    val openCard: LandmarkCard?,
-) {
+private data class PlacesOnGlobe(val explore: ExploreState, val pins: List<Pinned>, val openCard: LandmarkCard?) {
     companion object {
-        /** What of [state] and [card] belongs to [selected], the country on screen. */
-        fun of(state: ExploreState, card: LandmarkCard?, selected: Country?): PlacesOnGlobe {
+        /** What of [state], [card] and the past belongs on screen with [selected]. */
+        fun of(state: ExploreState, card: LandmarkCard?, selected: Country?, travel: TimeTravelState): PlacesOnGlobe {
             val landmarks = state.landmarksIn(selected)
-            return PlacesOnGlobe(
-                explore = state.about(selected),
-                landmarks = landmarks,
-                openCard = card?.takeIf { it.landmark in landmarks },
-            )
+            return when (travel) {
+                is TimeTravelState.On -> PlacesOnGlobe(ExploreState.Idle, travel.landmarks, card)
+                TimeTravelState.Off -> PlacesOnGlobe(
+                    explore = state.about(selected),
+                    pins = landmarks,
+                    openCard = card?.takeIf { it.landmark in landmarks },
+                )
+            }
         }
     }
 }
@@ -259,8 +267,12 @@ private class GlobeScreenActions(
 
     fun explore(country: Country) = places.explore(country)
 
-    /** Opens the card for [landmark], or closes the open card when it is `null`. */
-    fun showLandmark(landmark: Landmark?) = if (landmark != null) places.open(landmark) else places.close()
+    /** Opens the card for [pin], or closes the open card when it is `null`. */
+    fun showPin(pin: Pinned?) = when (pin) {
+        null -> places.close()
+        is Landmark -> places.open(pin)
+        is HistoricLandmark -> places.openHistoric(pin)
+    }
 
     fun onboardingEvent(event: OnboardingEvent) = onboarding.onEvent(event)
 
@@ -285,9 +297,9 @@ private fun ReadyGlobe(
         content = state,
         onSelectCountry = actions::selectCountry,
         onSelectSubdivision = actions::selectSubdivision,
-        landmarks = places.landmarks,
-        openLandmark = places.openCard?.landmark,
-        onSelectLandmark = actions::showLandmark,
+        pins = places.pins,
+        openPin = places.openCard?.landmark,
+        onSelectPin = actions::showPin,
         past = past,
         onSelectRealm = onSelectRealm,
         onTurned = { actions.onboardingEvent(OnboardingEvent.GlobeTurned) },

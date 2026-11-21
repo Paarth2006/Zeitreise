@@ -6,9 +6,9 @@ import com.paarth.zeitreise.ai.GuidePlace
 import com.paarth.zeitreise.data.FactCursor
 import com.paarth.zeitreise.data.GuideRepository
 import com.paarth.zeitreise.data.HistoryRepository
+import com.paarth.zeitreise.data.LandmarkHistory
 import com.paarth.zeitreise.domain.MAP_YEARS
 import com.paarth.zeitreise.domain.Realm
-import com.paarth.zeitreise.domain.yearDigits
 import com.paarth.zeitreise.ui.globe.StoryState
 import com.paarth.zeitreise.ui.globe.StoryTeller
 import kotlinx.coroutines.CancellationException
@@ -35,6 +35,7 @@ private const val FIRST_YEAR = 1492
  */
 public class TimeTravelViewModel(
     private val history: HistoryRepository,
+    private val landmarks: LandmarkHistory,
     guide: GuideRepository,
     factCursor: FactCursor,
 ) : ViewModel() {
@@ -85,7 +86,8 @@ public class TimeTravelViewModel(
     public fun selectYear(index: Int) {
         _state.update { state ->
             if (state is TimeTravelState.On && state.yearIndex != index) {
-                TimeTravelState.On(yearIndex = index.coerceIn(MAP_YEARS.indices), map = PastMap.Loading)
+                // The last year's landmarks stay pinned until this year's are read, so pins don't blink.
+                TimeTravelState.On(index.coerceIn(MAP_YEARS.indices), PastMap.Loading, landmarks = state.landmarks)
             } else {
                 state
             }
@@ -113,6 +115,11 @@ public class TimeTravelViewModel(
     }
 
     private suspend fun load(index: Int) {
+        // The landmarks are bundled, so they move with the slider; the map waits for it to settle.
+        val standing = landmarks.standingIn(MAP_YEARS[index])
+        _state.update { state ->
+            if (state is TimeTravelState.On && state.yearIndex == index) state.copy(landmarks = standing) else state
+        }
         delay(SETTLE_MILLIS)
         val loaded = runCatching { history.mapOf(MAP_YEARS[index]) }
             .onFailure { if (it is CancellationException) throw it }
@@ -123,9 +130,8 @@ public class TimeTravelViewModel(
     }
 }
 
-/** The realm as the guide is asked about it, with the year so it tells of that time. */
+/** The realm as the guide is asked about it, in the year shown, so it tells of that time. */
 private fun Realm.guidePlace(year: Int): GuidePlace {
-    val era = if (year < 0) "${yearDigits(year)} BC" else "AD ${yearDigits(year)}"
-    val within = partOf?.let { ", part of $it" }.orEmpty()
-    return GuidePlace(name = name, description = "a realm as it stood in $era$within", wikidataId = null)
+    val within = partOf?.let { " within $it" }.orEmpty()
+    return GuidePlace(name = name, description = "a realm$within", wikidataId = null, year = year)
 }

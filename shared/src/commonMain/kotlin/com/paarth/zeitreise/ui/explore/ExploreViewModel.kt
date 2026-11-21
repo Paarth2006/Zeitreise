@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paarth.zeitreise.data.ExploreRepository
 import com.paarth.zeitreise.domain.Country
+import com.paarth.zeitreise.domain.HistoricLandmark
 import com.paarth.zeitreise.domain.Landmark
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -65,6 +66,12 @@ public class ExploreViewModel(private val explore: ExploreRepository) : ViewMode
             val facts = explore.factsAbout(landmark)
             _openCard.update { card -> if (card?.landmark == landmark) card.copy(facts = facts) else card }
         }
+    }
+
+    /** Opens the card for a landmark of the past, once its Wikipedia article has been read. */
+    public fun openHistoric(pin: HistoricLandmark) {
+        factsJob?.cancel()
+        factsJob = viewModelScope.launch { explore.landmarkFor(pin)?.let(::open) }
     }
 
     /** Closes the place card. */

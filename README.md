@@ -48,6 +48,8 @@ The long-term goal is a guide that tells you a surprising fact about each countr
 ### Time Travel
 - The hourglass button turns the globe into a historical map; a glass year slider steps through 54 maps from 123,000 BC to 2010
 - Empires, kingdoms and peoples redraw in place as the slider moves; tap one to fly to it and read its story, grounded on its Wikipedia article
+- With a Gemini API key, the guide speaks from the year shown, using only what the article says about that time or earlier, and says so plainly when little is recorded
+- About sixty famous landmarks are pinned in the years they stood, from Göbekli Tepe to the Burj Khalifa: the Lighthouse of Alexandria disappears after 1480, the Berlin Wall stands only from 1961 to 1989. Their building and destruction years come from Wikidata and are bundled with the app
 - The maps are downloaded the first time a year is chosen and kept while you slide back and forth, so Time Travel needs an internet connection
 
 ### Onboarding
@@ -96,7 +98,7 @@ About **97% of the app's code lives in `commonMain`**: 2,389 lines shared, again
   `main()`, which mounts the shared UI with `ComposeViewport` on Kotlin/Wasm
 
 ### Data Preparation (`tools/dataprep`)
-A JVM tool that downloads the Natural Earth countries, keeps the fields the app needs and rounds the coordinates. It runs once and its output is committed, so the app works offline.
+A JVM tool that downloads the Natural Earth countries and states, and the landmarks' locations and years from Wikidata, keeps the fields the app needs and rounds the coordinates. It runs once and its output is committed, so the app works offline.
 
 This architecture enables:
 - One codebase for three platforms
@@ -223,11 +225,6 @@ Today's countries and states are bundled, so the globe works offline. The histor
 
 ## Future Steps
 
-Time Travel
-
-    1. Landmarks that appear and disappear with the years they were built and destroyed
-    2. A guide that narrates as if it lived in the year shown
-
 Learning and Fun
 
     1. A quiz, passport stamps, a country of the day, capitals and flags
@@ -236,6 +233,7 @@ Learning and Fun
 
 - Country, state and province outlines: [Natural Earth](https://www.naturalearthdata.com/) (public domain).
 - Historical borders: [historical-basemaps](https://github.com/aourednik/historical-basemaps) by André Ourednik and contributors, under the [GNU GPL 3.0](https://www.gnu.org/licenses/gpl-3.0.html). They are downloaded while the app runs and are not part of this repository.
+- Landmark locations and the years they were built and destroyed: [Wikidata](https://www.wikidata.org/) (CC0).
 - Place descriptions and facts: [Wikipedia](https://www.wikipedia.org/), under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); articles are found through [Wikidata](https://www.wikidata.org/).
 
 ## Licence

@@ -11,8 +11,13 @@ import kotlinx.serialization.Serializable
  * @property description what kind of place it is, such as "a country in Asia" or "a state of
  *   India", so the guide knows what it is talking about even when names are shared.
  * @property wikidataId the place's Wikidata item, which keys stories and cached answers.
+ * @property year the year the traveller is visiting, negative before Christ, so the guide tells of
+ *   the place as it was then; `null` for today.
  */
-public data class GuidePlace(val name: String, val description: String, val wikidataId: String?)
+public data class GuidePlace(val name: String, val description: String, val wikidataId: String?, val year: Int? = null)
+
+/** A year as a guide says it: "AD 1492", or "500 BC" before Christ. */
+internal fun yearInWords(year: Int): String = if (year < 0) "${-year} BC" else "AD $year"
 
 /**
  * A place the guide suggests visiting: a name and a Wikipedia title, never a location or a

@@ -9,19 +9,23 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -95,6 +100,11 @@ private val HOURGLASS_STROKE = 2.dp
 /** Size of the loading indicator. */
 private val LOADING_SIZE = 14.dp
 private val LOADING_STROKE = 2.dp
+
+/** Size and shadow of the slider's round knob, and the height of its track, as on iOS. */
+private val THUMB_SIZE = 28.dp
+private val THUMB_ELEVATION = 4.dp
+private val TRACK_HEIGHT = 4.dp
 
 /** Opacity of the slider's unfilled track. */
 private const val INACTIVE_TRACK_ALPHA = 0.15f
@@ -268,18 +278,38 @@ private fun MapStatus(state: TimeTravelState.On, onRetry: () -> Unit, modifier: 
 @Composable
 private fun YearSlider(yearIndex: Int, onSelectYear: (Int) -> Unit, modifier: Modifier = Modifier) {
     val label = stringResource(Res.string.time_travel_year)
+    val colors = SliderDefaults.colors(
+        thumbColor = Color.White,
+        activeTrackColor = MaterialTheme.colorScheme.primary,
+        inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = INACTIVE_TRACK_ALPHA),
+        activeTickColor = Color.Transparent,
+        inactiveTickColor = Color.Transparent,
+    )
     Slider(
         value = yearIndex.toFloat(),
         onValueChange = { onSelectYear(it.toInt()) },
         valueRange = 0f..MAP_YEARS.lastIndex.toFloat(),
         steps = MAP_YEARS.size - 2,
-        colors = SliderDefaults.colors(
-            thumbColor = Color.White,
-            activeTrackColor = MaterialTheme.colorScheme.primary,
-            inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = INACTIVE_TRACK_ALPHA),
-            activeTickColor = Color.Transparent,
-            inactiveTickColor = Color.Transparent,
-        ),
+        colors = colors,
+        // Apple's slider: a round white knob with a soft shadow on a thin, unbroken track.
+        thumb = {
+            Box(
+                modifier = Modifier
+                    .size(THUMB_SIZE)
+                    .shadow(THUMB_ELEVATION, CircleShape)
+                    .background(Color.White, CircleShape),
+            )
+        },
+        track = { sliderState ->
+            SliderDefaults.Track(
+                sliderState = sliderState,
+                colors = colors,
+                thumbTrackGapSize = 0.dp,
+                trackInsideCornerSize = 0.dp,
+                drawStopIndicator = null,
+                modifier = Modifier.height(TRACK_HEIGHT),
+            )
+        },
         modifier = modifier.fillMaxWidth().semantics { contentDescription = label },
     )
 }

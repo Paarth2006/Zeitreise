@@ -1,5 +1,6 @@
 package com.paarth.zeitreise.ui.timetravel
 
+import com.paarth.zeitreise.domain.HistoricLandmark
 import com.paarth.zeitreise.domain.HistoricalMap
 import com.paarth.zeitreise.domain.MAP_YEARS
 import com.paarth.zeitreise.domain.Realm
@@ -15,9 +16,14 @@ public sealed interface TimeTravelState {
      * @property yearIndex which of [MAP_YEARS] is chosen.
      * @property map that year's map, as far as it has loaded.
      * @property selected the realm the user tapped, if any.
+     * @property landmarks the famous landmarks that stood that year, pinned on the globe.
      */
-    public data class On(val yearIndex: Int, val map: PastMap = PastMap.Loading, val selected: Realm? = null) :
-        TimeTravelState {
+    public data class On(
+        val yearIndex: Int,
+        val map: PastMap = PastMap.Loading,
+        val selected: Realm? = null,
+        val landmarks: List<HistoricLandmark> = emptyList(),
+    ) : TimeTravelState {
         init {
             require(yearIndex in MAP_YEARS.indices) { "No map year at index $yearIndex" }
         }

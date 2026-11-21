@@ -41,6 +41,26 @@ private val GUIDE_INSTRUCTIONS = """
     Never invent numbers, dates or names that the text does not contain.
 """.trimIndent()
 
+/**
+ * What the guide is told when the traveller has gone back in time: to speak from that year, and
+ * to say so plainly rather than invent anything when the article is silent about it.
+ */
+private fun timeTravelInstructions(year: String) = """
+    You are Zeitreise's time-travelling guide. The traveller has just arrived in $year and is
+    looking at the place below. You are given its Wikipedia article and further sentences from it.
+    Speak as a guide standing in $year: tell of the place as it was then, in the present tense,
+    using ONLY facts the text states about $year or earlier. Never mention anything that happened
+    after $year. If the text says nothing about $year itself, use what it says about earlier times,
+    and say plainly in the first fact that little is recorded about $year.
+    Reply with one JSON object and nothing else:
+    {"facts": [{"headline": "...", "fact": "..."}], "knownFor": ["...", "...", "..."]}
+    - facts: up to $MAX_FACTS different facts, the most vivid first.
+    - headline: at most six words.
+    - fact: one or two sentences.
+    - knownFor: up to three short phrases (at most four words each) the place was known for in $year.
+    Never invent numbers, dates or names that the text does not contain.
+""".trimIndent()
+
 private val PLACES_INSTRUCTIONS = """
     You are Zeitreise's travel guide. Given a country, name the $MAX_PLACES places in it most worth
     visiting: famous landmarks, natural wonders, historic sites and remarkable towns, spread across
@@ -71,7 +91,8 @@ internal class GeminiGuide(
 
     override suspend fun tell(place: GuidePlace, article: WikiArticle, notableFacts: List<String>): GuideStory =
         withContext(dispatcher) {
-            val key = "story.${place.wikidataId ?: place.name}"
+            // A visit to another year is another story, so each year is kept apart.
+            val key = "story.${place.wikidataId ?: place.name}${place.year?.let { "@$it" }.orEmpty()}"
             cache.get(key)?.let { return@withContext json.decodeFromString(GuideStory.serializer(), it) }
 
             val story = parseGuideStory(ask(storyPrompt(place, article, notableFacts)))
@@ -116,14 +137,16 @@ internal class GeminiGuide(
         )
     }
 
+    /** The prompt for [place]'s story: of today, or of the year the traveller is visiting. */
     private fun storyPrompt(place: GuidePlace, article: WikiArticle, notableFacts: List<String>) = prompt(
         id = "zeitreise-place-story",
         params = LLMParams(temperature = GUIDE_TEMPERATURE),
     ) {
-        system(GUIDE_INSTRUCTIONS)
+        system(place.year?.let { timeTravelInstructions(yearInWords(it)) } ?: GUIDE_INSTRUCTIONS)
+        val visited = place.year?.let { " (visited in ${yearInWords(it)})" }.orEmpty()
         user(
             """
-            Place: ${place.name}, ${place.description}
+            Place: ${place.name}, ${place.description}$visited
             Wikipedia article "${article.title}":
             ${article.extract}
 

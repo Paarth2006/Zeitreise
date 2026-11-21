@@ -19,7 +19,8 @@ private const val COAST_MARGIN_DEGREES = 1.5
  * @property article the place's Wikipedia article, which has coordinates.
  * @property location where the pin stands, taken from [article].
  */
-public data class Landmark(val name: String, val article: WikiArticle, val location: GeoPoint)
+public data class Landmark(override val name: String, val article: WikiArticle, override val location: GeoPoint) :
+    Pinned
 
 /**
  * The places worth visiting in a country.

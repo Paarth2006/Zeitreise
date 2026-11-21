@@ -4,6 +4,7 @@ import com.paarth.zeitreise.ai.DemoGuide
 import com.paarth.zeitreise.ai.GEMINI_API_KEY
 import com.paarth.zeitreise.ai.GeminiGuide
 import com.paarth.zeitreise.data.BundledCountryRepository
+import com.paarth.zeitreise.data.BundledLandmarkHistory
 import com.paarth.zeitreise.data.BundledSubdivisionRepository
 import com.paarth.zeitreise.data.CountryRepository
 import com.paarth.zeitreise.data.ExploreRepository
@@ -14,6 +15,7 @@ import com.paarth.zeitreise.data.GuidedExploreRepository
 import com.paarth.zeitreise.data.HistoryRepository
 import com.paarth.zeitreise.data.KtorHistoryRepository
 import com.paarth.zeitreise.data.KtorWikipediaRepository
+import com.paarth.zeitreise.data.LandmarkHistory
 import com.paarth.zeitreise.data.OnboardingStore
 import com.paarth.zeitreise.data.ResponseCache
 import com.paarth.zeitreise.data.SettingsFactCursor
@@ -40,6 +42,9 @@ private const val DEMO_STORIES = "files/guide/stories.json"
 
 /** Path of the bundled places to visit inside the compose resources. */
 private const val DEMO_PLACES = "files/guide/places.json"
+
+/** Path of the bundled landmarks of the past, with the years they stood. */
+private const val HISTORIC_LANDMARKS = "files/history/landmarks.json"
 
 /**
  * Everything the app needs on every platform.
@@ -74,6 +79,9 @@ public val sharedModule: Module = module {
         FallbackGuideRepository(wikipedia = get(), aiGuide = getOrNull<GeminiGuide>(), demoGuide = get<DemoGuide>())
     }
     single<HistoryRepository> { KtorHistoryRepository(client = get(), dispatcher = get()) }
+    single<LandmarkHistory> {
+        BundledLandmarkHistory(readLandmarks = { Res.readBytes(HISTORIC_LANDMARKS).decodeToString() })
+    }
     single<ExploreRepository> {
         GuidedExploreRepository(wikipedia = get(), aiGuide = getOrNull<GeminiGuide>(), demoGuide = get<DemoGuide>())
     }

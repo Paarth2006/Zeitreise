@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import com.paarth.zeitreise.domain.Landmark
+import com.paarth.zeitreise.domain.Pinned
 import com.paarth.zeitreise.globe.GlobeProjection
 
 /** Apple's system red, the colour of a dropped pin in Apple Maps. */
@@ -60,9 +60,9 @@ private const val DROP_OVERSHOOT = 1.7f
  * @param selected the landmark whose card is open, whose pin is drawn larger and on top.
  */
 internal fun DrawScope.drawLandmarkPins(
-    landmarks: List<Landmark>,
+    landmarks: List<Pinned>,
     projection: GlobeProjection,
-    selected: Landmark?,
+    selected: Pinned?,
     drop: Float,
 ) {
     landmarks.forEachIndexed { index, landmark ->
@@ -77,10 +77,10 @@ internal fun DrawScope.drawLandmarkPins(
  */
 internal fun landmarkAt(
     position: Offset,
-    landmarks: List<Landmark>,
+    landmarks: List<Pinned>,
     projection: GlobeProjection,
     density: Density,
-): Landmark? = with(density) {
+): Pinned? = with(density) {
     landmarks
         .mapNotNull { landmark ->
             projection.project(landmark.location)?.let { point ->
@@ -107,7 +107,7 @@ internal fun pinProgress(drop: Float, index: Int, count: Int): Float {
 }
 
 private fun DrawScope.drawLandmarkPin(
-    landmark: Landmark,
+    landmark: Pinned,
     projection: GlobeProjection,
     progress: Float,
     scale: Float = 1f,
