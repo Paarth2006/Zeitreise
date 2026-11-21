@@ -90,4 +90,17 @@
     <string name="quiz_best">Your best: %1$d out of %2$d</string>
     <string name="quiz_play_again">Play again</string>
     <string name="quiz_done">Done</string>
+    <string name="country_flag">Flag of %1$s</string>
+    <plurals name="country_capitals">
+        <item quantity="one">Capital %1$s</item>
+        <item quantity="other">Capitals %1$s</item>
+    </plurals>
+    <string name="passport_open">Open your passport</string>
+    <string name="passport_title">Passport</string>
+    <string name="passport_progress">%1$d of %2$d countries and territories stamped</string>
+    <string name="passport_close">Close the passport</string>
+    <string name="passport_empty">No stamps yet. Open any country on the globe to stamp it into your passport.</string>
+    <string name="passport_continent">%1$d of %2$d</string>
+    <string name="passport_new_stamp">New stamp in your passport!</string>
+    <string name="about_credit_flags">Capitals and landmark dates: Wikidata, in the public domain. Flags: Wikimedia Commons, downloaded while the app runs.</string>
 </resources>

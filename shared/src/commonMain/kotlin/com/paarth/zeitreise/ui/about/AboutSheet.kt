@@ -44,6 +44,7 @@ import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.about_body
 import zeitreise.shared.generated.resources.about_close
 import zeitreise.shared.generated.resources.about_credit_ai
+import zeitreise.shared.generated.resources.about_credit_flags
 import zeitreise.shared.generated.resources.about_credit_history
 import zeitreise.shared.generated.resources.about_credit_natural_earth
 import zeitreise.shared.generated.resources.about_credit_wikipedia
@@ -163,6 +164,7 @@ private fun AboutContent(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
             Res.string.about_credit_wikipedia,
             Res.string.about_credit_natural_earth,
             Res.string.about_credit_history,
+            Res.string.about_credit_flags,
             Res.string.about_credit_ai,
         ).forEach { credit ->
             Text(

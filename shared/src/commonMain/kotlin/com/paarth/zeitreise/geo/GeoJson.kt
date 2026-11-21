@@ -30,7 +30,6 @@ internal data class GeoJsonFeature<P>(val properties: P, val geometry: GeoJsonGe
 internal data class GeoJsonCountryProperties(
     val name: String,
     @SerialName("isoA2") val isoA2: String? = null,
-    @SerialName("isoA3") val isoA3: String? = null,
     val continent: String = "",
     val wikidataId: String? = null,
 )

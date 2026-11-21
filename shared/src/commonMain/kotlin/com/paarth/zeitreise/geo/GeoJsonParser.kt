@@ -24,6 +24,12 @@ import kotlinx.serialization.json.jsonPrimitive
  * its vertices, which still draws crisp coastlines when a country fills the screen. Outlines that
  * cover less than a pixel, which most small islands do at the widest zoom, are skipped as well.
  */
+/**
+ * Readable names for the regions Natural Earth files some countries under: the islands of the
+ * Indian Ocean and the South Atlantic it calls the "Seven seas (open ocean)".
+ */
+private val CONTINENT_NAMES = mapOf("Seven seas (open ocean)" to "Ocean islands")
+
 private const val SIMPLIFY_TOLERANCE_DEGREES = 0.05
 
 /**
@@ -105,8 +111,7 @@ internal class GeoJsonParser(private val json: Json = Json { ignoreUnknownKeys =
         return Country(
             name = feature.properties.name,
             isoA2 = feature.properties.isoA2,
-            isoA3 = feature.properties.isoA3,
-            continent = feature.properties.continent,
+            continent = feature.properties.continent.let { CONTINENT_NAMES[it] ?: it },
             outlines = outlines,
             wikidataId = feature.properties.wikidataId,
         )

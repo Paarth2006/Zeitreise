@@ -15,7 +15,6 @@ internal object PreviewSamples {
     val india: Country = Country(
         name = "India",
         isoA2 = "IN",
-        isoA3 = "IND",
         continent = "Asia",
         outlines = listOf(square(west = 68.0, south = 8.0, size = 20.0)),
         wikidataId = "Q668",

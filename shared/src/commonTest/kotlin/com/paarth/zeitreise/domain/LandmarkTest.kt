@@ -11,7 +11,6 @@ import kotlin.test.assertTrue
 private val SQUARELAND = Country(
     name = "Squareland",
     isoA2 = null,
-    isoA3 = null,
     continent = "Atlantis",
     outlines = listOf(
         CountryOutline(

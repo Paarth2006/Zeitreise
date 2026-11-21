@@ -36,8 +36,14 @@ The long-term goal is a guide that tells you a surprising fact about each countr
 
 ### Country Selection
 - Tap any country to highlight it
-- A sheet shows the country's name and continent
+- A sheet shows the country's flag, name, continent and capital, with every capital for countries that have several, such as South Africa and Bolivia
 - Close button, or tap the ocean, to clear the selection
+
+### Passport
+- Every country you open is stamped into your passport, and the sheet says so the first time
+- The passport button opens it: each stamp shows the country's flag inside a dashed rim in its continent's ink, tilted a little as if pressed by hand
+- Progress overall and for each continent, so there is always a next country to visit
+- Kept on the device, and works offline apart from the flag pictures
 
 ### Places to Visit
 - "Explore places" in a country's sheet asks the guide for about eight places worth a visit
@@ -105,7 +111,7 @@ About **97% of the app's code lives in `commonMain`**: 2,389 lines shared, again
   `main()`, which mounts the shared UI with `ComposeViewport` on Kotlin/Wasm
 
 ### Data Preparation (`tools/dataprep`)
-A JVM tool that downloads the Natural Earth countries and states, and the landmarks' locations and years from Wikidata, keeps the fields the app needs and rounds the coordinates. It runs once and its output is committed, so the app works offline.
+A JVM tool that downloads the Natural Earth countries and states, and the landmarks' locations and years and the countries' capitals and flags from Wikidata, keeps the fields the app needs and rounds the coordinates. It runs once and its output is committed, so the app works offline.
 
 This architecture enables:
 - One codebase for three platforms
@@ -234,14 +240,15 @@ Today's countries and states are bundled, so the globe works offline. The histor
 
 Learning and Fun
 
-    1. Passport stamps, a country of the day, capitals and flags
+    1. A country of the day
     2. Quiz questions about the past, asked on Time Travel's historical maps
 
 ## Credits
 
 - Country, state and province outlines: [Natural Earth](https://www.naturalearthdata.com/) (public domain).
 - Historical borders: [historical-basemaps](https://github.com/aourednik/historical-basemaps) by André Ourednik and contributors, under the [GNU GPL 3.0](https://www.gnu.org/licenses/gpl-3.0.html). They are downloaded while the app runs and are not part of this repository.
-- Landmark locations and the years they were built and destroyed: [Wikidata](https://www.wikidata.org/) (CC0).
+- Landmark locations and the years they were built and destroyed, and each country's capitals: [Wikidata](https://www.wikidata.org/) (CC0).
+- Flags: [Wikimedia Commons](https://commons.wikimedia.org/), where most flags are in the public domain. They are downloaded while the app runs and are not part of this repository.
 - Place descriptions and facts: [Wikipedia](https://www.wikipedia.org/), under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); articles are found through [Wikidata](https://www.wikidata.org/).
 
 ## Licence

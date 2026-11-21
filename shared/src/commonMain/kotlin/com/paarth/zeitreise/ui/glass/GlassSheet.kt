@@ -66,6 +66,9 @@ internal val SHEET_BODY_END_PADDING = SHEET_PADDING
 /** Spacing between a sheet's title and its subtitle, and twice this between its sections. */
 private val SHEET_SPACING = 4.dp
 
+/** Gap between a header's leading content, such as a flag, and its title. */
+private val HEADER_LEADING_GAP = 12.dp
+
 /** Size of the cross drawn inside the close button, and its stroke width. */
 private val CLOSE_GLYPH = 12.dp
 private val CLOSE_STROKE = 2.dp
@@ -143,6 +146,7 @@ internal fun GlassSheet(visible: Boolean, modifier: Modifier = Modifier, content
  * The top of a sheet: its title and subtitle, and a round glass button that closes it.
  *
  * @param closeLabel what a screen reader says for the close button.
+ * @param leading shown before the title, such as a country's flag.
  */
 @Composable
 internal fun SheetHeader(
@@ -151,8 +155,14 @@ internal fun SheetHeader(
     closeLabel: String,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    leading: (@Composable () -> Unit)? = null,
 ) {
-    Row(verticalAlignment = Alignment.Top, modifier = modifier) {
+    Row(
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(HEADER_LEADING_GAP),
+        modifier = modifier,
+    ) {
+        leading?.invoke()
         Column(verticalArrangement = Arrangement.spacedBy(SHEET_SPACING), modifier = Modifier.weight(1f)) {
             Text(
                 text = title,

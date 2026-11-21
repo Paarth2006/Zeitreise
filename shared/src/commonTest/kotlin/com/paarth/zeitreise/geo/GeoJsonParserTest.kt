@@ -52,8 +52,14 @@ class GeoJsonParserTest {
         val country = parser.parseCountries(collectionOf(squareFeature())).single()
         assertEquals("Squareland", country.name)
         assertEquals("SQ", country.isoA2)
-        assertEquals("SQR", country.isoA3)
         assertEquals("Atlantis", country.continent)
+    }
+
+    @Test
+    fun givesTheOpenOceanRegionAReadableName() {
+        val feature = squareFeature(continent = "Seven seas (open ocean)")
+
+        assertEquals("Ocean islands", parser.parseCountries(collectionOf(feature)).single().continent)
     }
 
     @Test
@@ -61,7 +67,6 @@ class GeoJsonParserTest {
         val feature = squareFeature(isoA2 = null, isoA3 = null)
         val country = parser.parseCountries(collectionOf(feature)).single()
         assertNull(country.isoA2)
-        assertNull(country.isoA3)
     }
 
     @Test

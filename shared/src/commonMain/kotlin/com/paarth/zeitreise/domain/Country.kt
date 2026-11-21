@@ -103,18 +103,18 @@ public class CountryOutline internal constructor(
  * @property name the English name, as shown in the UI and sent to the AI guide.
  * @property isoA2 two-letter ISO 3166-1 code, or `null` for territories that have none. The flag
  *   emoji and the file of the country's states are found through it.
- * @property isoA3 three-letter ISO 3166-1 code, or `null` for territories that have none.
  * @property continent the continent the country is counted under.
  * @property outlines the landmasses the country is drawn from, largest first.
  * @property wikidataId the Wikidata item, which leads to the country's exact Wikipedia article.
+ * @property facts the country's capitals and flag, which are bundled apart from its outlines.
  */
 public class Country internal constructor(
     override val name: String,
     public val isoA2: String?,
-    public val isoA3: String?,
     public val continent: String,
     override val outlines: List<CountryOutline>,
     public val wikidataId: String? = null,
+    public val facts: CountryFacts = CountryFacts(),
 ) : Territory {
     init {
         require(outlines.isNotEmpty()) { "Country $name has no outlines" }
@@ -127,8 +127,20 @@ public class Country internal constructor(
      */
     public val focus: GeoCap by lazy { outlines.mainlandFocus() }
 
+    /** This country with its [facts]. */
+    internal fun withFacts(facts: CountryFacts): Country = Country(name, isoA2, continent, outlines, wikidataId, facts)
+
     override fun toString(): String = "Country($name)"
 }
+
+/**
+ * What there is to know about a country besides its shape.
+ *
+ * @property capitals the country's capitals today, usually one; empty where there is none, as for
+ *   Antarctica.
+ * @property flagUrl where a picture of the country's flag can be downloaded, if it has one.
+ */
+public data class CountryFacts(val capitals: List<String> = emptyList(), val flagUrl: String? = null)
 
 /**
  * The region to frame for landmasses listed largest first: the largest and those close to it, so

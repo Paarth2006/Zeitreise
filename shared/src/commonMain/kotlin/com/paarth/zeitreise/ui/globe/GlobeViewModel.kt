@@ -6,6 +6,7 @@ import com.paarth.zeitreise.ai.GuidePlace
 import com.paarth.zeitreise.data.CountryRepository
 import com.paarth.zeitreise.data.FactCursor
 import com.paarth.zeitreise.data.GuideRepository
+import com.paarth.zeitreise.data.Passport
 import com.paarth.zeitreise.data.SubdivisionRepository
 import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.SearchResult
@@ -22,10 +23,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Holds the state of the globe screen and keeps loading and selection out of the composables. */
+/**
+ * Holds the state of the globe screen and keeps loading and selection out of the composables.
+ * Every country opened, however it was found, is stamped in the [passport].
+ */
 public class GlobeViewModel(
     private val countries: CountryRepository,
     private val subdivisions: SubdivisionRepository,
+    private val passport: Passport,
     guide: GuideRepository,
     factCursor: FactCursor,
 ) : ViewModel() {
@@ -46,6 +51,11 @@ public class GlobeViewModel(
 
     /** What the guide says about the selected place: a state when one is selected, else its country. */
     public val story: StateFlow<StoryState> = _story.asStateFlow()
+
+    private val _newStamp = MutableStateFlow<Country?>(null)
+
+    /** The selected country, when opening it just earned its first stamp in the passport. */
+    public val newStamp: StateFlow<Country?> = _newStamp.asStateFlow()
 
     private val storyRetries = MutableStateFlow(0)
     private var subdivisionLoad: Job? = null
@@ -132,7 +142,13 @@ public class GlobeViewModel(
     private fun select(country: Country?, subdivisionName: String?) {
         subdivisionLoad?.cancel()
         updateReady { it.copy(selected = country, subdivisions = emptyList(), selectedSubdivision = null) }
+        _newStamp.value = null
         if (country == null) return
+        viewModelScope.launch {
+            val firstStamp = passport.stamp(country)
+            // Only celebrate while the country is still open, not after the user has moved on.
+            if (firstStamp && (_uiState.value as? GlobeUiState.Ready)?.selected == country) _newStamp.value = country
+        }
         subdivisionLoad = viewModelScope.launch {
             val loaded = subdivisions.loadSubdivisions(country)
             val chosen = subdivisionName?.let { name -> loaded.firstOrNull { it.name == name } }

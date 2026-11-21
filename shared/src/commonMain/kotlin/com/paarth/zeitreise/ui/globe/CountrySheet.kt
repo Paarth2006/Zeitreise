@@ -1,7 +1,10 @@
 package com.paarth.zeitreise.ui.globe
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -9,6 +12,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.Subdivision
@@ -17,9 +23,12 @@ import com.paarth.zeitreise.ui.ZeitreiseTheme
 import com.paarth.zeitreise.ui.glass.GlassSheet
 import com.paarth.zeitreise.ui.glass.SHEET_BODY_END_PADDING
 import com.paarth.zeitreise.ui.glass.SheetHeader
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.close_country
+import zeitreise.shared.generated.resources.country_capitals
+import zeitreise.shared.generated.resources.passport_new_stamp
 
 /**
  * The glass sheet naming the selected country, or the state tapped inside it, above [content]:
@@ -27,6 +36,7 @@ import zeitreise.shared.generated.resources.close_country
  *
  * @param country the selected country, or `null` to hide the sheet.
  * @param subdivision the state tapped inside [country], which the sheet names instead, if any.
+ * @param newStamp whether opening [country] just earned it its first stamp in the passport.
  * @param onClose called when the close button is tapped.
  * @param modifier applied to the root element.
  */
@@ -36,6 +46,7 @@ internal fun CountrySheet(
     subdivision: Subdivision?,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    newStamp: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     // The sheet has to keep naming a country while it slides away, after the selection is gone.
@@ -46,12 +57,30 @@ internal fun CountrySheet(
     GlassSheet(visible = country != null, modifier = modifier) {
         SheetHeader(
             title = subdivision?.name ?: shown?.name.orEmpty(),
-            subtitle = subdivision?.subtitleIn(shown) ?: shown?.continent.orEmpty(),
+            subtitle = subdivision?.subtitleIn(shown) ?: shown?.let { countrySubtitle(it) }.orEmpty(),
             closeLabel = stringResource(Res.string.close_country),
             onClose = onClose,
+            leading = shown?.let { country -> { CountryFlag(country) } },
         )
+        AnimatedVisibility(visible = newStamp && subdivision == null) {
+            Text(
+                text = stringResource(Res.string.passport_new_stamp),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
         content()
     }
+}
+
+/** "South America · Capital Lima", or just the continent for a land with no capital. */
+@Composable
+private fun countrySubtitle(country: Country): String {
+    val capitals = country.facts.capitals
+    if (capitals.isEmpty()) return country.continent
+    val capitalText = pluralStringResource(Res.plurals.country_capitals, capitals.size, capitals.joinToString())
+    return "${country.continent} · $capitalText"
 }
 
 /** "State · India", or just the country's name where the state's kind is unknown. */

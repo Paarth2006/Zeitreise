@@ -61,6 +61,9 @@ import com.paarth.zeitreise.ui.onboarding.OnboardingEvent
 import com.paarth.zeitreise.ui.onboarding.OnboardingStep
 import com.paarth.zeitreise.ui.onboarding.OnboardingViewModel
 import com.paarth.zeitreise.ui.onboarding.WelcomeOverlay
+import com.paarth.zeitreise.ui.passport.PassportButton
+import com.paarth.zeitreise.ui.passport.PassportSheet
+import com.paarth.zeitreise.ui.passport.PassportViewModel
 import com.paarth.zeitreise.ui.quiz.QuizActions
 import com.paarth.zeitreise.ui.quiz.QuizButton
 import com.paarth.zeitreise.ui.quiz.QuizControls
@@ -120,69 +123,107 @@ private const val INTRO_START_SCALE = 0.82f
  */
 @Composable
 internal fun GlobeScreen(modifier: Modifier = Modifier) {
-    val viewModel = koinViewModel<GlobeViewModel>()
-    val onboarding = koinViewModel<OnboardingViewModel>()
-    val explore = koinViewModel<ExploreViewModel>()
-    val timeTravel = koinViewModel<TimeTravelViewModel>()
-    val quiz = koinViewModel<QuizViewModel>()
-    val quizState by quiz.state.collectAsStateWithLifecycle()
-    val travel by timeTravel.state.collectAsStateWithLifecycle()
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
-    val story by viewModel.story.collectAsStateWithLifecycle()
-    val step by onboarding.step.collectAsStateWithLifecycle()
-    val exploreState by explore.state.collectAsStateWithLifecycle()
-    val openCard by explore.openCard.collectAsStateWithLifecycle()
-    val actions = remember(viewModel, onboarding, explore) { GlobeScreenActions(viewModel, onboarding, explore) }
-    val travelActions = remember(timeTravel, explore) { timeTravel.controlActions(explore) }
+    val models = ScreenModels(
+        globe = koinViewModel(),
+        onboarding = koinViewModel(),
+        explore = koinViewModel(),
+        timeTravel = koinViewModel(),
+        quiz = koinViewModel(),
+        passport = koinViewModel(),
+    )
+    val state by models.globe.uiState.collectAsStateWithLifecycle()
 
     Box(modifier = modifier.fillMaxSize()) {
         when (val current = state) {
             is GlobeUiState.Loading -> LoadingWorld()
             is GlobeUiState.Failed -> FailureMessage(current.message)
-            is GlobeUiState.Ready -> {
-                val backdrop = rememberHazeState()
-                val places = PlacesOnGlobe.of(exploreState, openCard, current.selected, travel)
-                val quizActions = remember(quiz, current.countries) { quiz.controlActions(current.countries) }
-                ReadyGlobe(
-                    state = current,
-                    places = places,
-                    past = rememberPastGlobe(travel),
-                    quiz = quizState.globe,
-                    actions = actions,
-                    onSelectRealm = travelActions.selectRealm,
-                    onAnswer = quiz::answer,
-                    modifier = Modifier.hazeSource(backdrop),
-                )
-                var showAbout by rememberSaveable { mutableStateOf(false) }
-                CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
-                    // The controls are a second layer of the backdrop, above the globe, so the About
-                    // card refracts the open sheet as well as the globe. Glass inside this layer
-                    // only samples what lies behind it: the globe.
-                    Box(modifier = Modifier.fillMaxSize().hazeSource(backdrop, zIndex = CONTROLS_LAYER)) {
-                        Controls(
-                            state = current,
-                            places = places,
-                            story = story,
-                            step = step,
-                            searchResults = searchResults,
-                            actions = actions,
-                            mode = globeMode(travel, quizState),
-                            onStartTimeTravel = timeTravel::start,
-                            onStartQuiz = quizActions.playAgain,
-                            onShowAbout = { showAbout = true },
-                        )
-                        TimeTravelControls(travel, timeTravel.story.collectAsStateWithLifecycle().value, travelActions)
-                        QuizControls(state = quizState, actions = quizActions)
-                    }
-                    // Presented modally over the controls, so its glass refracts the country's sheet too.
-                    PlaceSheet(card = places.openCard, onClose = { actions.showPin(null) })
-                    AboutSheet(visible = showAbout, onDismiss = { showAbout = false })
-                }
-            }
+            is GlobeUiState.Ready -> ReadyScreen(current, models)
         }
     }
 }
+
+/**
+ * The view models the globe screen is driven by, one for each thing the globe can be used for.
+ * A data class, so the state remembered against it survives recomposition.
+ */
+private data class ScreenModels(
+    val globe: GlobeViewModel,
+    val onboarding: OnboardingViewModel,
+    val explore: ExploreViewModel,
+    val timeTravel: TimeTravelViewModel,
+    val quiz: QuizViewModel,
+    val passport: PassportViewModel,
+)
+
+/** The globe once the world has loaded, with everything that floats over it. */
+@Composable
+private fun ReadyScreen(current: GlobeUiState.Ready, models: ScreenModels) {
+    val travel by models.timeTravel.state.collectAsStateWithLifecycle()
+    val quizState by models.quiz.state.collectAsStateWithLifecycle()
+    val exploreState by models.explore.state.collectAsStateWithLifecycle()
+    val openCard by models.explore.openCard.collectAsStateWithLifecycle()
+    val passportBook by models.passport.book.collectAsStateWithLifecycle()
+    val actions = remember(models) { GlobeScreenActions(models.globe, models.onboarding, models.explore) }
+    val travelActions = remember(models) { models.timeTravel.controlActions(models.explore) }
+    val quizActions = remember(models, current.countries) { models.quiz.controlActions(current.countries) }
+    val backdrop = rememberHazeState()
+    val places = PlacesOnGlobe.of(exploreState, openCard, current.selected, travel)
+    ReadyGlobe(
+        state = current,
+        places = places,
+        past = rememberPastGlobe(travel),
+        quiz = quizState.globe,
+        actions = actions,
+        onSelectRealm = travelActions.selectRealm,
+        onAnswer = models.quiz::answer,
+        modifier = Modifier.hazeSource(backdrop),
+    )
+    var showAbout by rememberSaveable { mutableStateOf(false) }
+    CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
+        // The controls are a second layer of the backdrop, above the globe, so the About
+        // card refracts the open sheet as well as the globe. Glass inside this layer
+        // only samples what lies behind it: the globe.
+        Box(modifier = Modifier.fillMaxSize().hazeSource(backdrop, zIndex = CONTROLS_LAYER)) {
+            Controls(
+                state = current,
+                places = places,
+                story = models.globe.story.collectAsStateWithLifecycle().value,
+                step = models.onboarding.step.collectAsStateWithLifecycle().value,
+                searchResults = models.globe.searchResults.collectAsStateWithLifecycle().value,
+                newStamp = models.globe.newStamp.collectAsStateWithLifecycle().value,
+                actions = actions,
+                mode = globeMode(travel, quizState),
+                modeActions = ModeActions(
+                    startTimeTravel = models.timeTravel::start,
+                    startQuiz = quizActions.playAgain,
+                    showPassport = models.passport::open,
+                    showAbout = { showAbout = true },
+                ),
+            )
+            TimeTravelControls(travel, models.timeTravel.story.collectAsStateWithLifecycle().value, travelActions)
+            QuizControls(state = quizState, actions = quizActions)
+        }
+        // Presented modally over the controls, so their glass refracts the country's sheet too.
+        PlaceSheet(card = places.openCard, onClose = { actions.showPin(null) })
+        AboutSheet(visible = showAbout, onDismiss = { showAbout = false })
+        PassportSheet(book = passportBook, onDismiss = models.passport::close)
+    }
+}
+
+/**
+ * What the buttons at the top can start.
+ *
+ * @property startTimeTravel turns the globe into a map of the past.
+ * @property startQuiz starts a round of the quiz.
+ * @property showPassport opens the passport.
+ * @property showAbout opens the About card.
+ */
+private class ModeActions(
+    val startTimeTravel: () -> Unit,
+    val startQuiz: () -> Unit,
+    val showPassport: () -> Unit,
+    val showAbout: () -> Unit,
+)
 
 /**
  * The historical map for the globe while travelling in time, or `null` for today's world.
@@ -363,25 +404,27 @@ private fun BoxScope.Controls(
     story: StoryState,
     step: OnboardingStep,
     searchResults: List<SearchResult>,
+    newStamp: Country?,
     actions: GlobeScreenActions,
     mode: GlobeMode,
-    onStartTimeTravel: () -> Unit,
-    onStartQuiz: () -> Unit,
-    onShowAbout: () -> Unit,
+    modeActions: ModeActions,
 ) {
     val exploring = step == OnboardingStep.Finished && mode == GlobeMode.Explore
     // Time Travel and the quiz each start from the whole globe, with no country open.
     TopButtons(
         showModes = exploring,
-        onShowAbout = onShowAbout,
-        onStartTimeTravel = {
-            actions.selectCountry(null)
-            onStartTimeTravel()
-        },
-        onStartQuiz = {
-            actions.selectCountry(null)
-            onStartQuiz()
-        },
+        actions = ModeActions(
+            startTimeTravel = {
+                actions.selectCountry(null)
+                modeActions.startTimeTravel()
+            },
+            startQuiz = {
+                actions.selectCountry(null)
+                modeActions.startQuiz()
+            },
+            showPassport = modeActions.showPassport,
+            showAbout = modeActions.showAbout,
+        ),
     )
     SearchControl(
         visible = exploring && state.selected == null,
@@ -391,6 +434,7 @@ private fun BoxScope.Controls(
     CountrySheet(
         country = state.selected,
         subdivision = state.selectedSubdivision,
+        newStamp = newStamp != null && newStamp == state.selected,
         // Closing a state's sheet steps back to its country; closing the country's leaves it.
         onClose = {
             if (state.selectedSubdivision != null) actions.selectSubdivision(null) else actions.selectCountry(null)
@@ -423,15 +467,10 @@ private fun BoxScope.Controls(
 
 /**
  * The buttons at the top trailing corner: Info, always, and while the globe is being explored, the
- * buttons that turn it into a time machine or a quiz.
+ * buttons that turn it into a time machine or a quiz, and the one that opens the passport.
  */
 @Composable
-private fun BoxScope.TopButtons(
-    showModes: Boolean,
-    onShowAbout: () -> Unit,
-    onStartTimeTravel: () -> Unit,
-    onStartQuiz: () -> Unit,
-) {
+private fun BoxScope.TopButtons(showModes: Boolean, actions: ModeActions) {
     Column(
         verticalArrangement = Arrangement.spacedBy(CONTROL_SPACING),
         modifier = Modifier
@@ -439,15 +478,16 @@ private fun BoxScope.TopButtons(
             .safeDrawingPadding()
             .padding(CONTROL_MARGIN),
     ) {
-        InfoButton(onClick = onShowAbout)
+        InfoButton(onClick = actions.showAbout)
         AnimatedVisibility(
             visible = showModes,
             enter = fadeIn() + scaleIn(CONTROL_SPRING, initialScale = CONTROL_START_SCALE),
             exit = fadeOut() + scaleOut(CONTROL_SPRING, targetScale = CONTROL_START_SCALE),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(CONTROL_SPACING)) {
-                TimeTravelButton(onClick = onStartTimeTravel)
-                QuizButton(onClick = onStartQuiz)
+                TimeTravelButton(onClick = actions.startTimeTravel)
+                QuizButton(onClick = actions.startQuiz)
+                PassportButton(onClick = actions.showPassport)
             }
         }
     }
