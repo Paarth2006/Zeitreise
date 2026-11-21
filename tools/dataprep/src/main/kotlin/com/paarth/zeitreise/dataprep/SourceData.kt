@@ -11,6 +11,9 @@ import java.time.Duration
 import kotlin.math.pow
 import kotlin.math.roundToLong
 
+/** The Wikidata API, which the facts and landmarks generators read items from. */
+internal const val WIKIDATA_API = "https://www.wikidata.org/w/api.php"
+
 /** Bytes in a kibibyte, for the sizes the generators report. */
 internal const val BYTES_PER_KIB = 1024
 

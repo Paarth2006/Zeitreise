@@ -14,8 +14,6 @@ import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 
-private const val WIKIDATA_API = "https://www.wikidata.org/w/api.php"
-
 /** Most titles the Wikidata API resolves in one request. */
 private const val TITLES_PER_REQUEST = 50
 

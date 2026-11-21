@@ -13,8 +13,6 @@ import java.security.MessageDigest
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
-private const val WIKIDATA_API = "https://www.wikidata.org/w/api.php"
-
 /** Most items the Wikidata API returns in one request. */
 private const val IDS_PER_REQUEST = 50
 
@@ -29,8 +27,10 @@ private const val END_TIME = "P582"
 private const val PREFERRED = "preferred"
 private const val NORMAL = "normal"
 
-/** Where Wikimedia Commons serves its images, and the width flags are drawn at: one of its standard sizes. */
+/** Where Wikimedia Commons serves resized copies of its images. */
 private const val COMMONS_UPLOADS = "https://upload.wikimedia.org/wikipedia/commons/thumb"
+
+/** Width, in pixels, of the flag pictures: one of the sizes Commons keeps ready, so it's served fast. */
 private const val FLAG_WIDTH = 250
 
 /** Languages a name is read in, in order: English, then the label shared by every language. */

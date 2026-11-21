@@ -14,10 +14,10 @@ import java.nio.file.Path
 import kotlin.io.path.writeText
 
 /**
- * Natural Earth 1:50m admin-0 countries, served from the project's own GeoJSON build.
+ * Natural Earth 1:50m admin-0 countries, as GeoJSON from Natural Earth's repository on GitHub.
  *
- * The 1:50m scale rather than 1:110m, because the coarser map leaves out every country too small to
- * see on a world map, from Monaco and Singapore to Malta and the Pacific island states.
+ * It's the 1:50m scale rather than 1:110m, because the coarser map leaves out every country too
+ * small to see on a world map, from Monaco and Singapore to Malta and the Pacific island states.
  *
  * Natural Earth is in the public domain; see https://www.naturalearthdata.com/about/terms-of-use/.
  */
