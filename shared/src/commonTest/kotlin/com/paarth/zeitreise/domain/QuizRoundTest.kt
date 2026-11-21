@@ -38,7 +38,7 @@ class QuizRoundTest {
 
     private val westland = ATLANTIS[0]
     private val eastland = ATLANTIS[1]
-    private val round = QuizRound(questions = listOf(westland, eastland))
+    private val round = QuizRound(questions = listOf(QuizQuestion(westland), QuizQuestion(eastland)))
 
     @Test
     fun scoresARightAnswerAndCountsTheStreak() {
@@ -101,7 +101,7 @@ class QuizRoundTest {
 
         val questions = quizQuestions(countries, Random(seed = 1))
 
-        assertEquals(listOf("Bigland"), questions.map { it.name })
+        assertEquals(listOf("Bigland"), questions.map { it.country.name })
     }
 
     @Test
@@ -109,6 +109,18 @@ class QuizRoundTest {
         val questions = quizQuestions(ATLANTIS, Random(seed = 7), count = 2)
 
         assertEquals(2, questions.size)
-        assertEquals(2, questions.toSet().size)
+        assertEquals(2, questions.map { it.country }.toSet().size)
+    }
+
+    @Test
+    fun asksByCapitalOnlyForCountriesThatHaveOne() {
+        val withCapitals = ATLANTIS.take(2).map { it.withFacts(CountryFacts(capitals = listOf("${it.name} City"))) }
+        val countries = withCapitals + ATLANTIS[2]
+
+        val questions = (1L..20L).flatMap { seed -> quizQuestions(countries, Random(seed)) }
+
+        assertTrue(questions.none { it.country.name == "Northland" && it.capital != null })
+        assertTrue(questions.any { it.capital == "Westland City" })
+        assertTrue(questions.any { it.country.name == "Westland" && it.capital == null })
     }
 }

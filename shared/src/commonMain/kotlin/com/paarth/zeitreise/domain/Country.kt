@@ -28,6 +28,13 @@ private const val COARSE_SHARE_OF_EXTENT = 0.1
  */
 private const val NEARBY_LAND_DEGREES = 10.0
 
+/**
+ * The smallest a country's largest landmass may be, in square degrees (about 9,000 km², the size
+ * of Jamaica), to stand out on the whole globe. Anything smaller is a speck that no finger can be
+ * expected to hit, such as Luxembourg, Singapore or a chain of Pacific islands.
+ */
+private const val MIN_PROMINENT_AREA = 0.75
+
 /** Fewest vertices the coarse copy needs; below this the full ring is used instead. */
 private const val MIN_COARSE_VERTICES = 4
 
@@ -126,6 +133,13 @@ public class Country internal constructor(
      * such as French Guiana does not pull the view away from France.
      */
     public val focus: GeoCap by lazy { outlines.mainlandFocus() }
+
+    /**
+     * Whether the country stands out on the whole globe, for the quiz to ask about and to be a
+     * country of the day: large enough to tap, and with an ISO code, which leaves out territories
+     * such as Kosovo or Somaliland whose status the standard does not settle.
+     */
+    internal val isProminent: Boolean get() = isoA2 != null && outlines.first().exterior.area >= MIN_PROMINENT_AREA
 
     /** This country with its [facts]. */
     internal fun withFacts(facts: CountryFacts): Country = Country(name, isoA2, continent, outlines, wikidataId, facts)

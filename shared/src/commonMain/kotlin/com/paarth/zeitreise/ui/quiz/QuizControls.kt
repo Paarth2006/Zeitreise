@@ -57,6 +57,7 @@ import zeitreise.shared.generated.resources.quiz_best
 import zeitreise.shared.generated.resources.quiz_close
 import zeitreise.shared.generated.resources.quiz_done
 import zeitreise.shared.generated.resources.quiz_find
+import zeitreise.shared.generated.resources.quiz_find_capital
 import zeitreise.shared.generated.resources.quiz_new_best
 import zeitreise.shared.generated.resources.quiz_next
 import zeitreise.shared.generated.resources.quiz_open
@@ -68,12 +69,15 @@ import zeitreise.shared.generated.resources.quiz_rank_perfect
 import zeitreise.shared.generated.resources.quiz_rank_traveller
 import zeitreise.shared.generated.resources.quiz_result
 import zeitreise.shared.generated.resources.quiz_revealed
+import zeitreise.shared.generated.resources.quiz_revealed_capital
 import zeitreise.shared.generated.resources.quiz_right
+import zeitreise.shared.generated.resources.quiz_right_capital
 import zeitreise.shared.generated.resources.quiz_score
 import zeitreise.shared.generated.resources.quiz_see_score
 import zeitreise.shared.generated.resources.quiz_show_me
 import zeitreise.shared.generated.resources.quiz_streak
 import zeitreise.shared.generated.resources.quiz_wrong
+import zeitreise.shared.generated.resources.quiz_wrong_capital
 
 /** Gap between the floating panel and the edges of the safe area. */
 private val PANEL_MARGIN = 16.dp
@@ -193,11 +197,16 @@ private fun QuizPanel(state: QuizState, actions: QuizActions, modifier: Modifier
     }
 }
 
-/** The country to find, and once the user has tapped, whether they found it. */
+/** The country to find, by name or by capital, and once the user has tapped, whether they found it. */
 @Composable
 private fun Question(round: QuizRound, actions: QuizActions) {
+    val capital = round.question.capital
     SheetHeader(
-        title = stringResource(Res.string.quiz_find, round.country.name),
+        title = if (capital != null) {
+            stringResource(Res.string.quiz_find_capital, capital)
+        } else {
+            stringResource(Res.string.quiz_find, round.country.name)
+        },
         subtitle = stringResource(
             Res.string.quiz_progress,
             round.number + 1,
@@ -226,24 +235,38 @@ private fun Question(round: QuizRound, actions: QuizActions) {
 /** Whether the user found the country, or which one they tapped instead; read out as it appears. */
 @Composable
 private fun Verdict(round: QuizRound) {
-    val wrongGuess = round.guess
-    val text = when {
-        round.isRight -> buildString {
-            append(stringResource(Res.string.quiz_right, round.country.name))
-            if (round.streak >= STREAK_TO_CHEER) {
-                append(' ')
-                append(pluralStringResource(Res.plurals.quiz_streak, round.streak, round.streak))
-            }
-        }
-        wrongGuess != null -> stringResource(Res.string.quiz_wrong, wrongGuess.name, round.country.name)
-        else -> stringResource(Res.string.quiz_revealed, round.country.name)
+    val cheer = if (round.isRight && round.streak >= STREAK_TO_CHEER) {
+        " ${pluralStringResource(Res.plurals.quiz_streak, round.streak, round.streak)}"
+    } else {
+        ""
     }
+    val text = verdictText(round) + cheer
     Text(
         text = text,
         style = MaterialTheme.typography.bodyLarge,
         color = if (round.isRight) RIGHT_COLOR else WRONG_COLOR,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
     )
+}
+
+/**
+ * "Right! That's Peru.", or for a question by capital "Right! Lima is the capital of Peru.", and
+ * likewise for a wrong tap or a question given up.
+ */
+@Composable
+private fun verdictText(round: QuizRound): String {
+    val country = round.country.name
+    val capital = round.question.capital
+    val wrongGuess = round.guess
+    return when {
+        round.isRight && capital != null -> stringResource(Res.string.quiz_right_capital, capital, country)
+        round.isRight -> stringResource(Res.string.quiz_right, country)
+        wrongGuess != null && capital != null ->
+            stringResource(Res.string.quiz_wrong_capital, wrongGuess.name, capital, country)
+        wrongGuess != null -> stringResource(Res.string.quiz_wrong, wrongGuess.name, country)
+        capital != null -> stringResource(Res.string.quiz_revealed_capital, capital, country)
+        else -> stringResource(Res.string.quiz_revealed, country)
+    }
 }
 
 /** The round's score, a word on how it went, and the best so far. */

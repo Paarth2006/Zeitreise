@@ -103,4 +103,10 @@
     <string name="passport_continent">%1$d of %2$d</string>
     <string name="passport_new_stamp">New stamp in your passport!</string>
     <string name="about_credit_flags">Capitals and landmark dates: Wikidata, in the public domain. Flags: Wikimedia Commons, downloaded while the app runs.</string>
+    <string name="country_of_the_day">Today · %1$s</string>
+    <string name="country_of_the_day_label">Country of the day: %1$s</string>
+    <string name="quiz_find_capital">Where is %1$s?</string>
+    <string name="quiz_right_capital">Right! %1$s is the capital of %2$s.</string>
+    <string name="quiz_wrong_capital">That’s %1$s. %2$s is in %3$s, the one in green.</string>
+    <string name="quiz_revealed_capital">%1$s is the capital of %2$s, the one in green.</string>
 </resources>

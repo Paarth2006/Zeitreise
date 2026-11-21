@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paarth.zeitreise.ai.GuidePlace
 import com.paarth.zeitreise.data.CountryRepository
+import com.paarth.zeitreise.data.DayClock
 import com.paarth.zeitreise.data.FactCursor
 import com.paarth.zeitreise.data.GuideRepository
 import com.paarth.zeitreise.data.Passport
@@ -11,6 +12,7 @@ import com.paarth.zeitreise.data.SubdivisionRepository
 import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.SearchResult
 import com.paarth.zeitreise.domain.Subdivision
+import com.paarth.zeitreise.domain.countryOfTheDay
 import com.paarth.zeitreise.domain.searchPlaces
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +33,7 @@ public class GlobeViewModel(
     private val countries: CountryRepository,
     private val subdivisions: SubdivisionRepository,
     private val passport: Passport,
+    private val dayClock: DayClock,
     guide: GuideRepository,
     factCursor: FactCursor,
 ) : ViewModel() {
@@ -163,7 +166,9 @@ public class GlobeViewModel(
         viewModelScope.launch {
             _uiState.value = runCatching { countries.loadCountries() }
                 .fold(
-                    onSuccess = { GlobeUiState.Ready(countries = it) },
+                    onSuccess = {
+                        GlobeUiState.Ready(countries = it, countryOfTheDay = countryOfTheDay(it, dayClock.today()))
+                    },
                     onFailure = { GlobeUiState.Failed(it.message ?: "The country outlines could not be read.") },
                 )
         }

@@ -88,6 +88,9 @@ private val MESSAGE_PADDING = 32.dp
 /** Gap between the floating controls and the edges of the safe area. */
 private val CONTROL_MARGIN = 16.dp
 
+/** Room left at the trailing end of the country-of-the-day chip for the buttons beside it. */
+private val TOP_CHIP_END_GAP = 76.dp
+
 /** Gap between the stacked buttons at the top of the screen. */
 private val CONTROL_SPACING = 10.dp
 
@@ -413,6 +416,8 @@ private fun BoxScope.Controls(
     // Time Travel and the quiz each start from the whole globe, with no country open.
     TopButtons(
         showModes = exploring,
+        today = state.countryOfTheDay?.takeIf { exploring && state.selected == null },
+        onOpenToday = actions::selectCountry,
         actions = ModeActions(
             startTimeTravel = {
                 actions.selectCountry(null)
@@ -466,11 +471,31 @@ private fun BoxScope.Controls(
 }
 
 /**
- * The buttons at the top trailing corner: Info, always, and while the globe is being explored, the
- * buttons that turn it into a time machine or a quiz, and the one that opens the passport.
+ * The controls along the top: at the trailing corner, Info, always, and while the globe is being
+ * explored, the buttons that turn it into a time machine or a quiz, and the one that opens the
+ * passport; at the leading corner, the country of the day, while no country is open.
  */
 @Composable
-private fun BoxScope.TopButtons(showModes: Boolean, actions: ModeActions) {
+private fun BoxScope.TopButtons(
+    showModes: Boolean,
+    today: Country?,
+    onOpenToday: (Country) -> Unit,
+    actions: ModeActions,
+) {
+    // The chip keeps naming its country while it fades away.
+    var lastToday by remember { mutableStateOf(today) }
+    LaunchedEffect(today) { if (today != null) lastToday = today }
+    AnimatedVisibility(
+        visible = today != null,
+        enter = fadeIn() + scaleIn(CONTROL_SPRING, initialScale = CONTROL_START_SCALE),
+        exit = fadeOut() + scaleOut(CONTROL_SPRING, targetScale = CONTROL_START_SCALE),
+        modifier = Modifier
+            .align(Alignment.TopStart)
+            .safeDrawingPadding()
+            .padding(start = CONTROL_MARGIN, top = CONTROL_MARGIN, end = TOP_CHIP_END_GAP),
+    ) {
+        lastToday?.let { CountryOfTheDayChip(country = it, onOpen = onOpenToday) }
+    }
     Column(
         verticalArrangement = Arrangement.spacedBy(CONTROL_SPACING),
         modifier = Modifier

@@ -7,6 +7,7 @@ import com.paarth.zeitreise.data.BundledCountryRepository
 import com.paarth.zeitreise.data.BundledLandmarkHistory
 import com.paarth.zeitreise.data.BundledSubdivisionRepository
 import com.paarth.zeitreise.data.CountryRepository
+import com.paarth.zeitreise.data.DayClock
 import com.paarth.zeitreise.data.ExploreRepository
 import com.paarth.zeitreise.data.FactCursor
 import com.paarth.zeitreise.data.FallbackGuideRepository
@@ -26,6 +27,7 @@ import com.paarth.zeitreise.data.SettingsPassport
 import com.paarth.zeitreise.data.SettingsQuizStore
 import com.paarth.zeitreise.data.SettingsResponseCache
 import com.paarth.zeitreise.data.SubdivisionRepository
+import com.paarth.zeitreise.data.SystemDayClock
 import com.paarth.zeitreise.data.WikipediaRepository
 import com.paarth.zeitreise.ui.explore.ExploreViewModel
 import com.paarth.zeitreise.ui.globe.GlobeViewModel
@@ -72,6 +74,7 @@ public val sharedModule: Module = module {
     single<SubdivisionRepository> { BundledSubdivisionRepository(dispatcher = get()) }
     single<OnboardingStore> { SettingsOnboardingStore(settings = get(), dispatcher = get()) }
     single<QuizStore> { SettingsQuizStore(settings = get(), dispatcher = get()) }
+    single<DayClock> { SystemDayClock }
     single<Passport> { SettingsPassport(settings = get(), dispatcher = get()) }
     single<WikipediaRepository> { KtorWikipediaRepository(client = get(), cache = get(), dispatcher = get()) }
     single<DemoGuide> {

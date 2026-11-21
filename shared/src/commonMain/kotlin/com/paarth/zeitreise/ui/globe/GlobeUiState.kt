@@ -19,11 +19,13 @@ public sealed interface GlobeUiState {
      * @property subdivisions the states and provinces of [selected], largest first; empty while
      *   they load and for a country that has none.
      * @property selectedSubdivision the state the user tapped inside [selected], if any.
+     * @property countryOfTheDay the country suggested for today, the same on every device.
      */
     public data class Ready(
         val countries: List<Country>,
         val selected: Country? = null,
         val subdivisions: List<Subdivision> = emptyList(),
         val selectedSubdivision: Subdivision? = null,
+        val countryOfTheDay: Country? = null,
     ) : GlobeUiState
 }

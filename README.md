@@ -39,6 +39,10 @@ The long-term goal is a guide that tells you a surprising fact about each countr
 - A sheet shows the country's flag, name, continent and capital, with every capital for countries that have several, such as South Africa and Bolivia
 - Close button, or tap the ocean, to clear the selection
 
+### Country of the Day
+- A glass chip at the top names today's country with its flag; tap it to fly there and open it
+- Picked from the date, so it is the same on every device that day, and only among countries large enough to see on the globe
+
 ### Passport
 - Every country you open is stamped into your passport, and the sheet says so the first time
 - The passport button opens it: each stamp shows the country's flag inside a dashed rim in its continent's ink, tilted a little as if pressed by hand
@@ -59,7 +63,8 @@ The long-term goal is a guide that tells you a surprising fact about each countr
 - The maps are downloaded the first time a year is chosen and kept while you slide back and forth, so Time Travel needs an internet connection
 
 ### Globe Quiz
-- The target button starts a round of ten "Find…" questions; answer by tapping the country on the globe
+- The target button starts a round of ten questions; answer by tapping the country on the globe
+- About half ask for a country by name ("Find Peru"), the rest by its capital ("Where is Lima?")
 - A right answer turns green; a wrong one turns red, the right country lights up green, and the camera frames both so you see how far off you were
 - "Show me" gives a question up, taps on the ocean don't count, and a streak of right answers is cheered
 - The round ends with a score card, and the best score is kept on the device
@@ -240,8 +245,7 @@ Today's countries and states are bundled, so the globe works offline. The histor
 
 Learning and Fun
 
-    1. A country of the day
-    2. Quiz questions about the past, asked on Time Travel's historical maps
+    1. Quiz questions about the past, asked on Time Travel's historical maps
 
 ## Credits
 

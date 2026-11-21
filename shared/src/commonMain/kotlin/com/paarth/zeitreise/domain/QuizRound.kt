@@ -6,28 +6,31 @@ import kotlin.random.Random
 public const val QUIZ_LENGTH: Int = 10
 
 /**
- * The smallest a country's largest landmass may be, in square degrees (about 9,000 km², the size
- * of Jamaica), to be asked about. Anything smaller is a speck on the whole globe that no finger can
- * be expected to hit, such as Luxembourg, Singapore or a chain of Pacific islands.
+ * One question of the quiz: a country to find on the globe, asked for by its name or by its capital.
+ *
+ * @property country the country to find.
+ * @property capital the capital the question names instead of the country, when it asks by capital.
  */
-private const val MIN_QUIZ_AREA = 0.75
+public data class QuizQuestion(val country: Country, val capital: String? = null)
 
 /**
- * Picks the countries for a round: [count] different ones, in random order, each large enough to
- * tap and each with an ISO code, which leaves out territories such as Kosovo or Somaliland whose
- * status the standard does not settle.
+ * Picks the questions for a round: [count] different [prominent][isProminent] countries, in
+ * random order. About half of those with a capital are asked for by it.
  */
-internal fun quizQuestions(countries: List<Country>, random: Random, count: Int = QUIZ_LENGTH): List<Country> =
+internal fun quizQuestions(countries: List<Country>, random: Random, count: Int = QUIZ_LENGTH): List<QuizQuestion> =
     countries
-        .filter { it.isoA2 != null && it.outlines.first().exterior.area >= MIN_QUIZ_AREA }
+        .filter { it.isProminent }
         .shuffled(random)
         .take(count)
+        .map { country ->
+            QuizQuestion(country, capital = country.facts.capitals.firstOrNull()?.takeIf { random.nextBoolean() })
+        }
 
 /**
  * One round of the quiz: a run of countries to find on the globe, and how the user is doing.
  *
- * @property questions the countries to find, in the order they are asked.
- * @property number the index in [questions] of the country being asked about now.
+ * @property questions the questions, in the order they are asked.
+ * @property number the index in [questions] of the question being asked now.
  * @property score how many countries the user has found so far.
  * @property streak how many countries in a row the user has found, ending with the last answer.
  * @property answered whether the current question has been answered, or given up on.
@@ -35,7 +38,7 @@ internal fun quizQuestions(countries: List<Country>, random: Random, count: Int 
  *   is open, or when the user gave up and asked to be shown.
  */
 public data class QuizRound(
-    val questions: List<Country>,
+    val questions: List<QuizQuestion>,
     val number: Int = 0,
     val score: Int = 0,
     val streak: Int = 0,
@@ -47,8 +50,11 @@ public data class QuizRound(
         require(number in questions.indices) { "Question $number is not in a round of ${questions.size}" }
     }
 
+    /** The question being asked now. */
+    public val question: QuizQuestion get() = questions[number]
+
     /** The country the user is asked to find now. */
-    public val country: Country get() = questions[number]
+    public val country: Country get() = question.country
 
     /** Whether the user found the current country; only meaningful once [answered]. */
     public val isRight: Boolean get() = guess === country
