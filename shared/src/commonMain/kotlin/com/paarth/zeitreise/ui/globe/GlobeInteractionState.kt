@@ -79,6 +79,13 @@ internal class GlobeInteractionState {
      */
     private var lift by mutableFloatStateOf(0f)
 
+    /**
+     * Whether a flight or the inertia of a fling is still moving the camera, so the frame loop
+     * knows to keep running. Compose state, so the loop can sleep until it turns true again.
+     */
+    var isMoving: Boolean by mutableStateOf(false)
+        private set
+
     private var flingYaw = 0.0
     private var flingPitch = 0.0
     private var stillSeconds = 0f
@@ -103,6 +110,7 @@ internal class GlobeInteractionState {
         flingYaw = 0.0
         flingPitch = 0.0
         stillSeconds = 0f
+        isMoving = false
     }
 
     /** Turns the globe by a drag of [delta] pixels. */
@@ -129,6 +137,7 @@ internal class GlobeInteractionState {
     fun onReleased(velocity: Velocity) {
         flingYaw = -degreesPerPixel(radius) * velocity.x
         flingPitch = degreesPerPixel(radius) * velocity.y
+        isMoving = flingYaw != 0.0 || flingPitch != 0.0
     }
 
     /**
@@ -143,7 +152,10 @@ internal class GlobeInteractionState {
         flight?.let { current ->
             camera = current.advance(seconds)
             lift = current.lift
-            if (current.isFinished) flight = null
+            if (current.isFinished) {
+                flight = null
+                isMoving = false
+            }
             return
         }
 
@@ -154,6 +166,7 @@ internal class GlobeInteractionState {
             flingYaw = 0.0
             flingPitch = 0.0
             stillSeconds += seconds
+            isMoving = false
         }
 
         val idleSpin = if (idle) IDLE_SPIN_DEGREES_PER_SECOND * idleRamp() else 0.0
@@ -173,6 +186,7 @@ internal class GlobeInteractionState {
             fromLift = lift,
             toLift = FRAMED_LIFT,
         )
+        isMoving = true
     }
 
     /** Flies the camera back out to the whole globe, keeping the point it faces. */
@@ -180,6 +194,7 @@ internal class GlobeInteractionState {
         if (camera.zoom == MIN_ZOOM) return
         onPressed()
         flight = Flight(from = camera, to = camera.copy(zoom = MIN_ZOOM), fromLift = lift, toLift = 0f)
+        isMoving = true
     }
 
     /** Fades the idle drift in over [IDLE_RAMP_SECONDS] once the globe has been still long enough. */

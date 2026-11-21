@@ -14,6 +14,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -41,6 +42,7 @@ import com.paarth.zeitreise.domain.territoryAt
 import com.paarth.zeitreise.globe.GeoCap
 import com.paarth.zeitreise.globe.GlobeProjection
 import com.paarth.zeitreise.globe.union
+import kotlinx.coroutines.flow.first
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.globe_description
@@ -213,7 +215,8 @@ internal data class QuizGlobe(val answer: Country? = null, val wrongGuess: Count
 /**
  * Moves the camera on its own: flies to [focus] whenever it changes, or out to the whole globe
  * when it is cleared, and advances inertia, flights and, while [drifting], the slow idle turn,
- * once per frame.
+ * once per frame. A still globe asks for no frames at all, so it redraws nothing and costs no
+ * battery until a drag, a flight or the drift moves it again.
  */
 @Composable
 private fun CameraDriver(state: GlobeInteractionState, focus: GeoCap?, drifting: Boolean) {
@@ -225,16 +228,19 @@ private fun CameraDriver(state: GlobeInteractionState, focus: GeoCap?, drifting:
     // without restarting the loop.
     val driftingNow by rememberUpdatedState(drifting)
     LaunchedEffect(state) {
-        var previous = 0L
         while (true) {
-            withFrameNanos { now ->
-                if (previous != 0L) {
-                    state.advance(
-                        seconds = ((now - previous) / NANOS_PER_SECOND).toFloat(),
-                        idle = driftingNow,
-                    )
+            snapshotFlow { state.isMoving || driftingNow }.first { it }
+            var previous = 0L
+            while (state.isMoving || driftingNow) {
+                withFrameNanos { now ->
+                    if (previous != 0L) {
+                        state.advance(
+                            seconds = ((now - previous) / NANOS_PER_SECOND).toFloat(),
+                            idle = driftingNow,
+                        )
+                    }
+                    previous = now
                 }
-                previous = now
             }
         }
     }

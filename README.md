@@ -95,7 +95,7 @@ The long-term goal is a guide that tells you a surprising fact about each countr
 
 Zeitreise is built with **Kotlin Multiplatform** and **Compose Multiplatform**, sharing both the logic and the entire UI.
 
-About **97% of the app's code lives in `commonMain`**: 2,389 lines shared, against 73 lines across the three platform entry points. There are no `expect`/`actual` declarations.
+About **99% of the app's code lives in `commonMain`**: 6,482 lines shared, against 64 lines across the three platform entry points (counting lines of code, without blank lines and comments). There are no `expect`/`actual` declarations. The 2,580 lines of tests in `commonTest` run on the JVM, the iOS simulator and in the browser.
 
 ### Shared (`shared/commonMain`)
 - `globe/` – orthographic projection, inverse projection, point-in-polygon hit testing, polygon simplification and the camera. Pure functions, fully unit tested
@@ -110,7 +110,7 @@ About **97% of the app's code lives in `commonMain`**: 2,389 lines shared, again
   `MainActivity`, which hosts the shared `App()` composable
 
 - **iOS (`shared/iosMain` + `iosApp`)**
-  `MainViewController`, plus a thin SwiftUI wrapper that hosts it. The UI itself is Compose, not SwiftUI
+  `mainViewController()`, plus a thin SwiftUI wrapper that hosts it. The UI itself is Compose, not SwiftUI
 
 - **Web (`webApp`)**
   `main()`, which mounts the shared UI with `ComposeViewport` on Kotlin/Wasm
