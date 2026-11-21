@@ -52,6 +52,13 @@ The long-term goal is a guide that tells you a surprising fact about each countr
 - About sixty famous landmarks are pinned in the years they stood, from Göbekli Tepe to the Burj Khalifa: the Lighthouse of Alexandria disappears after 1480, the Berlin Wall stands only from 1961 to 1989. Their building and destruction years come from Wikidata and are bundled with the app
 - The maps are downloaded the first time a year is chosen and kept while you slide back and forth, so Time Travel needs an internet connection
 
+### Globe Quiz
+- The target button starts a round of ten "Find…" questions; answer by tapping the country on the globe
+- A right answer turns green; a wrong one turns red, the right country lights up green, and the camera frames both so you see how far off you were
+- "Show me" gives a question up, taps on the ocean don't count, and a streak of right answers is cheered
+- The round ends with a score card, and the best score is kept on the device
+- Asks only about countries large enough to tap on the whole globe, and works entirely offline
+
 ### Onboarding
 - A welcome screen on first launch only, laid over the turning globe
 - Short hints that wait for you to try each gesture: drag the globe, then tap a country
@@ -82,9 +89,9 @@ About **97% of the app's code lives in `commonMain`**: 2,389 lines shared, again
 ### Shared (`shared/commonMain`)
 - `globe/` – orthographic projection, inverse projection, point-in-polygon hit testing, polygon simplification and the camera. Pure functions, fully unit tested
 - `geo/` – GeoJSON parsing with kotlinx.serialization
-- `domain/` – country and geographic models
-- `data/` – the bundled country repository and the onboarding store
-- `ui/` – every screen, the globe Canvas, the country sheet, onboarding and the theme
+- `domain/` – countries, realms of the past, landmarks, search and the quiz round
+- `data/` – the bundled countries and landmarks, Wikipedia, the AI guide, the historical maps, and what is kept on the device
+- `ui/` – the globe Canvas, the sheets and glass controls, Explore, Time Travel, the quiz, onboarding and the theme
 - `di/` – Koin modules
 
 ### Platform-specific
@@ -227,7 +234,8 @@ Today's countries and states are bundled, so the globe works offline. The histor
 
 Learning and Fun
 
-    1. A quiz, passport stamps, a country of the day, capitals and flags
+    1. Passport stamps, a country of the day, capitals and flags
+    2. Quiz questions about the past, asked on Time Travel's historical maps
 
 ## Credits
 

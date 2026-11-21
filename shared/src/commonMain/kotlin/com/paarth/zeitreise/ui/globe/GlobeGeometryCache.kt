@@ -91,8 +91,11 @@ internal class OutlineGeometry(outline: CountryOutline) {
     }
 }
 
-/** Latitude past which a country's main landmass is drawn as ice: Greenland, not Russia. */
-private const val ICE_LATITUDE = 70.0
+/**
+ * Greenland's ISO code: with Antarctica, the one land drawn as ice. Named rather than found by
+ * latitude, since framing Russia with its Arctic islands puts its centre as far north as Greenland's.
+ */
+private const val GREENLAND = "GL"
 
 /** Continent whose every landmass is drawn as ice. */
 private const val ANTARCTICA = "Antarctica"
@@ -152,8 +155,8 @@ private fun appendClosedRing(path: Path, screen: FloatArray) {
     path.close()
 }
 
-/** Whether the country is polar enough to be drawn as ice. */
-private fun Country.isPolar(): Boolean = continent == ANTARCTICA || focus.center.latitude > ICE_LATITUDE
+/** Whether the country is one of the ice sheets, drawn as ice. */
+private fun Country.isPolar(): Boolean = continent == ANTARCTICA || isoA2 == GREENLAND
 
 /** The unit-sphere vertices to draw this ring from: the coarse copy or the full outline. */
 private fun CountryRing.vertices(coarse: Boolean): DoubleArray = if (coarse) coarseSphere else sphere

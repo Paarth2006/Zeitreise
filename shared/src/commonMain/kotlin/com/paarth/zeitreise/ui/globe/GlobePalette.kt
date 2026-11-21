@@ -20,6 +20,8 @@ import androidx.compose.ui.graphics.Color
  * @property unclaimedLand land no realm held in the year shown, a pale sand.
  * @property ice fill of the polar landmasses, Antarctica and Greenland.
  * @property landSelected fill of the selected country.
+ * @property quizRight fill of the country the quiz asked for, once it is answered.
+ * @property quizWrong fill of the country the user tapped instead.
  * @property border outline of an unselected country.
  * @property borderSelected outline of the selected country.
  * @property graticule the meridians and parallels.
@@ -36,6 +38,8 @@ internal data class GlobePalette(
     val unclaimedLand: Color,
     val ice: Color,
     val landSelected: Color,
+    val quizRight: Color,
+    val quizWrong: Color,
     val border: Color,
     val borderSelected: Color,
     val graticule: Color,
@@ -72,6 +76,8 @@ internal fun rememberGlobePalette(): GlobePalette = remember {
         unclaimedLand = Color(0xFFDCD3B8),
         ice = Color(0xFFEAF1F5),
         landSelected = Color(0xFFF2C96B),
+        quizRight = Color(0xFF5BD68A),
+        quizWrong = Color(0xFFF2726B),
         border = Color(0x99FFFFFF),
         borderSelected = Color(0xFFFFFFFF),
         graticule = Color(0x1FFFFFFF),

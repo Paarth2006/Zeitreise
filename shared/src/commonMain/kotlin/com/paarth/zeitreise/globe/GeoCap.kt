@@ -73,6 +73,44 @@ internal fun boundingCap(sphere: DoubleArray): GeoCap {
     return GeoCap(center = center.toGeoPoint(), radiusDegrees = widest.toDegrees())
 }
 
+/**
+ * The smallest cap holding both this cap and [other], for framing two regions at once: it spans
+ * the arc through both centres, from the far edge of one to the far edge of the other.
+ */
+internal infix fun GeoCap.union(other: GeoCap): GeoCap {
+    val apart = center.angleTo(other.center)
+    return when {
+        apart + other.radiusDegrees <= radiusDegrees -> this
+        apart + radiusDegrees <= other.radiusDegrees -> other
+        else -> {
+            val radius = (apart + radiusDegrees + other.radiusDegrees) / 2
+            GeoCap(
+                center = center.towards(other.center, fraction = (radius - radiusDegrees) / apart),
+                radiusDegrees = radius.coerceAtMost(DEGREES_PER_HALF_TURN),
+            )
+        }
+    }
+}
+
+/**
+ * The point [fraction] of the way along the great circle from this point to [other]. Opposite
+ * points have no single great circle between them, so this point is kept.
+ */
+private fun GeoPoint.towards(other: GeoPoint, fraction: Double): GeoPoint {
+    val from = toSpherePoint()
+    val to = other.toSpherePoint()
+    val angle = angleTo(other).toRadians()
+    val sinAngle = sin(angle)
+    if (sinAngle < DEGENERATE_LENGTH) return this
+    val fromWeight = sin((1 - fraction) * angle) / sinAngle
+    val toWeight = sin(fraction * angle) / sinAngle
+    return SpherePoint(
+        x = from.x * fromWeight + to.x * toWeight,
+        y = from.y * fromWeight + to.y * toWeight,
+        z = from.z * fromWeight + to.z * toWeight,
+    ).toGeoPoint()
+}
+
 /** Converts a unit-sphere vector back to latitude and longitude. */
 internal fun SpherePoint.toGeoPoint(): GeoPoint = GeoPoint(
     latitude = asin(y.coerceIn(-1.0, 1.0)).toDegrees(),

@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PointMode
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
@@ -39,6 +40,7 @@ import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.domain.territoryAt
 import com.paarth.zeitreise.globe.GeoCap
 import com.paarth.zeitreise.globe.GlobeProjection
+import com.paarth.zeitreise.globe.union
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.globe_description
@@ -100,6 +102,8 @@ private const val NANOS_PER_SECOND = 1_000_000_000.0
  * @param onSelectPin called with the pin that was tapped; a pin wins over the land under it.
  * @param past the historical map to draw instead of today's countries, while travelling in time.
  * @param onSelectRealm called with the realm of [past] that was tapped, or `null` for the ocean.
+ * @param quiz the countries the quiz marks, while a quiz is on; the globe then holds still between
+ *   questions and flies to each answer instead of to the selection.
  * @param onTurned called when the user finishes a drag or pinch.
  */
 @Composable
@@ -113,6 +117,7 @@ internal fun GlobeView(
     onSelectPin: (Pinned) -> Unit = {},
     past: PastGlobe? = null,
     onSelectRealm: (Realm?) -> Unit = {},
+    quiz: QuizGlobe? = null,
     onTurned: () -> Unit = {},
 ) {
     val state = remember { GlobeInteractionState() }
@@ -125,7 +130,9 @@ internal fun GlobeView(
     val labels = rememberSubdivisionLabels(content.subdivisions, palette)
     val subdivisionAlpha by animateSubdivisionAlpha(content.subdivisions)
 
-    CameraDriver(state, focus = if (past != null) past.selected?.focus else content.selected?.focus)
+    val focus = cameraFocus(content, past, quiz)
+    // While a quiz asks for a country the globe stays where the user turned it, so it can be searched.
+    CameraDriver(state, focus = focus, drifting = focus == null && quiz == null)
     val pinDrop = rememberPinDrop(pins)
     val routeTap = rememberTapRouter(
         TapTargets(
@@ -166,7 +173,8 @@ internal fun GlobeView(
             drawPast(pastGeometry, projection, past?.selected, palette)
         } else {
             val selected = content.selectedSubdivision
-            drawCountries(geometry, projection, content.selected, statesShown = subdivisionAlpha > 0f, palette)
+            val highlight = CountryHighlight(content.selected, statesShown = subdivisionAlpha > 0f, quiz = quiz)
+            drawCountries(geometry, projection, highlight, palette)
             drawSubdivisions(subdivisionGeometry, projection, selected, subdivisionAlpha, palette)
             labels.draw(this, projection, subdivisionAlpha, selected)
         }
@@ -184,18 +192,38 @@ internal fun GlobeView(
 internal data class PastGlobe(val map: HistoricalMap?, val selected: Realm?)
 
 /**
+ * What the camera frames: the realm tapped in the past; the quiz's answer, together with the
+ * country tapped instead so the user sees how far off they were; or the selected country.
+ */
+private fun cameraFocus(content: GlobeUiState.Ready, past: PastGlobe?, quiz: QuizGlobe?): GeoCap? = when {
+    past != null -> past.selected?.focus
+    quiz != null -> quiz.answer?.focus?.let { answer -> quiz.wrongGuess?.let { answer union it.focus } ?: answer }
+    else -> content.selected?.focus
+}
+
+/**
+ * What the quiz marks on the globe.
+ *
+ * @property answer the country asked for, once the question is answered: filled green and framed
+ *   by the camera; `null` while the user is still looking for it.
+ * @property wrongGuess the country the user tapped instead, filled red and framed with [answer].
+ */
+internal data class QuizGlobe(val answer: Country? = null, val wrongGuess: Country? = null)
+
+/**
  * Moves the camera on its own: flies to [focus] whenever it changes, or out to the whole globe
- * when it is cleared, and advances inertia, drift and flights once per frame.
+ * when it is cleared, and advances inertia, flights and, while [drifting], the slow idle turn,
+ * once per frame.
  */
 @Composable
-private fun CameraDriver(state: GlobeInteractionState, focus: GeoCap?) {
+private fun CameraDriver(state: GlobeInteractionState, focus: GeoCap?, drifting: Boolean) {
     LaunchedEffect(focus) {
         if (focus != null) state.flyToFrame(focus) else state.flyToWholeGlobe()
     }
 
     // Read inside the frame loop rather than captured, so selecting a place stops the drift
     // without restarting the loop.
-    val selectedNow by rememberUpdatedState(focus)
+    val driftingNow by rememberUpdatedState(drifting)
     LaunchedEffect(state) {
         var previous = 0L
         while (true) {
@@ -203,7 +231,7 @@ private fun CameraDriver(state: GlobeInteractionState, focus: GeoCap?) {
                 if (previous != 0L) {
                     state.advance(
                         seconds = ((now - previous) / NANOS_PER_SECOND).toFloat(),
-                        idle = selectedNow == null,
+                        idle = driftingNow,
                     )
                 }
                 previous = now
@@ -325,25 +353,38 @@ private fun DrawScope.drawGraticule(graticule: GraticuleGeometry, projection: Gl
 }
 
 /**
- * Draws every country. The selected one is filled gold until its states have loaded; once they
- * fade in over it, it keeps its ordinary shade so the states read against it.
+ * Which countries stand out from the rest, and how.
+ *
+ * @property selected the selected country, filled gold until its states have loaded; once they
+ *   fade in over it, it keeps its ordinary shade so the states read against it.
+ * @property statesShown whether the selected country's states are showing.
+ * @property quiz the quiz's right answer and wrong guess, filled green and red.
  */
+private class CountryHighlight(val selected: Country?, val statesShown: Boolean, val quiz: QuizGlobe?) {
+    fun isMarked(country: TerritoryGeometry): Boolean = country.territory.let {
+        it === selected || it === quiz?.answer || it === quiz?.wrongGuess
+    }
+
+    fun fillOf(country: TerritoryGeometry, palette: GlobePalette): Color = when (country.territory) {
+        quiz?.answer -> palette.quizRight
+        quiz?.wrongGuess -> palette.quizWrong
+        selected if !statesShown -> palette.landSelected
+        else -> if (country.isIce) palette.ice else palette.land[country.shade.mod(palette.land.size)]
+    }
+}
+
+/** Draws every country, with the selected one and the quiz's answers picked out by [highlight]. */
 private fun DrawScope.drawCountries(
     geometry: GlobeGeometryCache,
     projection: GlobeProjection,
-    selected: Country?,
-    statesShown: Boolean,
+    highlight: CountryHighlight,
     palette: GlobePalette,
 ) {
     geometry.countries.forEach { country ->
-        val isSelected = country.territory === selected
-        val fill = when {
-            isSelected && !statesShown -> palette.landSelected
-            country.isIce -> palette.ice
-            else -> palette.land[country.shade.mod(palette.land.size)]
-        }
-        val border = if (isSelected) palette.borderSelected else palette.border
-        val borderWidth = if (isSelected) SELECTED_BORDER_WIDTH else BORDER_WIDTH
+        val marked = highlight.isMarked(country)
+        val fill = highlight.fillOf(country, palette)
+        val border = if (marked) palette.borderSelected else palette.border
+        val borderWidth = if (marked) SELECTED_BORDER_WIDTH else BORDER_WIDTH
         country.update(projection).forEach { path ->
             drawPath(path = path, color = fill)
             drawPath(path = path, color = border, style = Stroke(width = borderWidth))

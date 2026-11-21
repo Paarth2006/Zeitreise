@@ -73,4 +73,25 @@ class GeoCapTest {
     fun clampsATinyRegionToTheClosestZoom() {
         assertEquals(MAX_ZOOM, GeoCap(GeoPoint(0.0, 0.0), radiusDegrees = 0.00001).framingZoom(fill = 0.9), TOLERANCE)
     }
+
+    @Test
+    fun joinsTwoCapsIntoOneSpanningBoth() {
+        val west = GeoCap(GeoPoint(latitude = 0.0, longitude = 0.0), radiusDegrees = 5.0)
+        val east = GeoCap(GeoPoint(latitude = 0.0, longitude = 30.0), radiusDegrees = 5.0)
+
+        val both = west union east
+
+        assertEquals(0.0, both.center.latitude, TOLERANCE)
+        assertEquals(15.0, both.center.longitude, TOLERANCE)
+        assertEquals(20.0, both.radiusDegrees, TOLERANCE)
+    }
+
+    @Test
+    fun keepsTheLargerCapWhenItHoldsTheOther() {
+        val large = GeoCap(GeoPoint(latitude = 10.0, longitude = 10.0), radiusDegrees = 30.0)
+        val inside = GeoCap(GeoPoint(latitude = 12.0, longitude = 14.0), radiusDegrees = 2.0)
+
+        assertEquals(large, large union inside)
+        assertEquals(large, inside union large)
+    }
 }

@@ -18,7 +18,7 @@
     <string name="search_in_country">In %1$s</string>
     <string name="about_open">About Zeitreise</string>
     <string name="about_title">About Zeitreise</string>
-    <string name="about_body">Spin the globe, open a country, explore its states and the places worth a visit. Zeitreise runs on Android, iOS and the web from one Kotlin Multiplatform codebase.</string>
+    <string name="about_body">Spin the globe, open a country, explore its states and the places worth a visit, travel back through the centuries, or test yourself in the globe quiz. Zeitreise runs on Android, iOS and the web from one Kotlin Multiplatform codebase.</string>
     <string name="about_credits_heading">Credits</string>
     <string name="about_credit_wikipedia">Place descriptions and facts: Wikipedia, under the Creative Commons Attribution-ShareAlike licence (CC BY-SA). Articles are found through Wikidata.</string>
     <string name="about_credit_ai">With a Gemini API key, the AI guide writes its stories from the Wikipedia article alone.</string>
@@ -66,4 +66,28 @@
     <string name="realm_part_of">Part of %1$s · %2$s</string>
     <string name="close_realm">Close</string>
     <string name="about_credit_history">Historical borders: historical-basemaps by André Ourednik and contributors, under the GNU GPL 3.0. They are downloaded while the app runs and are not part of it.</string>
+    <string name="quiz_open">Play the globe quiz</string>
+    <string name="quiz_find">Find %1$s</string>
+    <string name="quiz_progress">Question %1$d of %2$d · %3$s</string>
+    <string name="quiz_close">End the quiz</string>
+    <string name="quiz_show_me">Show me</string>
+    <string name="quiz_next">Next</string>
+    <string name="quiz_see_score">See score</string>
+    <string name="quiz_score">Score %1$d</string>
+    <string name="quiz_right">Right! That’s %1$s.</string>
+    <plurals name="quiz_streak">
+        <item quantity="one">%1$d in a row.</item>
+        <item quantity="other">%1$d in a row!</item>
+    </plurals>
+    <string name="quiz_wrong">That’s %1$s. %2$s is the one in green.</string>
+    <string name="quiz_revealed">%1$s is the one in green.</string>
+    <string name="quiz_result">%1$d out of %2$d</string>
+    <string name="quiz_rank_perfect">A perfect round. You know the world by heart.</string>
+    <string name="quiz_rank_traveller">A seasoned traveller.</string>
+    <string name="quiz_rank_explorer">Getting your bearings.</string>
+    <string name="quiz_rank_beginner">The world is big. Every round teaches you more of it.</string>
+    <string name="quiz_new_best">A new best score!</string>
+    <string name="quiz_best">Your best: %1$d out of %2$d</string>
+    <string name="quiz_play_again">Play again</string>
+    <string name="quiz_done">Done</string>
 </resources>

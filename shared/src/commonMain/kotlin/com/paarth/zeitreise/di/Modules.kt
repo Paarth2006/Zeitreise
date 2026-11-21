@@ -17,15 +17,18 @@ import com.paarth.zeitreise.data.KtorHistoryRepository
 import com.paarth.zeitreise.data.KtorWikipediaRepository
 import com.paarth.zeitreise.data.LandmarkHistory
 import com.paarth.zeitreise.data.OnboardingStore
+import com.paarth.zeitreise.data.QuizStore
 import com.paarth.zeitreise.data.ResponseCache
 import com.paarth.zeitreise.data.SettingsFactCursor
 import com.paarth.zeitreise.data.SettingsOnboardingStore
+import com.paarth.zeitreise.data.SettingsQuizStore
 import com.paarth.zeitreise.data.SettingsResponseCache
 import com.paarth.zeitreise.data.SubdivisionRepository
 import com.paarth.zeitreise.data.WikipediaRepository
 import com.paarth.zeitreise.ui.explore.ExploreViewModel
 import com.paarth.zeitreise.ui.globe.GlobeViewModel
 import com.paarth.zeitreise.ui.onboarding.OnboardingViewModel
+import com.paarth.zeitreise.ui.quiz.QuizViewModel
 import com.paarth.zeitreise.ui.timetravel.TimeTravelViewModel
 import com.russhwolf.settings.Settings
 import io.ktor.client.HttpClient
@@ -33,6 +36,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.koin.core.module.Module
+import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 import zeitreise.shared.generated.resources.Res
@@ -64,6 +68,7 @@ public val sharedModule: Module = module {
     single<CountryRepository> { BundledCountryRepository(dispatcher = get()) }
     single<SubdivisionRepository> { BundledSubdivisionRepository(dispatcher = get()) }
     single<OnboardingStore> { SettingsOnboardingStore(settings = get(), dispatcher = get()) }
+    single<QuizStore> { SettingsQuizStore(settings = get(), dispatcher = get()) }
     single<WikipediaRepository> { KtorWikipediaRepository(client = get(), cache = get(), dispatcher = get()) }
     single<DemoGuide> {
         DemoGuide(
@@ -89,4 +94,5 @@ public val sharedModule: Module = module {
     viewModelOf(::ExploreViewModel)
     viewModelOf(::TimeTravelViewModel)
     viewModelOf(::OnboardingViewModel)
+    viewModel { QuizViewModel(store = get()) }
 }

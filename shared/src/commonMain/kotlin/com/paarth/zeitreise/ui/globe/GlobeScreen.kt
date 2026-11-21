@@ -61,6 +61,11 @@ import com.paarth.zeitreise.ui.onboarding.OnboardingEvent
 import com.paarth.zeitreise.ui.onboarding.OnboardingStep
 import com.paarth.zeitreise.ui.onboarding.OnboardingViewModel
 import com.paarth.zeitreise.ui.onboarding.WelcomeOverlay
+import com.paarth.zeitreise.ui.quiz.QuizActions
+import com.paarth.zeitreise.ui.quiz.QuizButton
+import com.paarth.zeitreise.ui.quiz.QuizControls
+import com.paarth.zeitreise.ui.quiz.QuizState
+import com.paarth.zeitreise.ui.quiz.QuizViewModel
 import com.paarth.zeitreise.ui.timetravel.TimeTravelActions
 import com.paarth.zeitreise.ui.timetravel.TimeTravelButton
 import com.paarth.zeitreise.ui.timetravel.TimeTravelControls
@@ -119,8 +124,9 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
     val onboarding = koinViewModel<OnboardingViewModel>()
     val explore = koinViewModel<ExploreViewModel>()
     val timeTravel = koinViewModel<TimeTravelViewModel>()
+    val quiz = koinViewModel<QuizViewModel>()
+    val quizState by quiz.state.collectAsStateWithLifecycle()
     val travel by timeTravel.state.collectAsStateWithLifecycle()
-    val realmStory by timeTravel.story.collectAsStateWithLifecycle()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val story by viewModel.story.collectAsStateWithLifecycle()
@@ -137,12 +143,15 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
             is GlobeUiState.Ready -> {
                 val backdrop = rememberHazeState()
                 val places = PlacesOnGlobe.of(exploreState, openCard, current.selected, travel)
+                val quizActions = remember(quiz, current.countries) { quiz.controlActions(current.countries) }
                 ReadyGlobe(
                     state = current,
                     places = places,
                     past = rememberPastGlobe(travel),
+                    quiz = quizState.globe,
                     actions = actions,
                     onSelectRealm = travelActions.selectRealm,
+                    onAnswer = quiz::answer,
                     modifier = Modifier.hazeSource(backdrop),
                 )
                 var showAbout by rememberSaveable { mutableStateOf(false) }
@@ -158,14 +167,13 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
                             step = step,
                             searchResults = searchResults,
                             actions = actions,
-                            travelling = travel is TimeTravelState.On,
-                            onStartTimeTravel = {
-                                actions.selectCountry(null)
-                                timeTravel.start()
-                            },
+                            mode = globeMode(travel, quizState),
+                            onStartTimeTravel = timeTravel::start,
+                            onStartQuiz = quizActions.playAgain,
                             onShowAbout = { showAbout = true },
                         )
-                        TimeTravelControls(state = travel, story = realmStory, actions = travelActions)
+                        TimeTravelControls(travel, timeTravel.story.collectAsStateWithLifecycle().value, travelActions)
+                        QuizControls(state = quizState, actions = quizActions)
                     }
                     // Presented modally over the controls, so its glass refracts the country's sheet too.
                     PlaceSheet(card = places.openCard, onClose = { actions.showPin(null) })
@@ -206,6 +214,33 @@ private fun TimeTravelViewModel.controlActions(places: ExploreViewModel) = TimeT
         stop()
     },
 )
+
+/** What the quiz panel can ask for, each round asking for some of [countries]. */
+private fun QuizViewModel.controlActions(countries: List<Country>) = QuizActions(
+    reveal = ::reveal,
+    next = ::next,
+    playAgain = { start(countries) },
+    stop = ::stop,
+)
+
+/** What the quiz marks on the globe, or `null` when no quiz is on. */
+private val QuizState.globe: QuizGlobe?
+    get() = when (this) {
+        QuizState.Off -> null
+        is QuizState.Finished -> QuizGlobe()
+        is QuizState.Playing -> with(round) {
+            if (answered) QuizGlobe(answer = country, wrongGuess = guess?.takeIf { !isRight }) else QuizGlobe()
+        }
+    }
+
+/** What the globe is being used for, which decides the controls floating over it. */
+private enum class GlobeMode { Explore, TimeTravel, Quiz }
+
+private fun globeMode(travel: TimeTravelState, quiz: QuizState) = when {
+    travel is TimeTravelState.On -> GlobeMode.TimeTravel
+    quiz != QuizState.Off -> GlobeMode.Quiz
+    else -> GlobeMode.Explore
+}
 
 /**
  * The pins on the globe and the card open over it, as the globe and the sheets show them.
@@ -286,8 +321,10 @@ private fun ReadyGlobe(
     state: GlobeUiState.Ready,
     places: PlacesOnGlobe,
     past: PastGlobe?,
+    quiz: QuizGlobe?,
     actions: GlobeScreenActions,
     onSelectRealm: (Realm?) -> Unit,
+    onAnswer: (Country?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val intro = remember { Animatable(0f) }
@@ -295,13 +332,15 @@ private fun ReadyGlobe(
 
     GlobeView(
         content = state,
-        onSelectCountry = actions::selectCountry,
+        // During a quiz a tapped country is an answer, not a place to open.
+        onSelectCountry = if (quiz != null) onAnswer else actions::selectCountry,
         onSelectSubdivision = actions::selectSubdivision,
         pins = places.pins,
         openPin = places.openCard?.landmark,
         onSelectPin = actions::showPin,
         past = past,
         onSelectRealm = onSelectRealm,
+        quiz = quiz,
         onTurned = { actions.onboardingEvent(OnboardingEvent.GlobeTurned) },
         modifier = modifier.graphicsLayer {
             val progress = intro.value
@@ -313,9 +352,9 @@ private fun ReadyGlobe(
 }
 
 /**
- * Everything floating over the globe: the Info button, the search bar or the country sheet at the
- * bottom, and the onboarding on first launch. The search bar gives way to the sheet whenever a
- * country is open, as the search card does in Apple Maps. The About card goes above all of these.
+ * Everything floating over the globe: the buttons at the top, the search bar or the country sheet
+ * at the bottom, and the onboarding on first launch. The search bar gives way to the sheet whenever
+ * a country is open, as the search card does in Apple Maps. The About card goes above all of these.
  */
 @Composable
 private fun BoxScope.Controls(
@@ -325,28 +364,27 @@ private fun BoxScope.Controls(
     step: OnboardingStep,
     searchResults: List<SearchResult>,
     actions: GlobeScreenActions,
-    travelling: Boolean,
+    mode: GlobeMode,
     onStartTimeTravel: () -> Unit,
+    onStartQuiz: () -> Unit,
     onShowAbout: () -> Unit,
 ) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(CONTROL_SPACING),
-        modifier = Modifier
-            .align(Alignment.TopEnd)
-            .safeDrawingPadding()
-            .padding(CONTROL_MARGIN),
-    ) {
-        InfoButton(onClick = onShowAbout)
-        AnimatedVisibility(
-            visible = step == OnboardingStep.Finished && !travelling,
-            enter = fadeIn() + scaleIn(CONTROL_SPRING, initialScale = CONTROL_START_SCALE),
-            exit = fadeOut() + scaleOut(CONTROL_SPRING, targetScale = CONTROL_START_SCALE),
-        ) {
-            TimeTravelButton(onClick = onStartTimeTravel)
-        }
-    }
+    val exploring = step == OnboardingStep.Finished && mode == GlobeMode.Explore
+    // Time Travel and the quiz each start from the whole globe, with no country open.
+    TopButtons(
+        showModes = exploring,
+        onShowAbout = onShowAbout,
+        onStartTimeTravel = {
+            actions.selectCountry(null)
+            onStartTimeTravel()
+        },
+        onStartQuiz = {
+            actions.selectCountry(null)
+            onStartQuiz()
+        },
+    )
     SearchControl(
-        visible = step == OnboardingStep.Finished && state.selected == null && !travelling,
+        visible = exploring && state.selected == null,
         results = searchResults,
         actions = actions,
     )
@@ -380,6 +418,38 @@ private fun BoxScope.Controls(
     )
     AnimatedVisibility(visible = step == OnboardingStep.Welcome, enter = EnterTransition.None, exit = fadeOut()) {
         WelcomeOverlay(onContinue = { actions.onboardingEvent(OnboardingEvent.Started) })
+    }
+}
+
+/**
+ * The buttons at the top trailing corner: Info, always, and while the globe is being explored, the
+ * buttons that turn it into a time machine or a quiz.
+ */
+@Composable
+private fun BoxScope.TopButtons(
+    showModes: Boolean,
+    onShowAbout: () -> Unit,
+    onStartTimeTravel: () -> Unit,
+    onStartQuiz: () -> Unit,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(CONTROL_SPACING),
+        modifier = Modifier
+            .align(Alignment.TopEnd)
+            .safeDrawingPadding()
+            .padding(CONTROL_MARGIN),
+    ) {
+        InfoButton(onClick = onShowAbout)
+        AnimatedVisibility(
+            visible = showModes,
+            enter = fadeIn() + scaleIn(CONTROL_SPRING, initialScale = CONTROL_START_SCALE),
+            exit = fadeOut() + scaleOut(CONTROL_SPRING, targetScale = CONTROL_START_SCALE),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(CONTROL_SPACING)) {
+                TimeTravelButton(onClick = onStartTimeTravel)
+                QuizButton(onClick = onStartQuiz)
+            }
+        }
     }
 }
 
