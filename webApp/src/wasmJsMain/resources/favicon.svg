@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#13224A"/>
+      <stop offset="1" stop-color="#070B14"/>
+    </linearGradient>
+    <radialGradient id="ocean" cx="0.38" cy="0.32" r="0.75">
+      <stop offset="0" stop-color="#6CB6FF"/>
+      <stop offset="0.55" stop-color="#2F7FE0"/>
+      <stop offset="1" stop-color="#174A9C"/>
+    </radialGradient>
+    <clipPath id="globe">
+      <circle cx="512" cy="512" r="290"/>
+    </clipPath>
+    <clipPath id="front">
+      <rect x="0" y="512" width="1024" height="512"/>
+    </clipPath>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <g fill="#FFFFFF">
+    <circle cx="170" cy="190" r="6" opacity="0.8"/>
+    <circle cx="840" cy="150" r="5" opacity="0.6"/>
+    <circle cx="880" cy="820" r="6" opacity="0.7"/>
+    <circle cx="140" cy="760" r="4" opacity="0.5"/>
+    <circle cx="300" cy="110" r="4" opacity="0.5"/>
+    <circle cx="760" cy="900" r="4" opacity="0.5"/>
+  </g>
+  <g transform="rotate(-20 512 512)">
+    <ellipse cx="512" cy="512" rx="420" ry="118" fill="none" stroke="#FFB547" stroke-width="26" opacity="0.55"/>
+  </g>
+  <circle cx="512" cy="512" r="290" fill="url(#ocean)"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="14" stroke-opacity="0.55" clip-path="url(#globe)">
+    <path d="M212,512 H812"/>
+    <path d="M212,367 H812"/>
+    <path d="M212,657 H812"/>
+    <path d="M512,212 V812"/>
+    <ellipse cx="512" cy="512" rx="145" ry="290"/>
+  </g>
+  <g transform="rotate(-20 512 512)" clip-path="url(#front)">
+    <ellipse cx="512" cy="512" rx="420" ry="118" fill="none" stroke="#FFB547" stroke-width="26"/>
+  </g>
+  <g transform="rotate(-20 512 512)">
+    <path d="M932,424 L978,526 L886,526 Z" fill="#FFB547" stroke="#FFB547" stroke-width="10" stroke-linejoin="round"/>
+  </g>
+  <circle cx="512" cy="512" r="290" fill="none" stroke="#FFFFFF" stroke-opacity="0.25" stroke-width="6"/>
+</svg>

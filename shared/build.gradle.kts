@@ -7,7 +7,6 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
-    alias(libs.plugins.sqldelight)
 }
 
 // The Gemini key lives in local.properties, which is never committed, and is written into a
@@ -106,8 +105,6 @@ kotlin {
             implementation(libs.lifecycle.runtimeCompose)
             implementation(libs.lifecycle.viewmodelCompose)
             implementation(libs.multiplatformSettings.noArg)
-            implementation(libs.navigation.compose)
-            implementation(libs.sqldelight.runtime)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -118,24 +115,12 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiTooling)
             implementation(libs.ktor.client.okhttp)
-            implementation(libs.sqldelight.androidDriver)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
-            implementation(libs.sqldelight.nativeDriver)
         }
         wasmJsMain.dependencies {
             implementation(libs.ktor.client.js)
-            implementation(libs.sqldelight.webWorkerDriver)
-        }
-    }
-}
-
-sqldelight {
-    databases {
-        create("ZeitreiseDatabase") {
-            packageName.set("com.paarth.zeitreise.data.db")
-            generateAsync.set(true)
         }
     }
 }

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="night_sky">#FF070B14</color>
+
+    <!-- Dark from the first frame, so the app opens on the night sky the globe is drawn on instead of a white flash. -->
+    <style name="Theme.Zeitreise" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/night_sky</item>
+        <item name="android:colorBackground">@color/night_sky</item>
+    </style>
+</resources>

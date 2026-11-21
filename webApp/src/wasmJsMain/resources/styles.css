@@ -4,4 +4,6 @@ html, body {
     margin: 0;
     padding: 0;
     overflow: hidden;
+    /* The app's night sky, so the page stays dark while the app downloads. */
+    background-color: #070B14;
 }
