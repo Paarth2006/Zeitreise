@@ -6,7 +6,11 @@ import com.paarth.zeitreise.globe.GeoCap
 import com.paarth.zeitreise.globe.GeoPoint
 import kotlin.test.Test
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
+
+/** A short moment, in seconds, during which the rewind spin is still fast. */
+private const val MOMENT = 0.05f
 
 /** Longer than any flight or fling takes to settle, in seconds. */
 private const val LONG_ENOUGH = 5f
@@ -56,5 +60,30 @@ class GlobeInteractionStateTest {
         state.onReleased(Velocity.Zero)
 
         assertFalse(state.isMoving)
+    }
+
+    @Test
+    fun rewindSpinsTheGlobeBackwardsAndThenSettles() {
+        state.rewind()
+        assertTrue(state.isMoving)
+
+        state.advance(seconds = MOMENT, idle = false)
+        // The drift turns the yaw up from 0, so a rewind turns it below 0.
+        assertTrue(state.camera.yaw < 0.0)
+
+        state.advance(seconds = LONG_ENOUGH, idle = false)
+        assertFalse(state.isMoving)
+    }
+
+    @Test
+    fun rewindWaitsForAFlightToFinish() {
+        state.flyToFrame(PERU)
+        state.rewind()
+        state.advance(seconds = LONG_ENOUGH, idle = false)
+        // The flight has landed on Peru, and the spin is still to come.
+        assertTrue(state.isMoving)
+
+        state.advance(seconds = MOMENT, idle = false)
+        assertNotEquals(PERU.center.longitude, state.camera.yaw)
     }
 }

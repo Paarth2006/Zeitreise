@@ -53,7 +53,6 @@ import com.paarth.zeitreise.ui.explore.LandmarkCard
 import com.paarth.zeitreise.ui.explore.PlaceSheet
 import com.paarth.zeitreise.ui.explore.about
 import com.paarth.zeitreise.ui.explore.landmarksIn
-import com.paarth.zeitreise.ui.glass.CapsuleShape
 import com.paarth.zeitreise.ui.glass.LocalGlassBackdrop
 import com.paarth.zeitreise.ui.glass.SHEET_BODY_END_PADDING
 import com.paarth.zeitreise.ui.onboarding.CoachHint
@@ -62,8 +61,9 @@ import com.paarth.zeitreise.ui.onboarding.OnboardingStep
 import com.paarth.zeitreise.ui.onboarding.OnboardingViewModel
 import com.paarth.zeitreise.ui.onboarding.TourOverlay
 import com.paarth.zeitreise.ui.onboarding.TourStop
+import com.paarth.zeitreise.ui.onboarding.TourTargets
 import com.paarth.zeitreise.ui.onboarding.WelcomeOverlay
-import com.paarth.zeitreise.ui.onboarding.tourHighlight
+import com.paarth.zeitreise.ui.onboarding.tourTarget
 import com.paarth.zeitreise.ui.passport.PassportSheet
 import com.paarth.zeitreise.ui.passport.PassportViewModel
 import com.paarth.zeitreise.ui.quiz.QuizActions
@@ -162,6 +162,8 @@ private fun ReadyScreen(current: GlobeUiState.Ready, models: ScreenModels) {
     val quizActions = remember(models, current.countries) { models.quiz.controlActions(current.countries) }
     val backdrop = rememberHazeState()
     val places = PlacesOnGlobe.of(exploreState, openCard, current.selected, travel)
+    val step by models.onboarding.step.collectAsStateWithLifecycle()
+    val demo = rememberTourDemo((step as? OnboardingStep.Tour)?.stop, current)
     ReadyGlobe(
         state = current,
         places = places,
@@ -170,6 +172,7 @@ private fun ReadyScreen(current: GlobeUiState.Ready, models: ScreenModels) {
         actions = actions,
         onSelectRealm = travelActions.selectRealm,
         onAnswer = models.quiz::answer,
+        showcase = demo.showcase,
         modifier = Modifier.hazeSource(backdrop),
     )
     var showAbout by rememberSaveable { mutableStateOf(false) }
@@ -180,17 +183,13 @@ private fun ReadyScreen(current: GlobeUiState.Ready, models: ScreenModels) {
                 state = current,
                 places = places,
                 story = models.globe.story.collectAsStateWithLifecycle().value,
-                step = models.onboarding.step.collectAsStateWithLifecycle().value,
+                step = step,
+                searchDemo = demo.searchText,
                 searchResults = models.globe.searchResults.collectAsStateWithLifecycle().value,
                 newStamp = models.globe.newStamp.collectAsStateWithLifecycle().value,
                 actions = actions,
                 mode = globeMode(travel, quizState),
-                modeActions = ModeActions(
-                    startTimeTravel = models.timeTravel::start,
-                    startQuiz = quizActions.playAgain,
-                    showPassport = models.passport::open,
-                    showAbout = { showAbout = true },
-                ),
+                modeActions = models.modeActions(quizActions) { showAbout = true },
             )
             TimeTravelControls(
                 state = travel,
@@ -213,6 +212,14 @@ private fun ReadyScreen(current: GlobeUiState.Ready, models: ScreenModels) {
         )
     }
 }
+
+/** Toolbar actions. Each one starts a mode or opens a sheet over the globe. */
+private fun ScreenModels.modeActions(quiz: QuizActions, showAbout: () -> Unit) = ModeActions(
+    startTimeTravel = timeTravel::start,
+    startQuiz = quiz.playAgain,
+    showPassport = passport::open,
+    showAbout = showAbout,
+)
 
 /**
  * The historical map to draw, or `null` for today's world. While the next year's map loads, the
@@ -347,6 +354,7 @@ private fun ReadyGlobe(
     actions: GlobeScreenActions,
     onSelectRealm: (Realm?) -> Unit,
     onAnswer: (Country?) -> Unit,
+    showcase: GlobeShowcase?,
     modifier: Modifier = Modifier,
 ) {
     val intro = remember { Animatable(0f) }
@@ -364,6 +372,7 @@ private fun ReadyGlobe(
         onSelectRealm = onSelectRealm,
         quiz = quiz,
         onTurned = { actions.onboardingEvent(OnboardingEvent.GlobeTurned) },
+        showcase = showcase,
         modifier = modifier.graphicsLayer {
             val progress = intro.value
             alpha = progress
@@ -383,6 +392,7 @@ private fun BoxScope.Controls(
     places: PlacesOnGlobe,
     story: StoryState,
     step: OnboardingStep,
+    searchDemo: String?,
     searchResults: List<SearchResult>,
     newStamp: Country?,
     actions: GlobeScreenActions,
@@ -391,11 +401,11 @@ private fun BoxScope.Controls(
 ) {
     // The tour explains the controls, so they stay visible while it runs.
     val exploring = (step == OnboardingStep.Finished || step is OnboardingStep.Tour) && mode == GlobeMode.Explore
-    val tourStop = (step as? OnboardingStep.Tour)?.stop
+    val tourTargets = remember { TourTargets() }
     TodayChip(
         today = state.countryOfTheDay?.takeIf { exploring && state.selected == null },
         onOpenToday = actions::selectCountry,
-        highlighted = tourStop == TourStop.CountryOfTheDay,
+        tourTargets = tourTargets,
     )
     // The toolbar and search bar only show with no country open, so the modes always start from the whole globe.
     SearchControl(
@@ -403,7 +413,8 @@ private fun BoxScope.Controls(
         results = searchResults,
         actions = actions,
         modeActions = modeActions,
-        tourStop = tourStop,
+        tourTargets = tourTargets,
+        demoText = searchDemo,
     )
     CountrySheet(
         country = state.selected,
@@ -426,12 +437,16 @@ private fun BoxScope.Controls(
             ExplorePanel(state = places.explore, onExplore = { actions.explore(country) }, modifier = bodyModifier)
         }
     }
-    OnboardingLayers(step = step, onEvent = actions::onboardingEvent)
+    OnboardingLayers(step = step, tourTargets = tourTargets, onEvent = actions::onboardingEvent)
 }
 
 /** The onboarding on top of everything: the gesture hints, the welcome screen and the tour. */
 @Composable
-private fun BoxScope.OnboardingLayers(step: OnboardingStep, onEvent: (OnboardingEvent) -> Unit) {
+private fun BoxScope.OnboardingLayers(
+    step: OnboardingStep,
+    tourTargets: TourTargets,
+    onEvent: (OnboardingEvent) -> Unit,
+) {
     CoachHint(
         step = step,
         onSkip = { onEvent(OnboardingEvent.Skipped) },
@@ -447,6 +462,7 @@ private fun BoxScope.OnboardingLayers(step: OnboardingStep, onEvent: (Onboarding
         lastStep?.let { tour ->
             TourOverlay(
                 step = tour,
+                targets = tourTargets,
                 onNext = { onEvent(OnboardingEvent.TourNext) },
                 onSkip = { onEvent(OnboardingEvent.Skipped) },
             )
@@ -459,7 +475,7 @@ private fun BoxScope.OnboardingLayers(step: OnboardingStep, onEvent: (Onboarding
 
 /** The country-of-the-day chip at the top, shown while no country is open. */
 @Composable
-private fun BoxScope.TodayChip(today: Country?, onOpenToday: (Country) -> Unit, highlighted: Boolean) {
+private fun BoxScope.TodayChip(today: Country?, onOpenToday: (Country) -> Unit, tourTargets: TourTargets) {
     // Keep the last country while the chip fades out.
     var lastToday by remember { mutableStateOf(today) }
     LaunchedEffect(today) { if (today != null) lastToday = today }
@@ -476,7 +492,7 @@ private fun BoxScope.TodayChip(today: Country?, onOpenToday: (Country) -> Unit, 
             CountryOfTheDayChip(
                 country = it,
                 onOpen = onOpenToday,
-                modifier = Modifier.tourHighlight(highlighted, CapsuleShape),
+                modifier = Modifier.tourTarget(tourTargets, TourStop.CountryOfTheDay),
             )
         }
     }
@@ -484,7 +500,8 @@ private fun BoxScope.TodayChip(today: Country?, onOpenToday: (Country) -> Unit, 
 
 /**
  * The toolbar and the search bar, shown while no country is open. The search bar keeps its own
- * query text, and the toolbar hides while the user is typing a search.
+ * query text, and the toolbar hides while the user is typing a search. During the tour the search
+ * bar shows [demoText] instead.
  */
 @Composable
 private fun BoxScope.SearchControl(
@@ -492,7 +509,8 @@ private fun BoxScope.SearchControl(
     results: List<SearchResult>,
     actions: GlobeScreenActions,
     modeActions: ModeActions,
-    tourStop: TourStop?,
+    tourTargets: TourTargets,
+    demoText: String?,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     AnimatedVisibility(
@@ -510,12 +528,12 @@ private fun BoxScope.SearchControl(
                 enter = fadeIn() + scaleIn(CONTROL_SPRING, initialScale = CONTROL_START_SCALE),
                 exit = fadeOut() + scaleOut(CONTROL_SPRING, targetScale = CONTROL_START_SCALE),
             ) {
-                ModeToolbar(actions = modeActions, enabled = visible && query.isEmpty(), highlight = tourStop)
+                ModeToolbar(actions = modeActions, enabled = visible && query.isEmpty(), tourTargets = tourTargets)
             }
             SearchBar(
-                query = query,
+                query = demoText ?: query,
                 results = results,
-                modifier = Modifier.tourHighlight(tourStop == TourStop.Search, CapsuleShape),
+                modifier = Modifier.tourTarget(tourTargets, TourStop.Search),
                 onQueryChange = { text ->
                     query = text
                     actions.search(text)

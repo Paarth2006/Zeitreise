@@ -103,6 +103,7 @@ private const val NANOS_PER_SECOND = 1_000_000_000.0
  * @param onSelectRealm called with the realm of [past] that was tapped, or `null` for the ocean.
  * @param quiz what the quiz highlights, while a quiz is running.
  * @param onTurned called when the user finishes a drag or pinch.
+ * @param showcase what the globe acts out for the tour card on screen, if any.
  */
 @Composable
 internal fun GlobeView(
@@ -117,6 +118,7 @@ internal fun GlobeView(
     onSelectRealm: (Realm?) -> Unit = {},
     quiz: QuizGlobe? = null,
     onTurned: () -> Unit = {},
+    showcase: GlobeShowcase? = null,
 ) {
     val state = remember { GlobeInteractionState() }
     val geometry = remember(content.countries) { GlobeGeometryCache(content.countries) }
@@ -128,9 +130,10 @@ internal fun GlobeView(
     val labels = rememberSubdivisionLabels(content.subdivisions, palette)
     val subdivisionAlpha by animateSubdivisionAlpha(content.subdivisions)
 
-    val focus = cameraFocus(content, past, quiz)
+    val (highlighted, quizShown) = showcase.addedTo(content.selected, quiz)
+    val focus = cameraFocus(highlighted, past, quizShown)
     // No idle drift during a quiz, so the globe stays where the user left it.
-    CameraDriver(state, focus = focus, drifting = focus == null && quiz == null)
+    CameraDriver(state, focus, drifting = focus == null && quiz == null, showcase = showcase)
     val pinDrop = rememberPinDrop(pins)
     val routeTap = rememberTapRouter(
         TapTargets(
@@ -172,7 +175,7 @@ internal fun GlobeView(
             drawPast(pastGeometry, projection, past?.selected, palette)
         } else {
             val selected = content.selectedSubdivision
-            val highlight = CountryHighlight(content.selected, statesShown = subdivisionAlpha > 0f, quiz = quiz)
+            val highlight = CountryHighlight(highlighted, statesShown = subdivisionAlpha > 0f, quiz = quizShown)
             drawCountries(geometry, projection, highlight, palette)
             drawSubdivisions(subdivisionGeometry, projection, selected, subdivisionAlpha, palette)
             labels.draw(this, projection, subdivisionAlpha, selected)
@@ -194,10 +197,37 @@ internal data class PastGlobe(val map: HistoricalMap?, val selected: Realm?)
  * What the camera should frame: the selected realm, the quiz answer (together with a wrong guess),
  * or the selected country.
  */
-private fun cameraFocus(content: GlobeUiState.Ready, past: PastGlobe?, quiz: QuizGlobe?): GeoCap? = when {
+private fun cameraFocus(selected: Country?, past: PastGlobe?, quiz: QuizGlobe?): GeoCap? = when {
     past != null -> past.selected?.focus
     quiz != null -> quiz.answer?.focus?.let { answer -> quiz.wrongGuess?.let { answer union it.focus } ?: answer }
-    else -> content.selected?.focus
+    else -> selected?.focus
+}
+
+/**
+ * The country to highlight as selected and the quiz highlight, with what the tour card adds to the
+ * real [selected] country and [quiz].
+ */
+private fun GlobeShowcase?.addedTo(selected: Country?, quiz: QuizGlobe?): Pair<Country?, QuizGlobe?> {
+    val shown = this as? GlobeShowcase.Highlight
+    return Pair(
+        selected ?: shown?.takeUnless { it.asQuizAnswer }?.country,
+        quiz ?: shown?.takeIf { it.asQuizAnswer }?.let { QuizGlobe(answer = it.country) },
+    )
+}
+
+/** What the globe acts out while a tour card explains a feature. */
+internal sealed interface GlobeShowcase {
+    /**
+     * Flies to [country] and highlights it, as if it was opened.
+     *
+     * @property asQuizAnswer highlights it as a right quiz answer instead.
+     * @property lowered frames it in the lower half of the screen, for a card at the top.
+     */
+    data class Highlight(val country: Country, val asQuizAnswer: Boolean = false, val lowered: Boolean = false) :
+        GlobeShowcase
+
+    /** Spins the globe backwards, for Time Travel. */
+    data object Rewind : GlobeShowcase
 }
 
 /**
@@ -211,13 +241,17 @@ internal data class QuizGlobe(val answer: Country? = null, val wrongGuess: Count
 /**
  * Moves the camera automatically: flies to [focus] when it changes and runs inertia, flights and
  * the idle drift. When nothing moves, the loop waits instead of running every frame, which saves
- * battery.
+ * battery. It also acts out the tour's [showcase].
  */
 @Composable
-private fun CameraDriver(state: GlobeInteractionState, focus: GeoCap?, drifting: Boolean) {
-    LaunchedEffect(focus) {
-        if (focus != null) state.flyToFrame(focus) else state.flyToWholeGlobe()
+private fun CameraDriver(state: GlobeInteractionState, focus: GeoCap?, drifting: Boolean, showcase: GlobeShowcase?) {
+    val lowered = (showcase as? GlobeShowcase.Highlight)?.lowered == true
+    val rewind = showcase == GlobeShowcase.Rewind
+    LaunchedEffect(focus, lowered) {
+        if (focus != null) state.flyToFrame(focus, lowered) else state.flyToWholeGlobe()
     }
+    // Started after the flight above, which would otherwise cancel the spin.
+    LaunchedEffect(rewind) { if (rewind) state.rewind() }
 
     // Read inside the loop, so changing it doesn't restart the loop.
     val driftingNow by rememberUpdatedState(drifting)

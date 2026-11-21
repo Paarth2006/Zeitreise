@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,7 +25,8 @@ import com.paarth.zeitreise.ui.glass.CapsuleShape
 import com.paarth.zeitreise.ui.glass.GLASS_TOUCH_TARGET
 import com.paarth.zeitreise.ui.glass.GlassPanel
 import com.paarth.zeitreise.ui.onboarding.TourStop
-import com.paarth.zeitreise.ui.onboarding.tourHighlight
+import com.paarth.zeitreise.ui.onboarding.TourTargets
+import com.paarth.zeitreise.ui.onboarding.tourTarget
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
@@ -48,8 +48,8 @@ private val TOOLBAR_MAX_WIDTH = 480.dp
 private val TOOLBAR_PADDING = 6.dp
 private val ITEM_PADDING = 6.dp
 
-/** Shape of the highlight ring around an item during the tour. */
-private val ITEM_SHAPE = RoundedCornerShape(16.dp)
+/** Corner radius of the tour's spotlight around an item. */
+private val ITEM_CORNER = 16.dp
 
 /** Size of each icon and the gap between icon and label. */
 private val ICON_SIZE = 24.dp
@@ -76,7 +76,7 @@ internal class ModeActions(
  *
  * @param actions what each button does.
  * @param modifier applied to the root element.
- * @param highlight the tour stop being explained, so its button gets a highlight ring.
+ * @param tourTargets where the tour records each button's position, so it can point at it.
  * @param enabled whether the buttons react to taps. It's `false` while the toolbar animates away, so
  *   a quick second tap can't start another feature.
  */
@@ -85,7 +85,7 @@ internal fun ModeToolbar(
     actions: ModeActions,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    highlight: TourStop? = null,
+    tourTargets: TourTargets? = null,
 ) {
     GlassPanel(shape = CapsuleShape, modifier = modifier.widthIn(max = TOOLBAR_MAX_WIDTH).fillMaxWidth()) {
         Row(modifier = Modifier.padding(TOOLBAR_PADDING)) {
@@ -104,7 +104,7 @@ internal fun ModeToolbar(
                     actions.showPassport,
                 ),
                 ToolbarEntry(Res.drawable.ic_about, Res.string.toolbar_about, TourStop.About, actions.showAbout),
-            ).forEach { entry -> ToolbarItem(entry, enabled, highlighted = highlight == entry.stop) }
+            ).forEach { entry -> ToolbarItem(entry, enabled, tourTargets) }
         }
     }
 }
@@ -126,7 +126,7 @@ private class ToolbarEntry(
 
 /** One toolbar button: an icon above its label. */
 @Composable
-private fun RowScope.ToolbarItem(entry: ToolbarEntry, enabled: Boolean, highlighted: Boolean) {
+private fun RowScope.ToolbarItem(entry: ToolbarEntry, enabled: Boolean, tourTargets: TourTargets?) {
     val color = MaterialTheme.colorScheme.primary
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -134,7 +134,7 @@ private fun RowScope.ToolbarItem(entry: ToolbarEntry, enabled: Boolean, highligh
         modifier = Modifier
             .weight(1f)
             .heightIn(min = GLASS_TOUCH_TARGET)
-            .tourHighlight(highlighted, ITEM_SHAPE)
+            .tourTarget(tourTargets, entry.stop, ITEM_CORNER)
             .clickable(enabled = enabled, role = Role.Button, onClick = entry.onClick)
             .padding(ITEM_PADDING),
     ) {

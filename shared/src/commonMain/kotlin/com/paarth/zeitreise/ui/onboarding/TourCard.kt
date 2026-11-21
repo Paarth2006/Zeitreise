@@ -1,30 +1,26 @@
 package com.paarth.zeitreise.ui.onboarding
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -36,8 +32,10 @@ import com.paarth.zeitreise.ui.ZeitreiseTheme
 import com.paarth.zeitreise.ui.glass.GlassButton
 import com.paarth.zeitreise.ui.glass.GlassPanel
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
+import zeitreise.shared.generated.resources.ic_passport
 import zeitreise.shared.generated.resources.tour_about_body
 import zeitreise.shared.generated.resources.tour_about_title
 import zeitreise.shared.generated.resources.tour_done
@@ -56,23 +54,20 @@ import zeitreise.shared.generated.resources.tour_time_travel_title
 import zeitreise.shared.generated.resources.tour_today_body
 import zeitreise.shared.generated.resources.tour_today_title
 
-/** Maximum width, padding, spacing and corner radius of the tour card. */
-private val CARD_MAX_WIDTH = 360.dp
+/** Padding, spacing and corner radius of the tour card. */
 private val CARD_PADDING = 20.dp
 private val CARD_SPACING = 8.dp
 private val CARD_CORNER = 28.dp
 
-/** Width of the ring around the highlighted control, and how long one pulse takes. */
-private val HIGHLIGHT_WIDTH = 3.dp
-private const val HIGHLIGHT_PULSE_MILLIS = 800
+/** Size of the passport stamp, and how big it starts before it lands. */
+private val STAMP_SIZE = 28.dp
+private const val STAMP_START_SCALE = 2.2f
 
-/** The ring fades between these opacities while it pulses. */
-private const val HIGHLIGHT_MIN_ALPHA = 0.35f
-private const val HIGHLIGHT_MAX_ALPHA = 1f
+/** The stamp lands slightly crooked, like a real one. */
+private const val STAMP_TILT_DEGREES = -12f
 
 /**
- * The tour card in the middle of the screen. It explains the control that has the highlight ring,
- * and blocks taps on the globe so nothing opens over the tour.
+ * The tour card: which stop this is, what the control does, and buttons to skip or go on.
  *
  * @param step the current tour step.
  * @param onNext called when the user taps Next.
@@ -80,39 +75,28 @@ private const val HIGHLIGHT_MAX_ALPHA = 1f
  * @param modifier applied to the root element.
  */
 @Composable
-internal fun TourOverlay(
+internal fun TourCard(
     step: OnboardingStep.Tour,
     onNext: () -> Unit,
     onSkip: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = modifier
-            .fillMaxSize()
-            // Catch taps so the globe and the controls below don't react during the tour.
-            .clickable(interactionSource = null, indication = null, onClick = {})
-            .safeDrawingPadding()
-            .padding(CARD_PADDING),
-    ) {
-        TourCard(step = step, onNext = onNext, onSkip = onSkip)
-    }
-}
-
-@Composable
-private fun TourCard(step: OnboardingStep.Tour, onNext: () -> Unit, onSkip: () -> Unit) {
     val (title, body) = step.stop.text()
     val isLast = step.stop == TourStop.entries.last()
-    GlassPanel(shape = RoundedCornerShape(CARD_CORNER), modifier = Modifier.widthIn(max = CARD_MAX_WIDTH)) {
+    GlassPanel(shape = RoundedCornerShape(CARD_CORNER), modifier = modifier) {
         Column(
             verticalArrangement = Arrangement.spacedBy(CARD_SPACING),
             modifier = Modifier.padding(CARD_PADDING).semantics { liveRegion = LiveRegionMode.Polite },
         ) {
-            Text(
-                text = stringResource(Res.string.tour_progress, step.stop.ordinal + 1, TourStop.entries.size),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = SECONDARY_TEXT_ALPHA),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(Res.string.tour_progress, step.stop.ordinal + 1, TourStop.entries.size),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = SECONDARY_TEXT_ALPHA),
+                    modifier = Modifier.weight(1f),
+                )
+                if (step.stop == TourStop.Passport) PassportStamp()
+            }
             Text(
                 text = stringResource(title),
                 style = MaterialTheme.typography.titleLarge,
@@ -150,17 +134,27 @@ private fun TourStop.text(): Pair<StringResource, StringResource> = when (this) 
     TourStop.About -> Res.string.tour_about_title to Res.string.tour_about_body
 }
 
-/** Draws a pulsing accent ring around the control while the tour is explaining it. */
+/** A passport stamp that lands on the card with a bounce. */
 @Composable
-internal fun Modifier.tourHighlight(active: Boolean, shape: Shape): Modifier {
-    if (!active) return this
-    val pulse = rememberInfiniteTransition()
-    val alpha by pulse.animateFloat(
-        initialValue = HIGHLIGHT_MIN_ALPHA,
-        targetValue = HIGHLIGHT_MAX_ALPHA,
-        animationSpec = infiniteRepeatable(tween(HIGHLIGHT_PULSE_MILLIS), RepeatMode.Reverse),
+private fun PassportStamp() {
+    val landing = remember { Animatable(STAMP_START_SCALE) }
+    LaunchedEffect(landing) {
+        landing.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow))
+    }
+    Icon(
+        painter = painterResource(Res.drawable.ic_passport),
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .size(STAMP_SIZE)
+            .graphicsLayer {
+                scaleX = landing.value
+                scaleY = landing.value
+                // The bounce overshoots below 1, so keep the opacity in range.
+                alpha = ((STAMP_START_SCALE - landing.value) / (STAMP_START_SCALE - 1f)).coerceIn(0f, 1f)
+                rotationZ = STAMP_TILT_DEGREES
+            },
     )
-    return border(HIGHLIGHT_WIDTH, MaterialTheme.colorScheme.primary.copy(alpha = alpha), shape)
 }
 
 @Preview

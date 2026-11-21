@@ -31,6 +31,9 @@ private const val IDLE_DELAY_SECONDS = 4.0f
 /** Seconds for the drift to speed up smoothly. */
 private const val IDLE_RAMP_SECONDS = 2.0f
 
+/** Starting speed of the backwards spin that acts out Time Travel in the tour, in degrees per second. */
+private const val REWIND_DEGREES_PER_SECOND = -720.0
+
 /** Share of the fling speed left after one second. */
 private const val FLING_RETENTION_PER_SECOND = 0.03f
 
@@ -45,6 +48,9 @@ private const val HALF = 0.5f
 
 /** How far a framed country is moved up, so the sheet doesn't cover it. */
 private const val FRAMED_LIFT = 0.16f
+
+/** How far a framed country is moved down instead, when a card covers the top of the screen. */
+private const val LOWERED_LIFT = -0.15f
 
 /** Duration of a fly-to animation in seconds. */
 private const val FLIGHT_SECONDS = 1.4f
@@ -143,7 +149,8 @@ internal class GlobeInteractionState {
             lift = current.lift
             if (current.isFinished) {
                 flight = null
-                isMoving = false
+                // A rewind spin may be waiting for the flight to land.
+                isMoving = flingYaw != 0.0 || flingPitch != 0.0
             }
             return
         }
@@ -166,14 +173,17 @@ internal class GlobeInteractionState {
         }
     }
 
-    /** Flies the camera to frame [region]. */
-    fun flyToFrame(region: GeoCap) {
+    /**
+     * Flies the camera to frame [region]: above the middle of the screen, out of the sheet's way, or
+     * below it if [lowered], out of the way of a card at the top.
+     */
+    fun flyToFrame(region: GeoCap, lowered: Boolean = false) {
         onPressed()
         flight = Flight(
             from = camera,
             to = camera.pointingAt(region.center, zoom = region.framingZoom(FRAME_FILL)),
             fromLift = lift,
-            toLift = FRAMED_LIFT,
+            toLift = if (lowered) LOWERED_LIFT else FRAMED_LIFT,
         )
         isMoving = true
     }
@@ -192,6 +202,17 @@ internal class GlobeInteractionState {
         if (elapsed <= 0f) return 0.0
         return min(1f, elapsed / IDLE_RAMP_SECONDS).toDouble()
     }
+}
+
+/**
+ * Spins the globe quickly backwards, against its usual drift, like a clock turned back. It's a
+ * fling, so it slows down on its own and waits for any flight to finish first.
+ */
+internal fun GlobeInteractionState.rewind() {
+    val degrees = degreesPerPixel(radius)
+    if (degrees == 0.0) return
+    // A fling turns by minus the drag speed, so this drag speed gives the rewind speed.
+    onReleased(Velocity(x = (-REWIND_DEGREES_PER_SECOND / degrees).toFloat(), y = 0f))
 }
 
 /**
