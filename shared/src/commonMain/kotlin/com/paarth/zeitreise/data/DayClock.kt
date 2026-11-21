@@ -6,7 +6,7 @@ private const val MILLIS_PER_DAY = 86_400_000L
 
 /** Tells which day it is. */
 public fun interface DayClock {
-    /** Days since 1 January 1970, counted in UTC so every device agrees on the day. */
+    /** Days since 1 January 1970 in UTC, so every device agrees on the date. */
     public fun today(): Long
 }
 

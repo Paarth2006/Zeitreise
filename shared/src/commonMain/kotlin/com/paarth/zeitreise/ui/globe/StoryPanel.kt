@@ -71,26 +71,25 @@ private val CHIP_SPACING = 8.dp
 private val CHIP_PADDING_HORIZONTAL = 12.dp
 private val CHIP_PADDING_VERTICAL = 6.dp
 
-/** Size of the loading indicator, kept small so it reads as a quiet wait rather than a block. */
+/** Size of the loading indicator. */
 private val LOADING_INDICATOR_SIZE = 16.dp
 private val LOADING_INDICATOR_STROKE = 2.dp
 
-/** Opacity of the "known for" chips' grey fill, as quiet as Apple's tertiary fill colour. */
+/** Opacity of the "known for" chips' background. */
 private const val CHIP_ALPHA = 0.07f
 
-/** Milliseconds the typewriter takes over the whole fact, however long it is. */
+/** Total time of the typing animation, in milliseconds. */
 private const val TYPE_DURATION_MILLIS = 1_400L
 
-/** Milliseconds per letter: never slower than this, so a short fact still types briskly. */
+/** Maximum time per letter, so short facts don't type too slowly. */
 private const val MAX_MILLIS_PER_LETTER = 28L
 
 /**
- * What the guide says about the selected place, below its name in the sheet: the headline, the
- * fact typing itself out, what the place is known for, and where it all came from.
+ * The guide's story in the sheet: the headline, the fact (typed out), "known for" chips and the source.
  *
- * @param story what the guide has, or is doing.
- * @param onRetry called when the user asks to try again after Wikipedia could not be reached.
- * @param onNextFact called when the user asks for another fact about the same place.
+ * @param story the current story state.
+ * @param onRetry called when the user taps Try again.
+ * @param onNextFact called when the user taps Next fact.
  * @param modifier applied to the root element.
  */
 @Composable
@@ -171,11 +170,8 @@ private fun KnownFor(items: List<String>, modifier: Modifier = Modifier) {
 }
 
 /**
- * Reveals [text] letter by letter, as if the guide were writing it.
- *
- * The whole text is laid out from the start, with the part not yet written drawn transparent, so
- * the sheet keeps its final height instead of growing line by line, and a screen reader reads the
- * whole fact at once.
+ * Shows [text] letter by letter. The full text is laid out from the start with the unrevealed part
+ * transparent, so the sheet doesn't change height and screen readers read the whole fact.
  */
 @Composable
 private fun TypewriterText(text: String, style: TextStyle, modifier: Modifier = Modifier) {
@@ -222,7 +218,7 @@ private fun FailedLine(onRetry: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-/** A button's label in Apple's Headline weight, so the action reads clearly on the glass. */
+/** A button label in a semi-bold style. */
 @Composable
 private fun ButtonLabel(text: String, modifier: Modifier = Modifier) {
     Text(text = text, style = MaterialTheme.typography.titleMedium, maxLines = 1, modifier = modifier)
@@ -238,7 +234,7 @@ private fun SecondaryText(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** Animates between kinds of state, and between two places' stories, but not within one story. */
+/** Animates between different states and places, but not between facts of the same story. */
 private fun StoryState.animationKey(): String = when (this) {
     StoryState.Idle -> "idle"
     StoryState.Loading -> "loading"

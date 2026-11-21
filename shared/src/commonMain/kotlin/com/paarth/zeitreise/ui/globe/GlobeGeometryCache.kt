@@ -11,28 +11,20 @@ import com.paarth.zeitreise.globe.GlobeProjection
 import com.paarth.zeitreise.globe.PAIR_STRIDE
 import com.paarth.zeitreise.globe.SPHERE_STRIDE
 
-/**
- * Smallest screen extent, in pixels, an outline must cover before it is worth drawing. Below this
- * an island is a sub-pixel speck, and skipping it removes most of the vertices at the widest zoom.
- */
+/** Outlines smaller than this on screen, in pixels, are skipped. */
 private const val MIN_DRAWN_EXTENT_PIXELS = 1.5f
 
-/** Fewest packed values a ring needs to describe a triangle. */
+/** Minimum packed values for a triangle. */
 private const val MIN_RING_VALUES = 6
 
-/**
- * Greatest error, in pixels, the coarse copy of an outline may show before the full outline is
- * drawn instead: below this the dropped detail cannot be seen.
- */
+/** Above this error in pixels, the full outline is drawn instead of the coarse copy. */
 private const val MAX_COARSE_ERROR_PIXELS = 2.5
 
 /**
- * Re-projects one landmass each frame into a reusable [Path].
+ * Projects one landmass into a reusable [Path] every frame.
  *
- * Every buffer and the path itself are allocated once, when the globe loads. Turning the globe
- * then only rewrites their contents, so a frame allocates nothing. A landmass whose bounding
- * circle is off screen is skipped before any vertex is projected, and the whole globe is drawn
- * from the coarse copy of each outline, switching to full detail once zoomed in.
+ * All buffers are allocated once, so drawing a frame allocates nothing. Off-screen landmasses are
+ * skipped early, and the coarse outline is used until the user zooms in.
  */
 internal class OutlineGeometry(outline: CountryOutline) {
     private val rings: List<CountryRing> = buildList {
@@ -44,20 +36,19 @@ internal class OutlineGeometry(outline: CountryOutline) {
         FloatArray(it.coarseSphere.size / SPHERE_STRIDE * PAIR_STRIDE)
     }
 
-    /** The projected outline, with holes cut out of it. Only valid after [update] returned `true`. */
+    /** The projected outline with its holes. Only valid after [update] returned `true`. */
     val path: Path = Path().apply { fillType = PathFillType.EvenOdd }
 
     /**
      * Re-projects the landmass for [projection].
      *
-     * @return whether the result is worth drawing, which it is not when the landmass is off
-     *   screen, faces away from the viewer or is smaller than [MIN_DRAWN_EXTENT_PIXELS].
+     * @return `false` if the landmass is off screen, on the far side or too small to see.
      */
     fun update(projection: GlobeProjection): Boolean {
         val exterior = rings[0]
         val coarse = COARSE_TOLERANCE_DEGREES * projection.pixelsPerDegree <= MAX_COARSE_ERROR_PIXELS
         val buffers = if (coarse) coarseBuffers else fineBuffers
-        // Each check is cheaper than the next, and the projection only runs for what may be seen.
+        // Cheapest checks first, so projection only runs for landmasses that may be visible.
         val shown = projection.mayShow(exterior.boundsCenter, exterior.bounds.radiusDegrees) &&
             projection.projectOutline(exterior.vertices(coarse), buffers[0]) > 0 &&
             coversAPixel(buffers[0])
@@ -92,24 +83,21 @@ internal class OutlineGeometry(outline: CountryOutline) {
 }
 
 /**
- * Greenland's ISO code: with Antarctica, the one land drawn as ice. Named rather than found by
- * latitude, since framing Russia with its Arctic islands puts its centre as far north as Greenland's.
+ * Greenland's ISO code. Greenland and Antarctica are drawn as ice. This is checked by code, not by
+ * latitude, because Russia's centre is just as far north.
  */
 private const val GREENLAND = "GL"
 
-/** Continent whose every landmass is drawn as ice. */
+/** Continent drawn completely as ice. */
 private const val ANTARCTICA = "Antarctica"
 
 /**
- * Re-projects every landmass of one territory, a country or a state, each frame.
+ * Projects every landmass of one country or state each frame.
  *
- * @param isIce whether the territory is polar and is drawn as ice rather than land.
+ * @param isIce whether to draw it as ice instead of land.
  */
 internal class TerritoryGeometry(val territory: Territory, val isIce: Boolean = false) {
-    /**
-     * Which of the palette's land shades the territory is filled with. Taken from its name, so it
-     * stays the same between launches and neighbours rarely share one.
-     */
+    /** Which land shade to use, based on the name so it stays the same between launches. */
     val shade: Int = territory.name.hashCode()
 
     private val outlines: List<OutlineGeometry> = territory.outlines.map(::OutlineGeometry)
@@ -118,8 +106,7 @@ internal class TerritoryGeometry(val territory: Territory, val isIce: Boolean = 
     /**
      * Re-projects the territory for [projection].
      *
-     * @return the paths to draw, reusing the same list every frame. Empty when nothing of the
-     *   territory is visible.
+     * @return the paths to draw (the same list is reused every frame), or empty if nothing is visible.
      */
     fun update(projection: GlobeProjection): List<Path> {
         drawable.clear()
@@ -128,18 +115,14 @@ internal class TerritoryGeometry(val territory: Territory, val isIce: Boolean = 
     }
 }
 
-/**
- * The projected geometry of the whole globe, held across frames.
- *
- * Remember one of these per country list; it owns every buffer the draw loop writes into.
- */
+/** The projected geometry of the whole globe, reused across frames. */
 internal class GlobeGeometryCache(countries: List<Country>) {
-    /** Countries in draw order, largest first, so small neighbours end up on top. */
+    /** Countries in draw order, largest first, so small ones are drawn on top. */
     val countries: List<TerritoryGeometry> = countries.map { country ->
         TerritoryGeometry(country, isIce = country.isPolar())
     }
 
-    /** The graticule, re-projected alongside the countries. */
+    /** The graticule lines. */
     val graticule: GraticuleGeometry = GraticuleGeometry()
 }
 
@@ -155,8 +138,8 @@ private fun appendClosedRing(path: Path, screen: FloatArray) {
     path.close()
 }
 
-/** Whether the country is one of the ice sheets, drawn as ice. */
+/** Whether the country should be drawn as ice. */
 private fun Country.isPolar(): Boolean = continent == ANTARCTICA || isoA2 == GREENLAND
 
-/** The unit-sphere vertices to draw this ring from: the coarse copy or the full outline. */
+/** The vertices to draw: the coarse copy or the full outline. */
 private fun CountryRing.vertices(coarse: Boolean): DoubleArray = if (coarse) coarseSphere else sphere

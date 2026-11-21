@@ -10,7 +10,7 @@ import androidx.compose.ui.unit.dp
 import com.paarth.zeitreise.domain.Pinned
 import com.paarth.zeitreise.globe.GlobeProjection
 
-/** Apple's system red, the colour of a dropped pin in Apple Maps. */
+/** Pin colour (iOS system red). */
 internal val PIN_COLOR = Color(0xFFFF3B30)
 
 /** Radius of a pin's round head. */
@@ -22,42 +22,79 @@ private val PIN_RING = 2.dp
 /** Height a pin falls from as it drops onto the globe. */
 private val PIN_DROP = 48.dp
 
-/** How far a finger may land from a pin's head and still open it: a 44-point target. */
+/** Tap radius around a pin's head, for a 44-point touch target. */
 private val PIN_TOUCH_RADIUS = 22.dp
 
-/** How much larger the open place's pin is drawn. */
+/** Scale of the open place's pin. */
 private const val SELECTED_PIN_SCALE = 1.35f
 
-/** How far above the place a pin's head floats, as multiples of its radius: the length of its point. */
+/** Height of the pin's head above the place, in head radii. */
 private const val PIN_HEAD_LIFT = 1.9f
 
-/** Half the width of a pin's point where it meets the head, as a share of the head's radius. */
+/** Half the width of the pin's point where it meets the head. */
 private const val PIN_POINT_HALF_WIDTH = 0.55f
 
-/** How far below the head's centre its point begins, as a share of the head's radius. */
+/** Where the point starts below the head's centre. */
 private const val PIN_POINT_TOP = 0.6f
 
-/** Radius of the white dot in the middle of a pin's head, as a share of the head's radius. */
+/** Radius of the white dot in the head. */
 private const val PIN_DOT_SHARE = 0.36f
 
-/** Width and height of the shadow a pin casts on the globe, as shares of the head's radius. */
+/** Size of the pin's shadow. */
 private const val SHADOW_WIDTH = 1.2f
 private const val SHADOW_HEIGHT = 0.4f
 
-/** Opacity of the soft shadow a pin casts on the globe. */
+/** Opacity of the pin's shadow. */
 private const val PIN_SHADOW_ALPHA = 0.28f
 
-/** Share of the drop each pin waits for after the one before it, so they land one by one. */
+/** Delay between pins, so they land one after another. */
 private const val PIN_STAGGER = 0.08f
 
-/** Overshoot of the drop's landing: a little bounce, as pins have when they land in Apple Maps. */
+/** Most of the drop that can be spent waiting, so even the last of many pins has time to land. */
+private const val MAX_TOTAL_STAGGER = 0.6f
+
+/** Minimum gap between two pin heads, in head radii. Closer pins are hidden until zoomed in. */
+private const val PIN_SPACING = 2.4f
+
+/** Overshoot when a pin lands, for a small bounce. */
 private const val DROP_OVERSHOOT = 1.7f
 
 /**
- * Draws a pin for each of [landmarks] that faces the viewer, dropping them in one after another as
- * [drop] runs from 0 to 1.
+ * A pin placed on screen.
  *
- * @param selected the landmark whose card is open, whose pin is drawn larger and on top.
+ * @property pin the place it marks.
+ * @property index its position in the list of pins, used for the drop animation.
+ * @property tip where its point touches the globe, in pixels.
+ */
+internal class PlacedPin(val pin: Pinned, val index: Int, val tip: Offset)
+
+/**
+ * Works out which pins to show and where. Pins on the far side are skipped, and so is any pin that
+ * would overlap one placed before it, so every visible pin is exactly one place. Hidden pins show up
+ * once the user zooms in. [selected] is placed first so it is never hidden.
+ *
+ * @param minGap the smallest allowed distance between two pins, in pixels.
+ */
+internal fun placePins(
+    pins: List<Pinned>,
+    projection: GlobeProjection,
+    selected: Pinned?,
+    minGap: Float,
+): List<PlacedPin> {
+    val placed = mutableListOf<PlacedPin>()
+    val order = pins.indices.sortedBy { if (pins[it] == selected) -1 else it }
+    for (index in order) {
+        val point = projection.project(pins[index].location) ?: continue
+        val tip = Offset(point.x.toFloat(), point.y.toFloat())
+        if (placed.none { (it.tip - tip).getDistance() < minGap }) placed += PlacedPin(pins[index], index, tip)
+    }
+    return placed
+}
+
+/**
+ * Draws the pins that [placePins] lets through. Pins drop in one by one as [drop] goes from 0 to 1.
+ *
+ * @param selected the landmark whose card is open. Its pin is drawn bigger and on top.
  */
 internal fun DrawScope.drawLandmarkPins(
     landmarks: List<Pinned>,
@@ -65,64 +102,55 @@ internal fun DrawScope.drawLandmarkPins(
     selected: Pinned?,
     drop: Float,
 ) {
-    landmarks.forEachIndexed { index, landmark ->
-        if (landmark != selected) drawLandmarkPin(landmark, projection, pinProgress(drop, index, landmarks.size))
+    val placed = placePins(landmarks, projection, selected, minGap = PIN_HEAD_RADIUS.toPx() * PIN_SPACING)
+    placed.forEach { pin ->
+        if (pin.pin != selected) drawLandmarkPin(pin.tip, pinProgress(drop, pin.index, landmarks.size))
     }
-    selected?.let { drawLandmarkPin(it, projection, progress = 1f, scale = SELECTED_PIN_SCALE) }
+    placed.firstOrNull { it.pin == selected }?.let { drawLandmarkPin(it.tip, progress = 1f, SELECTED_PIN_SCALE) }
 }
 
 /**
- * The landmark whose pin head is nearest [position], or `null` when none is within a finger's
- * reach of it.
+ * The pin closest to [position], or `null` if none is close enough. Only pins that are actually
+ * drawn can be tapped.
  */
 internal fun landmarkAt(
     position: Offset,
     landmarks: List<Pinned>,
     projection: GlobeProjection,
+    selected: Pinned?,
     density: Density,
 ): Pinned? = with(density) {
-    landmarks
-        .mapNotNull { landmark ->
-            projection.project(landmark.location)?.let { point ->
-                val head = Offset(point.x.toFloat(), point.y.toFloat() - PIN_HEAD_RADIUS.toPx() * PIN_HEAD_LIFT)
-                landmark to (head - position).getDistance()
-            }
-        }
+    val lift = PIN_HEAD_RADIUS.toPx() * PIN_HEAD_LIFT
+    placePins(landmarks, projection, selected, minGap = PIN_HEAD_RADIUS.toPx() * PIN_SPACING)
+        .map { it.pin to (Offset(it.tip.x, it.tip.y - lift) - position).getDistance() }
         .filter { (_, distance) -> distance <= PIN_TOUCH_RADIUS.toPx() }
         .minByOrNull { (_, distance) -> distance }
         ?.first
 }
 
-/**
- * How far pin [index] of [count] has dropped when the whole drop is at [drop]: 0 before it starts
- * falling, a little past 1 as it bounces on landing, and 1 once it rests.
- */
+/** How far pin [index] has dropped: 0 before it starts, slightly over 1 while bouncing, then 1. */
 internal fun pinProgress(drop: Float, index: Int, count: Int): Float {
-    val start = index * PIN_STAGGER
-    val span = (1f - PIN_STAGGER * (count - 1)).coerceAtLeast(PIN_STAGGER)
+    // With many pins the delay shrinks, so the last one still lands before the drop ends.
+    val stagger = if (count > 1) minOf(PIN_STAGGER, MAX_TOTAL_STAGGER / (count - 1)) else 0f
+    val start = index * stagger
+    val span = 1f - stagger * (count - 1)
     val t = ((drop - start) / span).coerceIn(0f, 1f)
-    // An ease-out that overshoots ("back out"): it passes 1, then settles back onto it.
+    // "Back out" easing: overshoots 1 and then settles.
     val u = t - 1f
     return if (t <= 0f) 0f else 1f + (DROP_OVERSHOOT + 1f) * u * u * u + DROP_OVERSHOOT * u * u
 }
 
-private fun DrawScope.drawLandmarkPin(
-    landmark: Pinned,
-    projection: GlobeProjection,
-    progress: Float,
-    scale: Float = 1f,
-) {
-    val point = projection.project(landmark.location) ?: return
+private fun DrawScope.drawLandmarkPin(tip: Offset, progress: Float, scale: Float = 1f) {
     if (progress <= 0f) return
     drawPin(
-        tip = Offset(point.x.toFloat(), point.y.toFloat()),
+        tip = tip,
         radius = PIN_HEAD_RADIUS.toPx() * scale,
         fall = (1f - progress) * PIN_DROP.toPx(),
         alpha = progress.coerceIn(0f, 1f),
     )
 }
 
-/** A teardrop pin whose point touches [tip], with its head [fall] pixels higher while it drops. */
+/** Draws a pin with its point at [tip], raised by [fall] pixels while dropping. */
 private fun DrawScope.drawPin(tip: Offset, radius: Float, fall: Float, alpha: Float) {
     val head = Offset(tip.x, tip.y - radius * PIN_HEAD_LIFT - fall)
     drawOval(

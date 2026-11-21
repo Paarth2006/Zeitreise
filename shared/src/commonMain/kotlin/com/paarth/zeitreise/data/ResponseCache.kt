@@ -3,22 +3,18 @@ package com.paarth.zeitreise.data
 import com.russhwolf.settings.Settings
 
 /**
- * Keeps responses from the network on the device, so a place opened once opens again without a
- * request, offline and without spending the AI's small free quota twice.
+ * Caches network responses on the device, so opening a place again needs no request and doesn't
+ * use up the AI quota.
  */
 public interface ResponseCache {
-    /** The text stored under [key], or `null` if nothing has been stored. */
+    /** The text saved under [key], or `null`. */
     public fun get(key: String): String?
 
-    /** Stores [value] under [key], replacing what was there. */
+    /** Saves [value] under [key]. */
     public fun put(key: String, value: String)
 }
 
-/**
- * Keeps the cache in the platform's key-value store: shared preferences on Android, user defaults
- * on iOS and local storage on the web. Each entry is a few kilobytes of JSON, which all three
- * handle comfortably.
- */
+/** Stores the cache in the platform's key-value storage. Each entry is only a few KB of JSON. */
 internal class SettingsResponseCache(private val settings: Settings) : ResponseCache {
     override fun get(key: String): String? = settings.getStringOrNull("$KEY_PREFIX$key")
 
@@ -27,7 +23,7 @@ internal class SettingsResponseCache(private val settings: Settings) : ResponseC
     }
 
     private companion object {
-        /** Keeps cached responses apart from the app's other settings. */
+        /** Prefix that keeps these keys separate from other settings. */
         const val KEY_PREFIX = "cache."
     }
 }

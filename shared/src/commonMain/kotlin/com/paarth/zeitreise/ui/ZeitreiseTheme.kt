@@ -9,25 +9,19 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-/** Deep night sky the globe sits against; the app is dark by default on every platform. */
+/** The dark background behind the globe. */
 private val NIGHT_SKY = Color(0xFF070B14)
 
-/** Apple's system blue, the accent for buttons and links on light glass. */
+/** Accent colour for buttons and links (iOS system blue). */
 private val SYSTEM_BLUE = Color(0xFF007AFF)
 
-/** Text over the night sky itself, such as the welcome screen. */
+/** Text colour on the dark background, like on the welcome screen. */
 private val STARLIGHT = Color(0xFFF5F5F7)
 
-/**
- * Opacity of secondary text: black at this opacity matches the secondary label colour of
- * Apple's light appearance, which is what the glass panels use.
- */
+/** Opacity of secondary text on the glass panels. */
 internal const val SECONDARY_TEXT_ALPHA = 0.6f
 
-/**
- * Space behind the globe is dark, but every panel over it is light Liquid Glass with black labels,
- * as Apple Maps draws its controls over a satellite map: dark backdrop, light glass, blue accent.
- */
+/** The app's colours: a dark background, light glass panels with black text, and a blue accent. */
 private val ZEITREISE_COLORS = darkColorScheme(
     primary = SYSTEM_BLUE,
     onPrimary = Color.White,
@@ -37,10 +31,7 @@ private val ZEITREISE_COLORS = darkColorScheme(
     onSurface = Color.Black,
 )
 
-/**
- * Sizes and weights from the Apple Human Interface Guidelines' default type scale, mapped onto the
- * Material roles the app uses, so text has the same hierarchy on Android, iOS and the web.
- */
+/** Text styles based on Apple's type scale, mapped to Material's roles so all platforms match. */
 private val ZEITREISE_TYPOGRAPHY = Typography(
     // Large Title
     headlineLarge = TextStyle(fontSize = 34.sp, lineHeight = 41.sp, fontWeight = FontWeight.Bold),
@@ -56,12 +47,7 @@ private val ZEITREISE_TYPOGRAPHY = Typography(
     bodySmall = TextStyle(fontSize = 13.sp, lineHeight = 18.sp),
 )
 
-/**
- * Applies the Zeitreise colour scheme and type scale to [content].
- *
- * Wraps every platform entry point, so the dark palette and the type scale are defined once and
- * the three apps share them.
- */
+/** Applies the app's colours and text styles to [content]. */
 @Composable
 public fun ZeitreiseTheme(content: @Composable () -> Unit): Unit = MaterialTheme(
     colorScheme = ZEITREISE_COLORS,

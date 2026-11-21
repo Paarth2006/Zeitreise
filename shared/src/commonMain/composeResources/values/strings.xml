@@ -16,7 +16,6 @@
     <string name="search_cancel">Cancel</string>
     <string name="search_no_results">No countries or states match</string>
     <string name="search_in_country">In %1$s</string>
-    <string name="about_open">About Zeitreise</string>
     <string name="about_title">About Zeitreise</string>
     <string name="about_body">Spin the globe, open a country, explore its states and the places worth a visit, travel back through the centuries, or test yourself in the globe quiz. Zeitreise runs on Android, iOS and the web from one Kotlin Multiplatform codebase.</string>
     <string name="about_credits_heading">Credits</string>
@@ -51,7 +50,6 @@
     <string name="place_facts_loading">Reading up on this place…</string>
     <string name="place_close">Back to the country</string>
     <string name="place_pin">%1$s, pinned on the globe</string>
-    <string name="time_travel_open">Travel in time</string>
     <string name="time_travel_today">Today</string>
     <string name="time_travel_year">Year</string>
     <string name="time_travel_loading">Unrolling the map of %1$s…</string>
@@ -66,7 +64,6 @@
     <string name="realm_part_of">Part of %1$s · %2$s</string>
     <string name="close_realm">Close</string>
     <string name="about_credit_history">Historical borders: historical-basemaps by André Ourednik and contributors, under the GNU GPL 3.0. They are downloaded while the app runs and are not part of it.</string>
-    <string name="quiz_open">Play the globe quiz</string>
     <string name="quiz_find">Find %1$s</string>
     <string name="quiz_progress">Question %1$d of %2$d · %3$s</string>
     <string name="quiz_close">End the quiz</string>
@@ -95,18 +92,21 @@
         <item quantity="one">Capital %1$s</item>
         <item quantity="other">Capitals %1$s</item>
     </plurals>
-    <string name="passport_open">Open your passport</string>
     <string name="passport_title">Passport</string>
     <string name="passport_progress">%1$d of %2$d countries and territories stamped</string>
     <string name="passport_close">Close the passport</string>
     <string name="passport_empty">No stamps yet. Open any country on the globe to stamp it into your passport.</string>
     <string name="passport_continent">%1$d of %2$d</string>
     <string name="passport_new_stamp">New stamp in your passport!</string>
-    <string name="about_credit_flags">Capitals and landmark dates: Wikidata, in the public domain. Flags: Wikimedia Commons, downloaded while the app runs.</string>
+    <string name="about_credit_flags">Capitals and landmark dates: Wikidata, in the public domain. Flags: Wikimedia Commons, downloaded while the app runs. Icons: Material Symbols by Google, under the Apache License 2.0.</string>
     <string name="country_of_the_day">Today · %1$s</string>
     <string name="country_of_the_day_label">Country of the day: %1$s</string>
     <string name="quiz_find_capital">Where is %1$s?</string>
     <string name="quiz_right_capital">Right! %1$s is the capital of %2$s.</string>
     <string name="quiz_wrong_capital">That’s %1$s. %2$s is in %3$s, the one in green.</string>
     <string name="quiz_revealed_capital">%1$s is the capital of %2$s, the one in green.</string>
+    <string name="toolbar_time_travel">Time Travel</string>
+    <string name="toolbar_quiz">Quiz</string>
+    <string name="toolbar_passport">Passport</string>
+    <string name="toolbar_about">About</string>
 </resources>

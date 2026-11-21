@@ -4,5 +4,5 @@ import androidx.compose.ui.window.ComposeUIViewController
 import com.paarth.zeitreise.ui.App
 import platform.UIKit.UIViewController
 
-/** Hosts the shared Compose UI inside the SwiftUI wrapper in `iosApp`. */
+/** Creates the view controller that shows the shared Compose UI in the iOS app. */
 public fun mainViewController(): UIViewController = ComposeUIViewController { App() }

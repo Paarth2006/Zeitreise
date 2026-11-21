@@ -4,29 +4,23 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.sin
 
-/** Closest the camera may come to a pole, which keeps the graticule and drag feel stable. */
+/** How close the camera may get to a pole, so dragging near the poles stays stable. */
 public const val MAX_PITCH_DEGREES: Double = 85.0
 
 /** Zoom level at which the globe fills its default radius. */
 public const val MIN_ZOOM: Double = 1.0
 
-/**
- * Closest the camera may zoom in: far enough to frame the smallest country, Vatican City, which is
- * under a kilometre across, so every country can be opened from search.
- */
+/** Maximum zoom, enough to frame the smallest country (Vatican City) when it is opened from search. */
 public const val MAX_ZOOM: Double = 8_000.0
 
 /**
- * Share of its zoom a flight between opposite sides of the globe gives up at its midpoint, so a
- * long hop pulls back to show where it is going, as Apple Maps does, while a short one barely does.
+ * How much zoom a flight to the opposite side of the globe gives up at its midpoint. Long flights
+ * pull back to show where they are going, short ones barely do.
  */
 private const val FLIGHT_PULL_BACK = 0.6
 
 /**
- * Orientation and magnification of the globe.
- *
- * The camera is described by the geographic point facing the viewer, so a country is centred by
- * pointing the camera at it.
+ * Orientation and zoom of the globe, described by the point that faces the viewer.
  *
  * @property yaw longitude facing the viewer, in `-180..180`.
  * @property pitch latitude facing the viewer, clamped to [MAX_PITCH_DEGREES].
@@ -53,8 +47,8 @@ public data class GlobeCamera(val yaw: Double = 0.0, val pitch: Double = 0.0, va
     )
 
     /**
-     * Interpolates towards [target] by [fraction], turning the shorter way around the globe so
-     * that a camera at 170 degrees east reaches 170 degrees west by crossing the antimeridian.
+     * Interpolates towards [target] by [fraction], turning the shorter way round the globe
+     * (from 170°E to 170°W it crosses the antimeridian).
      *
      * @param fraction `0.0` returns this camera and `1.0` returns [target].
      */
@@ -68,10 +62,8 @@ public data class GlobeCamera(val yaw: Double = 0.0, val pitch: Double = 0.0, va
     }
 
     /**
-     * The camera [fraction] of the way along a flight to [target].
-     *
-     * Turns like [interpolatedTo], but also pulls the zoom back in the middle of the flight, by
-     * more the farther apart the two views are, so the user sees where the flight is heading.
+     * The camera [fraction] of the way along a flight to [target]. Like [interpolatedTo], but it
+     * also zooms out in the middle of the flight, more for longer flights.
      *
      * @param fraction `0.0` returns this camera and `1.0` returns [target].
      */
@@ -84,10 +76,7 @@ public data class GlobeCamera(val yaw: Double = 0.0, val pitch: Double = 0.0, va
     }
 
     public companion object {
-        /**
-         * The signed number of degrees to turn to get from [fromYaw] to [toYaw] the shorter way,
-         * always in `-180..180`.
-         */
+        /** Signed degrees to turn from [fromYaw] to [toYaw] the shorter way, in `-180..180`. */
         internal fun shortestTurn(fromYaw: Double, toYaw: Double): Double {
             val direct = normalizeLongitude(toYaw - fromYaw)
             return if (abs(direct) == MAX_LONGITUDE) MAX_LONGITUDE else direct

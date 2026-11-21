@@ -73,53 +73,53 @@ import zeitreise.shared.generated.resources.place_photo
 import zeitreise.shared.generated.resources.story_read_more
 import zeitreise.shared.generated.resources.story_source_wikipedia
 
-/** Gap between the top of a modal sheet and the safe area, where the globe peeks out, as on iOS. */
+/** Gap above the sheet where the globe stays visible. */
 private val SHEET_TOP_GAP = 12.dp
 
 /** Corner radius of the modal sheet. */
 private val SHEET_CORNER = 32.dp
 
-/** Widest the sheet grows; past this, on the web or a tablet, it floats in the middle as a card. */
+/** Maximum width. On wider screens it floats in the middle as a card. */
 private val SHEET_MAX_WIDTH = 560.dp
 
 /** Padding inside the sheet. */
 private val SHEET_PADDING = 20.dp
 
-/** Size of the grabber at the top of the sheet, and the space around it. */
+/** Size of the drag handle and the space around it. */
 private val GRABBER_WIDTH = 36.dp
 private val GRABBER_HEIGHT = 5.dp
 private val GRABBER_SPACING = 8.dp
 
-/** How far the sheet has to be pulled down before letting go closes it. */
+/** How far the sheet must be pulled down to close it. */
 private val DISMISS_DISTANCE = 120.dp
 
-/** How fast a downward flick, in pixels a second, closes the sheet however short it was. */
+/** A downward flick faster than this (pixels per second) closes the sheet. */
 private const val DISMISS_VELOCITY = 1_200f
 
-/** Corner radius of the photo, concentric with the sheet's own corners inside its padding. */
+/** Corner radius of the photo. */
 private val PHOTO_CORNER = 18.dp
 
-/** Space between the parts of the card, and before each fact's bullet. */
+/** Spacing between parts of the card. */
 private val CARD_SPACING = 14.dp
 private val FACT_SPACING = 8.dp
 
-/** Shape of the photo: a landscape print. */
+/** Aspect ratio of the photo. */
 private const val PHOTO_ASPECT_RATIO = 4f / 3f
 
-/** Grey shown behind the photo while it loads, and the grabber's grey. */
+/** Grey for the photo placeholder and the drag handle. */
 private const val PHOTO_PLACEHOLDER_ALPHA = 0.08f
 private const val GRABBER_ALPHA = 0.25f
 
-/** How far the globe dims behind the sheet. */
+/** How much the globe is dimmed behind the sheet. */
 private const val SCRIM_ALPHA = 0.3f
 
-/** Share of the window's height the sheet may take when it floats as a card. */
+/** Maximum height as a floating card, as a share of the screen. */
 private const val FLOATING_HEIGHT_SHARE = 0.86f
 
-/** Damping of the sheet's spring: just under critical, so it lands softly. */
+/** Spring damping, just under critical so it doesn't bounce. */
 private const val SHEET_DAMPING = 0.86f
 
-/** The spring the sheet rises and falls on, the same feel as iOS's modal sheets. */
+/** Spring used to show and hide the sheet. */
 private val SHEET_SPRING = spring(
     dampingRatio = SHEET_DAMPING,
     stiffness = Spring.StiffnessMediumLow,
@@ -127,19 +127,16 @@ private val SHEET_SPRING = spring(
 )
 
 /**
- * A pinned place, presented modally: a tall glass sheet slides up over the dimmed globe, the way
- * iOS presents a sheet over Maps. Pull it down by its grabber, tap the globe around it, or tap
- * its close button to put it away; the country's own sheet waits underneath.
- *
- * On a wide window, on the web or a tablet, it floats in the middle as a card instead.
+ * A modal sheet for a pinned place, sliding up over the dimmed globe. It closes by pulling it down,
+ * tapping outside it or tapping the close button. On wide screens it's a centred card.
  *
  * @param card the open card, or `null` to hide the sheet.
- * @param onClose called when the user puts the sheet away.
- * @param modifier applied to the root element, which covers the whole screen while the sheet shows.
+ * @param onClose called when the sheet is closed.
+ * @param modifier applied to the root element.
  */
 @Composable
 internal fun PlaceSheet(card: LandmarkCard?, onClose: () -> Unit, modifier: Modifier = Modifier) {
-    // The sheet has to keep showing its place while it slides away, after the card is closed.
+    // Keep showing the last place while the sheet slides away.
     var lastShown by remember { mutableStateOf<LandmarkCard?>(null) }
     LaunchedEffect(card) { if (card != null) lastShown = card }
     val shown = card ?: lastShown
@@ -181,7 +178,7 @@ internal fun PlaceSheet(card: LandmarkCard?, onClose: () -> Unit, modifier: Modi
     }
 }
 
-/** The sheet itself, which follows a finger pulling it down by its top and springs back or away. */
+/** The sheet itself. It follows the finger when pulled down and springs back or closes. */
 @Composable
 private fun ModalSheet(card: LandmarkCard, onClose: () -> Unit, floating: Boolean, modifier: Modifier = Modifier) {
     val pull = remember { Animatable(0f) }
@@ -198,7 +195,7 @@ private fun ModalSheet(card: LandmarkCard, onClose: () -> Unit, floating: Boolea
         },
         modifier = modifier
             .graphicsLayer { translationY = pull.value }
-            // Taps on the sheet itself must not fall through to the dimmed globe and close it.
+            // Stops taps on the sheet from reaching the background and closing it.
             .clickable(interactionSource = null, indication = null, onClick = {}),
     ) {
         Column {
@@ -239,7 +236,7 @@ private fun ModalSheet(card: LandmarkCard, onClose: () -> Unit, floating: Boolea
     }
 }
 
-/** The short grey bar at the top of an iOS sheet that says it can be pulled down. */
+/** The drag handle at the top of the sheet. */
 @Composable
 private fun Grabber(modifier: Modifier = Modifier) {
     Box(
@@ -281,7 +278,7 @@ private fun PlaceBody(card: LandmarkCard, modifier: Modifier = Modifier) {
     }
 }
 
-/** The facts as a bulleted list, or a quiet line while they load. */
+/** The facts as a bullet list, or a loading line. */
 @Composable
 private fun Facts(facts: List<String>?, modifier: Modifier = Modifier) {
     when {

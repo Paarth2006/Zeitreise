@@ -4,28 +4,26 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonArray
 
-/** Geometry type name GeoJSON uses for a single ringed shape. */
+/** GeoJSON type name for a single polygon. */
 internal const val GEOMETRY_POLYGON = "Polygon"
 
-/** Geometry type name GeoJSON uses for a group of ringed shapes. */
+/** GeoJSON type name for a group of polygons. */
 internal const val GEOMETRY_MULTI_POLYGON = "MultiPolygon"
 
 /**
- * A GeoJSON `FeatureCollection`, as bundled in `countries.json` and in each file under `states/`.
- *
- * Only the fields the app uses are declared; the data preparation tool has already stripped the
- * rest from the Natural Earth source.
+ * A GeoJSON `FeatureCollection`, like `countries.json` and the files under `states/`.
+ * Only the fields the app needs are declared.
  *
  * @param P the properties each feature carries.
  */
 @Serializable
 internal data class GeoJsonFeatureCollection<P>(val features: List<GeoJsonFeature<P>> = emptyList())
 
-/** One GeoJSON `Feature`: a territory's properties together with its geometry. */
+/** One GeoJSON `Feature`: a territory's properties and its geometry. */
 @Serializable
 internal data class GeoJsonFeature<P>(val properties: P, val geometry: GeoJsonGeometry)
 
-/** The country properties the data preparation tool keeps. */
+/** Properties of a country feature. */
 @Serializable
 internal data class GeoJsonCountryProperties(
     val name: String,
@@ -34,7 +32,7 @@ internal data class GeoJsonCountryProperties(
     val wikidataId: String? = null,
 )
 
-/** The state and province properties the data preparation tool keeps. */
+/** Properties of a state or province feature. */
 @Serializable
 internal data class GeoJsonSubdivisionProperties(
     val name: String,
@@ -45,10 +43,7 @@ internal data class GeoJsonSubdivisionProperties(
     val labelLongitude: Double,
 )
 
-/**
- * The properties of a historical-basemaps feature. A feature without a name is land no realm
- * held that year.
- */
+/** Properties of a historical map feature. A feature without a name is unclaimed land. */
 @Serializable
 internal data class GeoJsonRealmProperties(
     @SerialName("NAME") val name: String? = null,
@@ -58,9 +53,8 @@ internal data class GeoJsonRealmProperties(
 /**
  * A GeoJSON geometry.
  *
- * `coordinates` is kept as a raw [JsonArray] because a `Polygon` nests its numbers one level less
- * deeply than a `MultiPolygon`, and declaring both shapes as one type would need a custom
- * serializer for no gain. [GeoJsonParser] flattens it.
+ * `coordinates` stays a raw [JsonArray] because `Polygon` and `MultiPolygon` nest differently.
+ * [GeoJsonParser] flattens it.
  */
 @Serializable
 internal data class GeoJsonGeometry(val type: String, val coordinates: JsonArray)

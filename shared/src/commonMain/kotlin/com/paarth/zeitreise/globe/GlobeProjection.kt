@@ -25,9 +25,8 @@ public data class ProjectedPoint(val x: Double, val y: Double)
 /**
  * Orthographic projection of the globe for one camera and viewport.
  *
- * The projection is the classic orthographic azimuthal one: the visible hemisphere is drawn as a
- * disc of [scaledRadius] pixels and the hemisphere facing away from the viewer is culled. Build a
- * new projection whenever the camera or the viewport changes; it is cheap and immutable.
+ * The visible hemisphere is drawn as a disc of [scaledRadius] pixels and the far side is hidden.
+ * It is immutable and cheap to create, so a new one is made whenever the camera or viewport changes.
  *
  * @param camera orientation and magnification to project with.
  * @property centerX horizontal screen position of the centre of the globe, in pixels.
@@ -51,19 +50,15 @@ public class GlobeProjection(
     private val sinPitch = sin(camera.pitch.toRadians())
     private val cosPitch = cos(camera.pitch.toRadians())
 
-    /**
-     * Angle, in radians, from the centre of the view to the farthest point of the globe still on
-     * screen: the whole visible hemisphere when the globe fits, much less when zoomed in.
-     */
+    /** Angle in radians from the centre of the view to the farthest point still on screen. */
     private val visibleAngle: Double = run {
         val reach = sqrt(centerX * centerX + centerY * centerY) / scaledRadius
         if (reach >= 1.0) PI / 2 else asin(reach)
     }
 
     /**
-     * Whether any part of a region within [radiusDegrees] of [center] can be on screen, checked
-     * from the region's bounding circle alone, so an off-screen outline is skipped before any of
-     * its vertices is projected.
+     * Whether any part of a region within [radiusDegrees] of [center] could be on screen. Only the
+     * bounding circle is checked, so off-screen outlines are skipped before projecting anything.
      */
     internal fun mayShow(center: SpherePoint, radiusDegrees: Double): Boolean {
         val angleFromView = acos(depthOf(center).coerceIn(-1.0, 1.0))
@@ -73,10 +68,7 @@ public class GlobeProjection(
     /** Whether [point] lies on the hemisphere facing the viewer. */
     public fun isVisible(point: GeoPoint): Boolean = depthOf(point.toSpherePoint()) >= 0.0
 
-    /**
-     * Projects [point] onto the screen, or returns `null` when it lies on the far side of the
-     * globe and is therefore hidden.
-     */
+    /** Projects [point] onto the screen, or returns `null` if it is on the far side of the globe. */
     public fun project(point: GeoPoint): ProjectedPoint? {
         val sphere = point.toSpherePoint()
         if (depthOf(sphere) < 0.0) return null
@@ -92,15 +84,14 @@ public class GlobeProjection(
     /**
      * Projects a whole outline in one pass, writing screen coordinates into [screen].
      *
-     * Vertices on the far side of the globe are pushed out onto the limb instead of being dropped,
-     * so an outline straddling the horizon still closes along the edge of the disc rather than
-     * folding across the visible face.
+     * Hidden vertices are moved onto the edge of the disc instead of being dropped, so an outline
+     * that crosses the horizon still closes along the edge.
      *
      * @param sphere packed `x, y, z` triples on the unit sphere, as produced at load time.
      * @param screen packed `x, y` screen pairs to write; must hold `sphere.size / 3 * 2` values.
-     * @param facing optional per-vertex flags to write, set when the vertex faces the viewer. An
-     *   open line such as a graticule needs these to break at the horizon rather than run along it.
-     * @return how many vertices face the viewer, so that a fully hidden outline can be skipped.
+     * @param facing optional per-vertex flags, set when the vertex faces the viewer. Open lines like
+     *   the graticule use them to stop at the horizon.
+     * @return how many vertices face the viewer, so a fully hidden outline can be skipped.
      */
     internal fun projectOutline(sphere: DoubleArray, screen: FloatArray, facing: BooleanArray? = null): Int {
         require(screen.size >= sphere.size / SPHERE_STRIDE * PAIR_STRIDE) {
@@ -123,7 +114,7 @@ public class GlobeProjection(
             var planeX = rotatedX
             var planeY = rotatedY
             if (depth < 0.0) {
-                // Slide the hidden vertex onto the limb so the outline hugs the horizon.
+                // Move the hidden vertex onto the edge of the disc.
                 val length = sqrt(planeX * planeX + planeY * planeY)
                 if (length > 0.0) {
                     planeX /= length
@@ -145,10 +136,7 @@ public class GlobeProjection(
         return visible
     }
 
-    /**
-     * Converts a screen position back to a point on the globe, or returns `null` when the position
-     * falls outside the disc of the globe and so hits no land or ocean at all.
-     */
+    /** Converts a screen position back to a point on the globe, or `null` if it misses the globe. */
     public fun unproject(screenX: Double, screenY: Double): GeoPoint? {
         val planeX = (screenX - centerX) / scaledRadius
         val planeY = (centerY - screenY) / scaledRadius
@@ -158,8 +146,7 @@ public class GlobeProjection(
         val angle = asin(distance)
         val sinAngle = sin(angle)
         val cosAngle = cos(angle)
-        // Dead centre, distance and sinAngle are both zero; dividing by one keeps the numerator's
-        // zero instead of producing a NaN, and the result is the camera centre either way.
+        // At the exact centre distance is zero, so divide by one instead to avoid a NaN.
         val divisor = if (distance == 0.0) 1.0 else distance
         val latitude = asin(cosAngle * sinPitch + planeY * sinAngle * cosPitch / divisor)
         val longitude = yawDegrees().toRadians() + atan2(

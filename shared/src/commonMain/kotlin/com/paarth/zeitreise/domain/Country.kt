@@ -13,61 +13,49 @@ import com.paarth.zeitreise.globe.ringExtent
 import com.paarth.zeitreise.globe.simplifyRing
 import com.paarth.zeitreise.globe.toSpherePoint
 
-/**
- * Tolerance, in degrees, of the coarse copy of each ring drawn at the widest zoom: about 20 km, a
- * pixel or two when the whole globe fills the screen.
- */
+/** Tolerance for the coarse copy drawn at the widest zoom: about 20 km, a pixel or two on screen. */
 internal const val COARSE_TOLERANCE_DEGREES = 0.2
 
-/** Largest share of a ring's own extent the coarse tolerance may reach, so islands keep a shape. */
+/** Caps the coarse tolerance relative to a ring's size, so small islands keep their shape. */
 private const val COARSE_SHARE_OF_EXTENT = 0.1
 
-/**
- * How far beyond the mainland's own edge, in degrees, an island still counts as part of the view
- * of a country: about a thousand kilometres, enough for Okinawa or Corsica but not Hawaii.
- */
+/** How far from the mainland, in degrees, an island is still framed with it (Okinawa yes, Hawaii no). */
 private const val NEARBY_LAND_DEGREES = 10.0
 
 /**
- * The smallest a country's largest landmass may be, in square degrees (about 9,000 km², the size
- * of Jamaica), to stand out on the whole globe. Anything smaller is a speck that no finger can be
- * expected to hit, such as Luxembourg, Singapore or a chain of Pacific islands.
+ * Minimum area of a country's largest landmass, in square degrees (about 9,000 km², roughly
+ * Jamaica). Anything smaller, like Luxembourg or Singapore, is too small to tap on the whole globe.
  */
 private const val MIN_PROMINENT_AREA = 0.75
 
-/** Fewest vertices the coarse copy needs; below this the full ring is used instead. */
+/** If the coarse copy has fewer vertices than this, the full ring is used instead. */
 private const val MIN_COARSE_VERTICES = 4
 
 /**
- * One closed outline of a territory's coastline or border.
+ * One closed outline of a coastline or border.
  *
- * Each ring is held twice: once in geographic degrees for hit testing, which the camera never
- * affects, and once as unit-sphere vectors for drawing, which the renderer only has to rotate.
- * Both are packed into flat arrays so that turning the globe allocates nothing.
+ * It is stored twice: in degrees for hit testing, and as unit-sphere vectors for drawing. Both are
+ * flat arrays, so turning the globe doesn't allocate anything.
  *
  * @param geographic packed `longitude, latitude` pairs.
  */
 public class CountryRing internal constructor(internal val geographic: DoubleArray) {
-    /** Packed `x, y, z` unit-sphere triples, converted once when the country is loaded. */
+    /** Packed `x, y, z` unit-sphere triples, converted once at load time. */
     internal val sphere: DoubleArray = geographic.toSphereTriples()
 
-    /**
-     * A coarser copy of [sphere], simplified to [COARSE_TOLERANCE_DEGREES], drawn when the whole
-     * globe is in view and the dropped detail would be smaller than a pixel or two. A ring that
-     * small already is kept as it is.
-     */
+    /** A simplified copy of [sphere], drawn when the whole globe is in view. */
     internal val coarseSphere: DoubleArray = simplifyRing(
         geographic,
         COARSE_TOLERANCE_DEGREES.coerceAtMost(geographic.ringExtent() * COARSE_SHARE_OF_EXTENT),
     ).let { coarse -> if (coarse.size / PAIR_STRIDE >= MIN_COARSE_VERTICES) coarse.toSphereTriples() else sphere }
 
-    /** The ring's area, for ranking a country's landmasses by size. */
+    /** The ring's area, used to sort landmasses by size. */
     internal val area: Double = geographic.ringArea()
 
-    /** The circle on the sphere that holds the whole ring, for skipping it when it is off screen. */
+    /** A circle around the whole ring, used to skip it when it is off screen. */
     internal val bounds: GeoCap = boundingCap(sphere)
 
-    /** Centre of [bounds] as a unit-sphere vector, which the visibility check works with. */
+    /** Centre of [bounds] as a unit-sphere vector. */
     internal val boundsCenter: SpherePoint = bounds.center.toSpherePoint()
 
     /** How many vertices the ring has. */
@@ -90,7 +78,7 @@ private fun DoubleArray.toSphereTriples(): DoubleArray =
     }
 
 /**
- * A single landmass of a territory: its coastline, plus any rings cut out of it.
+ * One landmass of a territory: its outline and any holes cut out of it.
  *
  * @property exterior the outer boundary.
  * @property holes boundaries of enclaves that are not part of the country.
@@ -105,15 +93,14 @@ public class CountryOutline internal constructor(
 }
 
 /**
- * A country as the app draws and talks about it.
+ * A country on the globe.
  *
- * @property name the English name, as shown in the UI and sent to the AI guide.
- * @property isoA2 two-letter ISO 3166-1 code, or `null` for territories that have none. The flag
- *   emoji and the file of the country's states are found through it.
- * @property continent the continent the country is counted under.
- * @property outlines the landmasses the country is drawn from, largest first.
- * @property wikidataId the Wikidata item, which leads to the country's exact Wikipedia article.
- * @property facts the country's capitals and flag, which are bundled apart from its outlines.
+ * @property name the English name, shown in the UI and sent to the guide.
+ * @property isoA2 two-letter ISO 3166-1 code, or `null` if it has none. Used to find its states file.
+ * @property continent the continent it belongs to.
+ * @property outlines its landmasses, largest first.
+ * @property wikidataId its Wikidata item, used to find the right Wikipedia article.
+ * @property facts its capitals and flag.
  */
 public class Country internal constructor(
     override val name: String,
@@ -128,16 +115,14 @@ public class Country internal constructor(
     }
 
     /**
-     * The region the camera frames when the country is selected: its largest landmass and the
-     * islands close to it, so Japan is framed from Hokkaido to Okinawa, while a far-off territory
-     * such as French Guiana does not pull the view away from France.
+     * The region the camera frames for this country: the mainland and nearby islands. This way
+     * Japan includes Okinawa, but France isn't zoomed out to include French Guiana.
      */
     public val focus: GeoCap by lazy { outlines.mainlandFocus() }
 
     /**
-     * Whether the country stands out on the whole globe, for the quiz to ask about and to be a
-     * country of the day: large enough to tap, and with an ISO code, which leaves out territories
-     * such as Kosovo or Somaliland whose status the standard does not settle.
+     * Whether the country is big enough to tap on the whole globe and has an ISO code. Used to pick
+     * quiz questions and the country of the day.
      */
     internal val isProminent: Boolean get() = isoA2 != null && outlines.first().exterior.area >= MIN_PROMINENT_AREA
 
@@ -148,18 +133,14 @@ public class Country internal constructor(
 }
 
 /**
- * What there is to know about a country besides its shape.
+ * Extra facts about a country.
  *
- * @property capitals the country's capitals today, usually one; empty where there is none, as for
- *   Antarctica.
- * @property flagUrl where a picture of the country's flag can be downloaded, if it has one.
+ * @property capitals its current capitals, usually one, or empty (Antarctica has none).
+ * @property flagUrl address of its flag image, if it has one.
  */
 public data class CountryFacts(val capitals: List<String> = emptyList(), val flagUrl: String? = null)
 
-/**
- * The region to frame for landmasses listed largest first: the largest and those close to it, so
- * a far-off island does not pull the view away from the mainland.
- */
+/** The region covering the largest landmass and the ones near it. Expects landmasses largest first. */
 internal fun List<CountryOutline>.mainlandFocus(): GeoCap {
     val mainland = first().exterior
     val reach = mainland.bounds.radiusDegrees + NEARBY_LAND_DEGREES

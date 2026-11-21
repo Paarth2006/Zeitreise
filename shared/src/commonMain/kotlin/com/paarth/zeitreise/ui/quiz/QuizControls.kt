@@ -8,7 +8,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -34,9 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -46,7 +43,6 @@ import com.paarth.zeitreise.domain.QuizRound
 import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
 import com.paarth.zeitreise.ui.ZeitreiseTheme
 import com.paarth.zeitreise.ui.glass.GlassButton
-import com.paarth.zeitreise.ui.glass.GlassCircleButton
 import com.paarth.zeitreise.ui.glass.GlassPanel
 import com.paarth.zeitreise.ui.glass.SHEET_MAX_WIDTH
 import com.paarth.zeitreise.ui.glass.SheetHeader
@@ -60,7 +56,6 @@ import zeitreise.shared.generated.resources.quiz_find
 import zeitreise.shared.generated.resources.quiz_find_capital
 import zeitreise.shared.generated.resources.quiz_new_best
 import zeitreise.shared.generated.resources.quiz_next
-import zeitreise.shared.generated.resources.quiz_open
 import zeitreise.shared.generated.resources.quiz_play_again
 import zeitreise.shared.generated.resources.quiz_progress
 import zeitreise.shared.generated.resources.quiz_rank_beginner
@@ -79,36 +74,28 @@ import zeitreise.shared.generated.resources.quiz_streak
 import zeitreise.shared.generated.resources.quiz_wrong
 import zeitreise.shared.generated.resources.quiz_wrong_capital
 
-/** Gap between the floating panel and the edges of the safe area. */
+/** Margin around the panel. */
 private val PANEL_MARGIN = 16.dp
 
-/** Padding inside the quiz panel, and between its rows. */
+/** Padding and row spacing in the quiz panel. */
 private val PANEL_PADDING = 20.dp
 private val PANEL_SPACING = 12.dp
 
-/** Corner radius of the quiz panel, matching the sheets. */
+/** Corner radius of the quiz panel. */
 private val PANEL_CORNER = 32.dp
 
-/** Size of the target drawn in the quiz button, and its stroke width. */
-private val TARGET_SIZE = 20.dp
-private val TARGET_STROKE = 2.dp
-
-/** Radii of the target's rings and its centre, as shares of the glyph's half-width. */
-private const val TARGET_INNER_RING = 0.55f
-private const val TARGET_CENTRE = 0.18f
-
-/** Fewest answers in a row worth cheering. */
+/** Minimum streak to show a message. */
 private const val STREAK_TO_CHEER = 2
 
-/** Shares of a round's questions answered right that earn each rank. */
+/** Score shares needed for each rank. */
 private const val TRAVELLER_SHARE = 0.7
 private const val EXPLORER_SHARE = 0.4
 
-/** The verdict's colours, dark enough to read on the light glass. */
+/** Colours for right and wrong answers, dark enough for the light glass. */
 private val RIGHT_COLOR = Color(0xFF1B7F3B)
 private val WRONG_COLOR = Color(0xFFC4332B)
 
-/** Damping of the panel's spring, settling softly as the sheets do. */
+/** Spring damping for the panel. */
 private const val PANEL_DAMPING = 0.86f
 
 private val PANEL_SPRING = spring(
@@ -118,31 +105,10 @@ private val PANEL_SPRING = spring(
 )
 
 /**
- * The round glass button that starts the quiz, showing a target.
+ * Actions for the quiz panel.
  *
- * @param onClick called when the button is tapped.
- * @param modifier applied to the root element.
- */
-@Composable
-internal fun QuizButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val label = stringResource(Res.string.quiz_open)
-    val tint = MaterialTheme.colorScheme.primary
-    GlassCircleButton(onClick = onClick, modifier = modifier.semantics { contentDescription = label }) {
-        Canvas(modifier = Modifier.size(TARGET_SIZE)) {
-            val stroke = Stroke(width = TARGET_STROKE.toPx())
-            val radius = size.minDimension / 2 - stroke.width / 2
-            drawCircle(tint, radius = radius, style = stroke)
-            drawCircle(tint, radius = radius * TARGET_INNER_RING, style = stroke)
-            drawCircle(tint, radius = radius * TARGET_CENTRE)
-        }
-    }
-}
-
-/**
- * What the quiz panel can ask for.
- *
- * @property reveal gives the current question up and shows where the country is.
- * @property next asks the next question, or ends the round after the last.
+ * @property reveal skips the question and shows the answer.
+ * @property next goes to the next question, or ends the round.
  * @property playAgain starts a new round.
  * @property stop leaves the quiz.
  */
@@ -154,15 +120,15 @@ internal class QuizActions(
 )
 
 /**
- * The quiz panel at the bottom of the screen: the country to find, then the verdict on the user's
- * tap, and at the end of a round the score.
+ * The quiz panel at the bottom of the screen. It shows the question, the result of each answer
+ * and the final score.
  *
- * @param state whether the quiz is on, and how far it has got.
- * @param actions what the panel can ask for.
+ * @param state the quiz state.
+ * @param actions the panel actions.
  */
 @Composable
 internal fun BoxScope.QuizControls(state: QuizState, actions: QuizActions) {
-    // The panel keeps showing its last question while it slides away, after the quiz ends.
+    // Keep showing the last question while the panel slides away.
     var shown by remember { mutableStateOf(state) }
     LaunchedEffect(state) { if (state != QuizState.Off) shown = state }
     AnimatedVisibility(
@@ -197,7 +163,7 @@ private fun QuizPanel(state: QuizState, actions: QuizActions, modifier: Modifier
     }
 }
 
-/** The country to find, by name or by capital, and once the user has tapped, whether they found it. */
+/** The current question and, once answered, the result. */
 @Composable
 private fun Question(round: QuizRound, actions: QuizActions) {
     val capital = round.question.capital
@@ -232,7 +198,7 @@ private fun Question(round: QuizRound, actions: QuizActions) {
     }
 }
 
-/** Whether the user found the country, or which one they tapped instead; read out as it appears. */
+/** The answer result, announced by screen readers when it appears. */
 @Composable
 private fun Verdict(round: QuizRound) {
     val cheer = if (round.isRight && round.streak >= STREAK_TO_CHEER) {
@@ -249,10 +215,7 @@ private fun Verdict(round: QuizRound) {
     )
 }
 
-/**
- * "Right! That's Peru.", or for a question by capital "Right! Lima is the capital of Peru.", and
- * likewise for a wrong tap or a question given up.
- */
+/** The result text, like "Right! That's Peru." or "Right! Lima is the capital of Peru." */
 @Composable
 private fun verdictText(round: QuizRound): String {
     val country = round.country.name
@@ -269,7 +232,7 @@ private fun verdictText(round: QuizRound): String {
     }
 }
 
-/** The round's score, a word on how it went, and the best so far. */
+/** The end-of-round card with the score, a rank and the best score. */
 @Composable
 private fun RoundResult(result: QuizState.Finished, actions: QuizActions) {
     SheetHeader(
@@ -297,7 +260,7 @@ private fun RoundResult(result: QuizState.Finished, actions: QuizActions) {
     }
 }
 
-/** A word on how a round went, from a perfect round down to a first try. */
+/** The rank message for a score. */
 private fun rankOf(score: Int, total: Int) = when {
     score == total -> Res.string.quiz_rank_perfect
     score >= total * TRAVELLER_SHARE -> Res.string.quiz_rank_traveller

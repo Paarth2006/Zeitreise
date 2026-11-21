@@ -46,27 +46,26 @@ import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 import zeitreise.shared.generated.resources.Res
 
-/** Path of the bundled demo stories inside the compose resources. */
+/** Path of the bundled demo stories. */
 private const val DEMO_STORIES = "files/guide/stories.json"
 
-/** Path of the bundled places to visit inside the compose resources. */
+/** Path of the bundled places to visit. */
 private const val DEMO_PLACES = "files/guide/places.json"
 
-/** Path of the bundled landmarks of the past, with the years they stood. */
+/** Path of the bundled historic landmarks. */
 private const val HISTORIC_LANDMARKS = "files/history/landmarks.json"
 
 /**
- * Everything the app needs on every platform.
+ * The Koin module shared by all platforms.
  *
- * Dispatchers are injected rather than referenced directly, so a test can run the repository
- * on its own dispatcher. The AI guide only exists when an API key was set at build time; without
- * one the app runs on the demo guide and Wikipedia alone.
+ * Dispatchers are injected so tests can replace them. The AI guide is only created when an API key
+ * was set at build time; otherwise the app uses the demo guide and Wikipedia.
  */
 @OptIn(ExperimentalResourceApi::class)
 public val sharedModule: Module = module {
     single<CoroutineDispatcher> { Dispatchers.Default }
     single<Settings> { Settings() }
-    // Ktor picks each platform's engine from the classpath: OkHttp, Darwin or the browser's fetch.
+    // Ktor picks the engine for each platform: OkHttp, Darwin or the browser's fetch.
     single { HttpClient() }
     single<ResponseCache> { SettingsResponseCache(settings = get()) }
     single<FactCursor> { SettingsFactCursor(settings = get()) }
@@ -83,7 +82,7 @@ public val sharedModule: Module = module {
             readPlaces = { Res.readBytes(DEMO_PLACES).decodeToString() },
         )
     }
-    // Only defined with an API key, so the repositories find no AI guide without one.
+    // Only registered when there is an API key.
     GEMINI_API_KEY.takeIf { it.isNotBlank() }?.let { key ->
         single { GeminiGuide.create(apiKey = key, httpClient = get(), cache = get(), dispatcher = get()) }
     }

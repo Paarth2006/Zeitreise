@@ -4,23 +4,23 @@ import com.russhwolf.settings.Settings
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
-/** Key under which the finished onboarding is remembered. */
+/** Settings key for the onboarding flag. */
 private const val ONBOARDING_COMPLETE_KEY = "onboarding_complete"
 
-/** Remembers whether the user has been through the onboarding, so it is shown only once. */
+/** Remembers whether the onboarding was completed, so it is only shown once. */
 public interface OnboardingStore {
-    /** Whether the onboarding has been finished or skipped before. */
+    /** Whether the onboarding was finished or skipped before. */
     public suspend fun isComplete(): Boolean
 
-    /** Records that the onboarding is done, so later launches go straight to the globe. */
+    /** Marks the onboarding as done. */
     public suspend fun markComplete()
 }
 
 /**
- * Keeps the flag in the platform's key-value store: shared preferences on Android, user defaults
- * on iOS and local storage on the web.
+ * Saves the flag in the platform's key-value storage (SharedPreferences, NSUserDefaults or
+ * localStorage).
  *
- * @param dispatcher dispatcher the reads and writes run on, since the first read may touch disk.
+ * @param dispatcher where reads and writes run, since the first read may hit the disk.
  */
 internal class SettingsOnboardingStore(private val settings: Settings, private val dispatcher: CoroutineDispatcher) :
     OnboardingStore {

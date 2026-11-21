@@ -16,23 +16,21 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.Velocity
 
 /**
- * What a press on the globe turned out to be.
+ * The result of one press on the globe.
  *
- * @property travelled whether the press moved far enough to count as a drag or pinch rather than
- *   a tap.
- * @property velocity how fast a single finger was moving when it lifted, in pixels per second. A
- *   pinch leaves the two fingers moving towards each other, which would fling the globe sideways,
- *   so only a one-finger drag carries momentum.
+ * @property travelled whether it moved far enough to be a drag or pinch instead of a tap.
+ * @property velocity the finger's speed when it lifted, in pixels per second. Only one-finger drags
+ *   get momentum, since pinches would fling the globe sideways.
  */
 private data class PressOutcome(val travelled: Boolean, val velocity: Velocity)
 
 /**
- * Drag, pinch, mouse wheel and tap handling for the globe.
+ * Handles drag, pinch, mouse wheel and tap on the globe.
  *
- * Written as one gesture loop rather than several detectors, so that the end of a drag, and with
- * it the fling velocity, is observed, and so that a press that never travels is reported as a tap.
+ * It's one gesture loop instead of several detectors, so it can see when a drag ends (for the fling)
+ * and treat a press that didn't move as a tap.
  *
- * @param onPressed the globe has been grabbed; automatic movement should stop.
+ * @param onPressed the globe was grabbed, so automatic movement should stop.
  * @param onDragged the globe should turn by this many pixels.
  * @param onZoomed the globe should be magnified by this factor.
  * @param onScrolled the mouse wheel moved by this many notches.
@@ -73,10 +71,8 @@ internal fun Modifier.globeGestures(
     }
 
 /**
- * Follows one press until every finger has lifted, reporting drags and pinches as they happen.
- *
- * Movement is ignored until it passes the touch slop, so that a tap with a shaky finger still
- * selects a country instead of nudging the globe.
+ * Tracks one press until all fingers lift, reporting drags and pinches as they happen. Small
+ * movements under the touch slop are ignored, so a slightly shaky tap still counts as a tap.
  */
 private suspend fun AwaitPointerEventScope.trackPress(
     down: PointerInputChange,
@@ -105,11 +101,11 @@ private suspend fun AwaitPointerEventScope.trackPress(
     )
 }
 
-/** Whether the press has moved far enough, or pinched at all, to be a drag rather than a tap. */
+/** Whether the press moved or pinched enough to be a drag instead of a tap. */
 private fun PointerEvent.hasTravelledFrom(origin: Offset, touchSlop: Float): Boolean =
     (calculateCentroid() - origin).getDistance() > touchSlop || calculateZoom() != 1f
 
-/** Reports this event's pinch and pan, and records the pan for the fling velocity. */
+/** Reports the pinch and pan of this event and tracks the pan for the fling velocity. */
 private fun PointerEvent.apply(velocity: VelocityTracker, onDragged: (Offset) -> Unit, onZoomed: (Float) -> Unit) {
     val zoom = calculateZoom()
     if (zoom != 1f) onZoomed(zoom)

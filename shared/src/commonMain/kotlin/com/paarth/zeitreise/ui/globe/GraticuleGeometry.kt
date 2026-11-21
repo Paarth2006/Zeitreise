@@ -7,36 +7,31 @@ import com.paarth.zeitreise.globe.PAIR_STRIDE
 import com.paarth.zeitreise.globe.SPHERE_STRIDE
 import com.paarth.zeitreise.globe.toSpherePoint
 
-/** Degrees between the meridians and parallels of the graticule. */
+/** Degrees between graticule lines. */
 private const val GRID_SPACING_DEGREES = 30
 
-/** Degrees between the vertices along one graticule line, fine enough to look like a curve. */
+/** Degrees between points on a line, small enough to look smooth. */
 private const val GRID_STEP_DEGREES = 3
 
-/** Latitude the meridians stop at, short of the poles where they would all converge. */
+/** Meridians stop at this latitude instead of meeting at the poles. */
 private const val GRID_MAX_LATITUDE = 84
 
-/** Latitude the outermost parallel is drawn at. */
+/** Latitude of the outermost parallel. */
 private const val GRID_MAX_PARALLEL = 60
 
 /** Degrees of longitude from the prime meridian to the antimeridian. */
 private const val HALF_TURN_DEGREES = 180
 
-/**
- * The meridians and parallels drawn over the ocean.
- *
- * The lines are open rather than closed, so each one is broken wherever it crosses the horizon
- * instead of being dragged along the limb.
- */
+/** The graticule lines. They are open paths, so they stop at the horizon instead of running along the edge. */
 internal class GraticuleGeometry {
     private val lines: List<DoubleArray> = buildGraticuleLines()
     private val screens: List<FloatArray> = lines.map { FloatArray(it.size / SPHERE_STRIDE * PAIR_STRIDE) }
     private val facings: List<BooleanArray> = lines.map { BooleanArray(it.size / SPHERE_STRIDE) }
 
-    /** The projected graticule. Only valid after [update] has been called for the same frame. */
+    /** The projected lines. Only valid after [update] was called. */
     val path: Path = Path()
 
-    /** Re-projects the graticule for [projection]. */
+    /** Projects the lines for [projection]. */
     fun update(projection: GlobeProjection) {
         path.rewind()
         lines.forEachIndexed { index, line ->
@@ -47,7 +42,7 @@ internal class GraticuleGeometry {
         }
     }
 
-    /** Appends each unbroken run of front-facing vertices as its own sub-path. */
+    /** Adds each visible run of vertices as its own sub-path. */
     private fun appendVisibleRuns(screen: FloatArray, facing: BooleanArray) {
         var started = false
         facing.forEachIndexed { vertex, isFacing ->
@@ -63,7 +58,7 @@ internal class GraticuleGeometry {
     }
 }
 
-/** Builds the meridians and parallels once, as packed unit-sphere triples. */
+/** Builds the lines once, as packed unit-sphere triples. */
 private fun buildGraticuleLines(): List<DoubleArray> = buildList {
     for (longitude in -HALF_TURN_DEGREES until HALF_TURN_DEGREES step GRID_SPACING_DEGREES) {
         add(

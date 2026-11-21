@@ -19,7 +19,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** A row of [QUIZ_LENGTH] + 2 square countries along the equator, each large enough to be asked about. */
+/** [QUIZ_LENGTH] + 2 square countries along the equator, all big enough for the quiz. */
 private val WORLD: List<Country> = GeoJsonParser().parseCountries(
     (0 until QUIZ_LENGTH + 2).joinToString(
         prefix = """{ "type": "FeatureCollection", "features": [""",

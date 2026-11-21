@@ -8,17 +8,16 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
-/** Knows which famous landmarks stood in a given year. */
+/** Knows which landmarks existed in a given year. */
 public interface LandmarkHistory {
-    /** The landmarks that stood in [year], oldest first. */
+    /** The landmarks that existed in [year], oldest first. */
     public suspend fun standingIn(year: Int): List<HistoricLandmark>
 }
 
 /**
- * Reads the landmarks bundled with the app, with the years Wikidata records for their building
- * and, for those that fell, their destruction.
+ * Reads the bundled landmarks, with the years they were built and destroyed (from Wikidata).
  *
- * @param readLandmarks reads `history/landmarks.json`, written by the data preparation tool.
+ * @param readLandmarks reads `history/landmarks.json`.
  */
 internal class BundledLandmarkHistory(
     private val readLandmarks: suspend () -> String,

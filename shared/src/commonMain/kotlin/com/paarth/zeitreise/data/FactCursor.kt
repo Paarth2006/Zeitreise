@@ -2,18 +2,17 @@ package com.paarth.zeitreise.data
 
 import com.russhwolf.settings.Settings
 
-/** Remembers which fact about each place was shown last, so the next visit shows another. */
+/** Remembers which fact was shown last for each place, so the next visit shows a different one. */
 public interface FactCursor {
     /**
-     * Moves on to the next of a place's [factCount] facts and returns its index, starting over
-     * after the last one.
+     * Moves to the next of [factCount] facts and returns its index, wrapping around after the last.
      *
      * @param placeKey identifies the place, such as its Wikidata item.
      */
     public fun next(placeKey: String, factCount: Int): Int
 }
 
-/** Keeps the cursor in the platform's key-value store, so it survives the app being closed. */
+/** Saves the cursor in the platform's key-value storage so it survives restarts. */
 internal class SettingsFactCursor(private val settings: Settings) : FactCursor {
     override fun next(placeKey: String, factCount: Int): Int {
         require(factCount > 0) { "A place needs at least one fact, $placeKey has none" }
@@ -24,7 +23,7 @@ internal class SettingsFactCursor(private val settings: Settings) : FactCursor {
     }
 
     private companion object {
-        /** Keeps the cursors apart from the app's other settings. */
+        /** Prefix that keeps these keys separate from other settings. */
         const val KEY_PREFIX = "fact."
     }
 }

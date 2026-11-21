@@ -2,16 +2,16 @@ package com.paarth.zeitreise.ai
 
 import kotlinx.serialization.Serializable
 
-/** Most places suggested for one country: enough to spread across it, few enough to stay legible. */
+/** Maximum places suggested for one country. */
 internal const val MAX_PLACES = 8
 
-/** The shape of the guide's answer when asked for places to visit. */
+/** The JSON shape of the guide's answer for places to visit. */
 @Serializable
 internal data class PlaceSuggestions(val places: List<PlaceSuggestion> = emptyList())
 
 /**
- * Reads the guide's suggested places out of a model's reply: trims names and titles, drops any
- * without both, drops repeated titles, and keeps at most [MAX_PLACES].
+ * Reads the suggested places from the model's reply. Trims the text, drops incomplete or repeated
+ * entries and keeps at most [MAX_PLACES].
  *
  * @return the suggestions, or `null` when the reply holds none.
  */

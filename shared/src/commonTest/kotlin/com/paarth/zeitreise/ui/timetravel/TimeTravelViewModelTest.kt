@@ -70,7 +70,7 @@ class TimeTravelViewModelTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             test(TimeTravelViewModel(history, Landmarks, NoGuide, SettingsFactCursor(MapSettings())))
-            // Let the view model finish what the test set going before its dispatcher is taken away.
+            // Let pending work finish before the main dispatcher is reset.
             advanceUntilIdle()
         } finally {
             Dispatchers.resetMain()

@@ -26,8 +26,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Holds the state of the globe screen and keeps loading and selection out of the composables.
- * Every country opened, however it was found, is stamped in the [passport].
+ * The globe screen's view model. It handles loading, selection, search and stories, and stamps
+ * every opened country in the [passport].
  */
 public class GlobeViewModel(
     private val countries: CountryRepository,
@@ -47,17 +47,17 @@ public class GlobeViewModel(
 
     private val _searchResults = MutableStateFlow<List<SearchResult>>(emptyList())
 
-    /** The places matching the latest search, best first; empty when nothing is being searched. */
+    /** Results of the latest search, best first. Empty if nothing is being searched. */
     public val searchResults: StateFlow<List<SearchResult>> = _searchResults.asStateFlow()
 
     private val _story = MutableStateFlow<StoryState>(StoryState.Idle)
 
-    /** What the guide says about the selected place: a state when one is selected, else its country. */
+    /** The story for the selected state, or for the selected country if no state is selected. */
     public val story: StateFlow<StoryState> = _story.asStateFlow()
 
     private val _newStamp = MutableStateFlow<Country?>(null)
 
-    /** The selected country, when opening it just earned its first stamp in the passport. */
+    /** The selected country, if it was just stamped for the first time. */
     public val newStamp: StateFlow<Country?> = _newStamp.asStateFlow()
 
     private val storyRetries = MutableStateFlow(0)
@@ -67,7 +67,7 @@ public class GlobeViewModel(
     init {
         loadCountries()
         viewModelScope.launch {
-            // A new selection cancels the story still loading for the old one.
+            // A new selection cancels the previous story's loading.
             val focusedPlace = _uiState.map { (it as? GlobeUiState.Ready)?.focusedPlace() }.distinctUntilChanged()
             combine(focusedPlace, storyRetries) { place, _ -> place }
                 .collectLatest { place ->
@@ -77,27 +77,24 @@ public class GlobeViewModel(
         }
     }
 
-    /** Shows the selected place's next fact, starting over after the last one. */
+    /** Shows the next fact, wrapping around after the last. */
     public fun nextFact() {
         _story.update { state ->
             if (state is StoryState.Ready) storyTeller.nextFact(state) else state
         }
     }
 
-    /** Asks the guide again after Wikipedia could not be reached. */
+    /** Retries loading the story. */
     public fun retryStory() {
         storyRetries.update { it + 1 }
     }
 
-    /**
-     * Selects [country], or clears the selection when it is `null`, and loads the country's states
-     * so they appear once the camera has flown in.
-     */
+    /** Selects [country] (or clears the selection if `null`) and loads its states. */
     public fun select(country: Country?) {
         select(country, subdivisionName = null)
     }
 
-    /** Shows the places whose names match [query], or clears the results for a blank query. */
+    /** Searches for [query]. A blank query clears the results. */
     public fun search(query: String) {
         searchJob?.cancel()
         val ready = _uiState.value as? GlobeUiState.Ready
@@ -110,10 +107,7 @@ public class GlobeViewModel(
         }
     }
 
-    /**
-     * Flies to the best match for [query], for when the user presses Search rather than tapping a
-     * result. Runs the search itself, so it works even before the results have appeared.
-     */
+    /** Opens the best match for [query] when the user presses Search instead of picking a result. */
     public fun submitSearch(query: String) {
         val ready = _uiState.value as? GlobeUiState.Ready ?: return
         if (query.isBlank()) return
@@ -123,7 +117,7 @@ public class GlobeViewModel(
         }
     }
 
-    /** Flies to the place the user picked from the search results, and clears them. */
+    /** Opens the picked search result and clears the results. */
     public fun choose(result: SearchResult) {
         searchJob?.cancel()
         _searchResults.value = emptyList()
@@ -133,15 +127,12 @@ public class GlobeViewModel(
         }
     }
 
-    /** Selects a state of the selected country, or clears it when [subdivision] is `null`. */
+    /** Selects a state of the selected country, or clears it if `null`. */
     public fun selectSubdivision(subdivision: Subdivision?) {
         updateReady { it.copy(selectedSubdivision = subdivision) }
     }
 
-    /**
-     * Selects [country] and loads its states; once they arrive, also selects the one named
-     * [subdivisionName], if any, so a state picked from search ends up highlighted.
-     */
+    /** Selects [country], loads its states and then selects [subdivisionName] if given (for search). */
     private fun select(country: Country?, subdivisionName: String?) {
         subdivisionLoad?.cancel()
         updateReady { it.copy(selected = country, subdivisions = emptyList(), selectedSubdivision = null) }
@@ -149,7 +140,7 @@ public class GlobeViewModel(
         if (country == null) return
         viewModelScope.launch {
             val firstStamp = passport.stamp(country)
-            // Only celebrate while the country is still open, not after the user has moved on.
+            // Only show "new stamp" if the country is still selected.
             if (firstStamp && (_uiState.value as? GlobeUiState.Ready)?.selected == country) _newStamp.value = country
         }
         subdivisionLoad = viewModelScope.launch {
@@ -179,7 +170,7 @@ public class GlobeViewModel(
     }
 }
 
-/** The place the sheet is about: the selected state if there is one, else the selected country. */
+/** The selected state, or the selected country if no state is selected. */
 private fun GlobeUiState.Ready.focusedPlace(): GuidePlace? {
     val country = selected ?: return null
     val subdivision = selectedSubdivision

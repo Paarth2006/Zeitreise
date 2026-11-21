@@ -4,13 +4,13 @@ import kotlin.math.acos
 import kotlin.math.cos
 import kotlin.math.sin
 
-/** Degrees of latitude at the north pole; latitude is clamped to this range. */
+/** Latitude of the north pole; latitudes are clamped to this. */
 internal const val MAX_LATITUDE: Double = 90.0
 
 /** Degrees of longitude at the antimeridian. */
 internal const val MAX_LONGITUDE: Double = 180.0
 
-/** Degrees in half a turn, the factor between degrees and radians. */
+/** Degrees in half a turn, used to convert between degrees and radians. */
 internal const val DEGREES_PER_HALF_TURN: Double = 180.0
 
 /**
@@ -26,21 +26,17 @@ public data class GeoPoint(val latitude: Double, val longitude: Double) {
     }
 }
 
-/**
- * Wraps [degrees] into the `-180..180` range used for longitudes, so that rotating the globe past
- * the antimeridian stays in range.
- */
+/** Wraps [degrees] into the `-180..180` longitude range. */
 internal fun normalizeLongitude(degrees: Double): Double {
     val wrapped = degrees.mod(2.0 * MAX_LONGITUDE)
     return if (wrapped > MAX_LONGITUDE) wrapped - 2.0 * MAX_LONGITUDE else wrapped
 }
 
 /**
- * The unit-sphere position of a geographic point, with the camera looking down the negative z
- * axis, so that `(0, 0)` faces the viewer.
+ * A position on the unit sphere, with `(0, 0)` facing the viewer along the z axis.
  *
- * The globe renderer converts each outline vertex once at load time and then only rotates these
- * vectors per frame, which keeps trigonometry out of the draw loop.
+ * Outline vertices are converted to these once at load time, so drawing a frame only has to rotate
+ * them and needs no trigonometry.
  *
  * @property x east-west axis, positive towards 90 degrees east.
  * @property y north-south axis, positive towards the north pole.

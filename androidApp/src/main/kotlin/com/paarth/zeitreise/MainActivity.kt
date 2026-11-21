@@ -10,10 +10,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.paarth.zeitreise.ui.App
 
-/** Single activity of the Android app; it only hosts the shared Compose UI. */
+/** The app's only activity. It just shows the shared Compose UI. */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        // The app is always dark, so the system bars keep light icons even when the phone is in light mode.
+        // The app is always dark, so keep the system bar icons light.
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),

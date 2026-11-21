@@ -32,29 +32,27 @@ import zeitreise.shared.generated.resources.hint_select
 import zeitreise.shared.generated.resources.hint_skip
 import zeitreise.shared.generated.resources.hint_turn
 
-/** Minimum touch target the Human Interface Guidelines ask for, which the capsule never drops below. */
+/** Minimum height of the hint, the standard touch target size. */
 private val TOUCH_TARGET = 44.dp
 
-/** Padding before the hint text; the Skip button carries its own padding on the other side. */
+/** Padding before the text. The Skip button has its own padding. */
 private val HINT_LEADING_PADDING = 20.dp
 
-/** Scale a hint grows from as it appears and shrinks to as it leaves. */
+/** Starting scale of the hint animation. */
 private const val HINT_START_SCALE = 0.9f
 
-/** A lively spring for hints coming and going, like iOS's bouncy glass morphs. */
+/** A slightly bouncy spring for the hint. */
 private val HINT_SPRING = spring<Float>(
     dampingRatio = Spring.DampingRatioLowBouncy,
     stiffness = Spring.StiffnessMediumLow,
 )
 
 /**
- * A short instruction in a capsule, asking the user to try the gesture it names.
+ * A small hint asking the user to try a gesture. It stays until the user does it, and Skip ends the
+ * onboarding. Screen readers announce each new hint.
  *
- * Teaches in place rather than in a tutorial: the hint stays until the user does what it says,
- * and Skip ends the onboarding at any time. Screen readers announce each new hint.
- *
- * @param step the onboarding step; only [OnboardingStep.TryTurning] and
- *   [OnboardingStep.TrySelecting] show a hint.
+ * @param step the onboarding step. Only [OnboardingStep.TryTurning] and [OnboardingStep.TrySelecting]
+ *   show a hint.
  * @param onSkip called when the user taps Skip.
  * @param modifier applied to the root element.
  */
@@ -95,7 +93,7 @@ private fun HintCapsule(text: String, onSkip: () -> Unit, modifier: Modifier = M
     }
 }
 
-/** The instruction this step shows, or `null` for the steps that show no hint. */
+/** The hint text for this step, or `null` if there is none. */
 private fun OnboardingStep.hint(): StringResource? = when (this) {
     OnboardingStep.TryTurning -> Res.string.hint_turn
     OnboardingStep.TrySelecting -> Res.string.hint_select

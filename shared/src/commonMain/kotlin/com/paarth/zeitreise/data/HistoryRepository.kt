@@ -12,34 +12,32 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * Where the historical world maps are read from: the historical-basemaps project, pinned to one
- * commit so the borders shown never change under the app.
- *
- * The maps are GPL-3.0, so they are downloaded while the app runs rather than bundled with it,
- * which keeps the app itself under the MIT licence.
+ * The historical maps come from the historical-basemaps project, pinned to one commit so they don't
+ * change. They are GPL-3.0, so they're downloaded at runtime instead of bundled, which keeps this
+ * app MIT licensed.
  */
 private const val MAPS_COMMIT = "4b5039e50d8d2464b065bd76ad6086cd4597108d"
 private const val MAPS_PROJECT = "https://raw.githubusercontent.com/aourednik/historical-basemaps"
 private const val MAPS_BASE_URL = "$MAPS_PROJECT/$MAPS_COMMIT/geojson/"
 
-/** How many maps are kept after they are read; enough to slide back and forth between eras. */
+/** How many maps to keep in memory. */
 private const val MAPS_KEPT = 4
 
-/** Reads the world as it was in a given year. */
+/** Loads the world map for a given year. */
 public interface HistoryRepository {
     /**
      * The world map for [year], which must be one of [com.paarth.zeitreise.domain.MAP_YEARS].
      *
-     * @throws Exception when the map cannot be downloaded or read.
+     * @throws Exception if the map can't be downloaded or read.
      */
     public suspend fun mapOf(year: Int): HistoricalMap
 }
 
 /**
- * Downloads each year's map the first time it is asked for, and keeps the last few in memory, so
- * sliding back to a year already seen is instant.
+ * Downloads each year's map when it's first needed and keeps the last few in memory, so going back
+ * to a recent year is instant.
  *
- * @param dispatcher dispatcher the download and parsing run on, keeping the main thread free.
+ * @param dispatcher where downloading and parsing run, off the main thread.
  */
 internal class KtorHistoryRepository(
     private val client: HttpClient,
@@ -63,5 +61,5 @@ internal class KtorHistoryRepository(
     }
 }
 
-/** The historical-basemaps file for [year]: `world_1492.geojson`, or `world_bc500.geojson` for 500 BC. */
+/** The file name for [year], like `world_1492.geojson` or `world_bc500.geojson` for 500 BC. */
 internal fun mapFileName(year: Int): String = if (year < 0) "world_bc${-year}.geojson" else "world_$year.geojson"

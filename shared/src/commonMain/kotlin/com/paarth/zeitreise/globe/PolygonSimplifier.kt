@@ -3,12 +3,10 @@ package com.paarth.zeitreise.globe
 import kotlin.math.abs
 
 /**
- * Drops vertices from the ring in [vertices] that sit closer than [tolerance] degrees to the line
- * their neighbours already describe.
+ * Removes vertices that are closer than [tolerance] degrees to the line formed by their neighbours.
  *
- * This is the Ramer-Douglas-Peucker algorithm, run once per outline at load time. The bundled
- * outlines are drawn at full detail when zoomed in, so simplification trades a little fidelity for
- * a much shorter draw loop at the default zoom.
+ * This is the Ramer-Douglas-Peucker algorithm, run once per outline when it loads. It makes the
+ * outlines much cheaper to draw at the default zoom with almost no visible difference.
  *
  * @param vertices packed `longitude, latitude` pairs.
  * @param tolerance greatest distance, in degrees, a dropped vertex may sit from the kept line.
@@ -39,10 +37,7 @@ internal fun simplifyRing(vertices: DoubleArray, tolerance: Double): DoubleArray
     return result
 }
 
-/**
- * Marks the vertex furthest from the line between [first] and [last] for keeping, then recurses
- * into the two halves it creates, until no vertex is further away than [tolerance].
- */
+/** Keeps the vertex furthest from the line [first]–[last] and repeats on both halves until within [tolerance]. */
 private fun simplifySegment(vertices: DoubleArray, first: Int, last: Int, tolerance: Double, keep: BooleanArray) {
     if (last <= first + 1) return
 

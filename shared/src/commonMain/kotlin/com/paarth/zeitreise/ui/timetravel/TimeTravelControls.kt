@@ -8,7 +8,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,11 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -59,7 +54,6 @@ import com.paarth.zeitreise.domain.yearDigits
 import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
 import com.paarth.zeitreise.ui.ZeitreiseTheme
 import com.paarth.zeitreise.ui.glass.GlassButton
-import com.paarth.zeitreise.ui.glass.GlassCircleButton
 import com.paarth.zeitreise.ui.glass.GlassPanel
 import com.paarth.zeitreise.ui.glass.GlassSheet
 import com.paarth.zeitreise.ui.glass.SHEET_BODY_END_PADDING
@@ -76,32 +70,27 @@ import zeitreise.shared.generated.resources.realm_part_of
 import zeitreise.shared.generated.resources.story_retry
 import zeitreise.shared.generated.resources.time_travel_failed
 import zeitreise.shared.generated.resources.time_travel_loading
-import zeitreise.shared.generated.resources.time_travel_open
 import zeitreise.shared.generated.resources.time_travel_realms
 import zeitreise.shared.generated.resources.time_travel_today
 import zeitreise.shared.generated.resources.time_travel_year
 import zeitreise.shared.generated.resources.year_ad
 import zeitreise.shared.generated.resources.year_bc
 
-/** Gap between the floating panel and the edges of the safe area. */
+/** Margin around the panel. */
 private val PANEL_MARGIN = 16.dp
 
-/** Padding inside the year panel, and between its rows. */
+/** Padding and row spacing in the year panel. */
 private val PANEL_PADDING = 20.dp
 private val PANEL_SPACING = 6.dp
 
-/** Corner radius of the year panel, matching the sheets. */
+/** Corner radius of the year panel. */
 private val PANEL_CORNER = 32.dp
-
-/** Size of the hourglass drawn in the Time Travel button, and its stroke width. */
-private val HOURGLASS_SIZE = 18.dp
-private val HOURGLASS_STROKE = 2.dp
 
 /** Size of the loading indicator. */
 private val LOADING_SIZE = 14.dp
 private val LOADING_STROKE = 2.dp
 
-/** Size and shadow of the slider's round knob, and the height of its track, as on iOS. */
+/** Slider thumb size and shadow, and track height. */
 private val THUMB_SIZE = 28.dp
 private val THUMB_ELEVATION = 4.dp
 private val TRACK_HEIGHT = 4.dp
@@ -109,7 +98,7 @@ private val TRACK_HEIGHT = 4.dp
 /** Opacity of the slider's unfilled track. */
 private const val INACTIVE_TRACK_ALPHA = 0.15f
 
-/** Damping of the panel's spring, settling softly as the sheets do. */
+/** Spring damping for the panel. */
 private const val PANEL_DAMPING = 0.86f
 
 private val PANEL_SPRING = spring(
@@ -119,50 +108,27 @@ private val PANEL_SPRING = spring(
 )
 
 /**
- * The round glass button that starts Time Travel, showing an hourglass.
+ * The Time Travel UI: the year panel with the slider, and a sheet for the selected realm.
  *
- * @param onClick called when the button is tapped.
- * @param modifier applied to the root element.
+ * @param state the Time Travel state.
+ * @param story the story for the selected realm.
+ * @param actions the control actions.
+ * @param cardOpen whether a landmark's card is open on top. The year panel hides behind it.
  */
 @Composable
-internal fun TimeTravelButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val label = stringResource(Res.string.time_travel_open)
-    val tint = MaterialTheme.colorScheme.primary
-    GlassCircleButton(onClick = onClick, modifier = modifier.semantics { contentDescription = label }) {
-        Canvas(modifier = Modifier.size(HOURGLASS_SIZE)) {
-            val stroke = HOURGLASS_STROKE.toPx()
-            val (w, h) = size.width to size.height
-            drawLine(tint, Offset(0f, 0f), Offset(w, 0f), stroke, StrokeCap.Round)
-            drawLine(tint, Offset(0f, h), Offset(w, h), stroke, StrokeCap.Round)
-            val glass = Path().apply {
-                moveTo(w * 0.15f, 0f)
-                lineTo(w * 0.85f, 0f)
-                lineTo(w * 0.15f, h)
-                lineTo(w * 0.85f, h)
-                close()
-            }
-            drawPath(glass, tint, style = Stroke(width = stroke))
-        }
-    }
-}
-
-/**
- * Everything Time Travel puts over the globe: the year panel with its slider, and, once a realm
- * is tapped, a sheet telling of it.
- *
- * @param state whether Time Travel is on, and if so the year, its map and the selected realm.
- * @param story what the guide says about the selected realm.
- * @param actions what the controls can ask for.
- */
-@Composable
-internal fun BoxScope.TimeTravelControls(state: TimeTravelState, story: StoryState, actions: TimeTravelActions) {
-    // The controls have to keep showing their year while they slide away, after Time Travel ends.
+internal fun BoxScope.TimeTravelControls(
+    state: TimeTravelState,
+    story: StoryState,
+    actions: TimeTravelActions,
+    cardOpen: Boolean = false,
+) {
+    // Keep showing the last year while the panel slides away.
     var lastOn by remember { mutableStateOf<TimeTravelState.On?>(null) }
     LaunchedEffect(state) { if (state is TimeTravelState.On) lastOn = state }
-    // Before the first trip there is nothing to show; a hidden placeholder lets the panel spring in.
+    // Placeholder before the first use, so the panel can animate in.
     val on = state as? TimeTravelState.On ?: lastOn ?: TimeTravelState.On(MAP_YEARS.lastIndex)
     AnimatedVisibility(
-        visible = state is TimeTravelState.On && on.selected == null,
+        visible = state is TimeTravelState.On && on.selected == null && !cardOpen,
         enter = slideInVertically(PANEL_SPRING) { height -> height } + fadeIn(),
         exit = slideOutVertically(PANEL_SPRING) { height -> height } + fadeOut(),
         modifier = Modifier
@@ -197,12 +163,12 @@ internal fun BoxScope.TimeTravelControls(state: TimeTravelState, story: StorySta
 }
 
 /**
- * What the Time Travel controls can ask for.
+ * Actions for the Time Travel controls.
  *
- * @property selectYear shows the map for the year at this index of [MAP_YEARS].
- * @property retry tries the year's map again after it failed to download.
- * @property selectRealm selects a realm, or clears the selection when it is `null`.
- * @property retryStory asks the guide again after Wikipedia could not be reached.
+ * @property selectYear shows the map for this index of [MAP_YEARS].
+ * @property retry retries downloading the map.
+ * @property selectRealm selects a realm, or clears it if `null`.
+ * @property retryStory retries loading the story.
  * @property nextFact shows the selected realm's next fact.
  * @property returnToToday ends Time Travel.
  */
@@ -215,7 +181,7 @@ internal class TimeTravelActions(
     val returnToToday: () -> Unit,
 )
 
-/** The panel naming the year shown, with a slider through every year there is a map for. */
+/** The panel with the current year and the year slider. */
 @Composable
 private fun YearPanel(state: TimeTravelState.On, actions: TimeTravelActions, modifier: Modifier = Modifier) {
     GlassPanel(
@@ -246,7 +212,7 @@ private fun YearPanel(state: TimeTravelState.On, actions: TimeTravelActions, mod
     }
 }
 
-/** How far the year's map has loaded, and how many realms it holds once it has. */
+/** The map's loading status, or the number of realms once loaded. */
 @Composable
 private fun MapStatus(state: TimeTravelState.On, onRetry: () -> Unit, modifier: Modifier = Modifier) {
     val yearText = yearLabel(state.year)
@@ -274,7 +240,7 @@ private fun MapStatus(state: TimeTravelState.On, onRetry: () -> Unit, modifier: 
     }
 }
 
-/** A slider that steps through the years there is a map for, close together where history was busy. */
+/** A slider through all the years that have a map. */
 @Composable
 private fun YearSlider(yearIndex: Int, onSelectYear: (Int) -> Unit, modifier: Modifier = Modifier) {
     val label = stringResource(Res.string.time_travel_year)
@@ -291,7 +257,7 @@ private fun YearSlider(yearIndex: Int, onSelectYear: (Int) -> Unit, modifier: Mo
         valueRange = 0f..MAP_YEARS.lastIndex.toFloat(),
         steps = MAP_YEARS.size - 2,
         colors = colors,
-        // Apple's slider: a round white knob with a soft shadow on a thin, unbroken track.
+        // iOS-style slider: a round white thumb on a thin track.
         thumb = {
             Box(
                 modifier = Modifier
@@ -324,7 +290,7 @@ private fun SecondaryText(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** "1492", or "500 BC" for a year before Christ. */
+/** Formats a year as "1492" or "500 BC". */
 @Composable
 internal fun yearLabel(year: Int): String =
     stringResource(if (year < 0) Res.string.year_bc else Res.string.year_ad, yearDigits(year))

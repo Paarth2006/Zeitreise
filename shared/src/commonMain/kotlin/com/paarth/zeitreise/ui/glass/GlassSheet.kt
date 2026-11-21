@@ -42,62 +42,61 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
 
-/** Widest a sheet grows; past this it floats as a card so lines stay a comfortable length. */
+/** Maximum sheet width. Wider screens show it as a floating card. */
 internal val SHEET_MAX_WIDTH = 480.dp
 
-/** Gap between a floating sheet and the edges of the safe area. */
+/** Margin around a floating sheet. */
 private val FLOATING_MARGIN = 16.dp
 
-/** Gap between the sheet and the screen's edges on a phone, as iOS insets its glass sheets. */
+/** Margin between the sheet and the screen edges on a phone. */
 private val INSET_MARGIN = 8.dp
 
-/** Corner radius of the sheet, large and round like the corners of the device itself. */
+/** Corner radius of the sheet. */
 private val SHEET_CORNER = 32.dp
 
-/** Padding inside the sheet, in from the leading, top and bottom edges. */
+/** Padding inside the sheet. */
 private val SHEET_PADDING = 20.dp
 
-/** Padding on the trailing side, smaller because the close button carries its own touch area. */
+/** Smaller padding on the trailing side, since the close button has its own touch area. */
 private val SHEET_TRAILING_PADDING = 8.dp
 
-/** Extra trailing padding for a sheet's body, which has no close button to make room for. */
+/** Extra trailing padding for the sheet body. */
 internal val SHEET_BODY_END_PADDING = SHEET_PADDING
 
-/** Spacing between a sheet's title and its subtitle, and twice this between its sections. */
+/** Spacing between title and subtitle (double between sections). */
 private val SHEET_SPACING = 4.dp
 
-/** Gap between a header's leading content, such as a flag, and its title. */
+/** Gap between the leading content (like a flag) and the title. */
 private val HEADER_LEADING_GAP = 12.dp
 
-/** Size of the cross drawn inside the close button, and its stroke width. */
+/** Size and stroke of the close icon. */
 private val CLOSE_GLYPH = 12.dp
 private val CLOSE_STROKE = 2.dp
 
-/** Damping of the sheet's spring: just under critical, so it lands softly. */
+/** Spring damping, just under critical so it doesn't bounce. */
 private const val SHEET_DAMPING = 0.86f
 
-/** A gently damped spring for the sheet, which settles without bouncing, as iOS sheets do. */
+/** Spring used to show and hide the sheet. */
 private val SHEET_SPRING = spring(
     dampingRatio = SHEET_DAMPING,
     stiffness = Spring.StiffnessMediumLow,
     visibilityThreshold = IntOffset.VisibilityThreshold,
 )
 
-/** Largest share of the window's height a sheet takes; longer content scrolls inside it. */
+/** Maximum share of the screen height. Longer content scrolls. */
 private const val MAX_HEIGHT_SHARE = 0.55f
 
-/** Lines a sheet's title may wrap onto before it is ellipsised. */
+/** Maximum lines for the title. */
 private const val TITLE_MAX_LINES = 2
 
 /**
- * A sheet of Liquid Glass over the globe, holding [content] in a scrolling column.
+ * A glass sheet over the globe with [content] in a scrolling column.
  *
- * Springs up when [visible] and away again when not. In a narrow window it sits just inside the
- * screen's bottom and side edges, as iOS insets its glass sheets so the globe shows all round; in
- * a wide one, on the web or a tablet, it floats as a card of readable width.
+ * It slides up when [visible]. On phones it sits at the bottom of the screen; on wider screens
+ * (web, tablets) it floats as a card.
  *
- * @param visible whether the sheet is showing.
- * @param modifier applied to the root element, which fills the space the sheet rises in.
+ * @param visible whether the sheet is shown.
+ * @param modifier applied to the root element.
  */
 @Composable
 internal fun GlassSheet(visible: Boolean, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
@@ -143,10 +142,10 @@ internal fun GlassSheet(visible: Boolean, modifier: Modifier = Modifier, content
 }
 
 /**
- * The top of a sheet: its title and subtitle, and a round glass button that closes it.
+ * A sheet header with a title, subtitle and close button.
  *
- * @param closeLabel what a screen reader says for the close button.
- * @param leading shown before the title, such as a country's flag.
+ * @param closeLabel the screen reader label for the close button.
+ * @param leading content shown before the title, like a flag.
  */
 @Composable
 internal fun SheetHeader(
@@ -178,7 +177,7 @@ internal fun SheetHeader(
             )
         }
         GlassCircleButton(onClick = onClose, modifier = Modifier.semantics { contentDescription = closeLabel }) {
-            // A plain cross, drawn rather than taken from an icon set so the app needs no icon dependency.
+            // Drawn by hand so the app doesn't need an icon library.
             val tint = MaterialTheme.colorScheme.onSurface.copy(alpha = SECONDARY_TEXT_ALPHA)
             Canvas(modifier = Modifier.size(CLOSE_GLYPH)) {
                 val stroke = CLOSE_STROKE.toPx()

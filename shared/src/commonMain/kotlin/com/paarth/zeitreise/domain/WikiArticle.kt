@@ -4,8 +4,7 @@ import com.paarth.zeitreise.globe.GeoPoint
 import kotlinx.serialization.Serializable
 
 /**
- * The summary of one Wikipedia article: what the guide reads before it says anything, and what
- * the sheet credits.
+ * The summary of a Wikipedia article.
  *
  * @property title the article's title.
  * @property description Wikipedia's one-line description, such as "Country in South Asia".
@@ -25,7 +24,7 @@ public data class WikiArticle(
     val latitude: Double? = null,
     val longitude: Double? = null,
 ) {
-    /** Where the article's subject is on the globe, or `null` for an article without coordinates. */
+    /** The article's location, or `null` if it has no coordinates. */
     val location: GeoPoint?
         get() = if (latitude != null && longitude != null) GeoPoint(latitude, longitude) else null
 }

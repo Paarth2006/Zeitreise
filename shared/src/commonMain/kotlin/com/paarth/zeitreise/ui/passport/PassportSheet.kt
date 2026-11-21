@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -43,7 +42,6 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -56,7 +54,6 @@ import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.PassportBook
 import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
 import com.paarth.zeitreise.ui.ZeitreiseTheme
-import com.paarth.zeitreise.ui.glass.GlassCircleButton
 import com.paarth.zeitreise.ui.glass.GlassPanel
 import com.paarth.zeitreise.ui.glass.SheetHeader
 import com.paarth.zeitreise.ui.globe.CountryFlag
@@ -65,20 +62,19 @@ import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.passport_close
 import zeitreise.shared.generated.resources.passport_continent
 import zeitreise.shared.generated.resources.passport_empty
-import zeitreise.shared.generated.resources.passport_open
 import zeitreise.shared.generated.resources.passport_progress
 import zeitreise.shared.generated.resources.passport_title
 
-/** Widest the passport card grows, its padding, the gap between its sections and its corner radius. */
+/** Max width, padding, section spacing and corner radius of the card. */
 private val CARD_MAX_WIDTH = 460.dp
 private val CARD_PADDING = 24.dp
 private val CARD_SPACING = 16.dp
 private val CARD_CORNER = 32.dp
 
-/** How dark the globe dims behind the card. */
+/** How much the globe is dimmed behind the card. */
 private const val SCRIM_ALPHA = 0.35f
 
-/** Scale the card springs up from. */
+/** Starting scale of the card animation. */
 private const val CARD_START_SCALE = 0.88f
 
 private val CARD_SPRING = spring<Float>(
@@ -86,7 +82,7 @@ private val CARD_SPRING = spring<Float>(
     stiffness = Spring.StiffnessMedium,
 )
 
-/** Size of a stamp, the flag inside it, the gap between stamps and the dashes of its rim. */
+/** Stamp size, flag size, spacing and border style. */
 private val STAMP_WIDTH = 92.dp
 private val STAMP_FLAG = DpSize(48.dp, 32.dp)
 private val STAMP_GAP = 10.dp
@@ -95,10 +91,10 @@ private val STAMP_RIM = 1.5.dp
 private val STAMP_DASH = 5.dp
 private val STAMP_CORNER = 10.dp
 
-/** Most a stamp is tilted either way, in degrees, as if pressed on by hand. */
+/** Maximum tilt of a stamp in degrees. */
 private const val STAMP_MAX_TILT = 4
 
-/** The inks stamps are pressed in, one per continent, deep enough to read on the light glass. */
+/** Stamp colours, one per continent. */
 private val STAMP_INKS = listOf(
     Color(0xFF1F5FBF),
     Color(0xFFB5452E),
@@ -110,50 +106,21 @@ private val STAMP_INKS = listOf(
     Color(0xFF4A5A6A),
 )
 
-/** Height of a progress bar, and the opacity of its unfilled track. */
+/** Progress bar height and track opacity. */
 private val PROGRESS_HEIGHT = 6.dp
 private const val TRACK_ALPHA = 0.12f
 
-/** Size and stroke of the passport drawn in its button. */
-private val GLYPH_SIZE = DpSize(15.dp, 19.dp)
-private val GLYPH_STROKE = 2.dp
-
-/** Radius of the globe on the passport's cover, as a share of the glyph's width. */
-private const val GLYPH_GLOBE = 0.26f
-
 /**
- * The round glass button that opens the passport, showing a passport with a globe on its cover.
+ * The passport card: total progress, a stamp for each opened country (newest first) and progress
+ * per continent.
  *
- * @param onClick called when the button is tapped.
- * @param modifier applied to the root element.
- */
-@Composable
-internal fun PassportButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val label = stringResource(Res.string.passport_open)
-    val tint = MaterialTheme.colorScheme.primary
-    GlassCircleButton(onClick = onClick, modifier = modifier.semantics { contentDescription = label }) {
-        Canvas(modifier = Modifier.size(GLYPH_SIZE)) {
-            val stroke = Stroke(width = GLYPH_STROKE.toPx())
-            val corner = CornerRadius(stroke.width * 2)
-            drawRoundRect(tint, cornerRadius = corner, style = stroke)
-            drawCircle(tint, radius = size.width * GLYPH_GLOBE, style = stroke)
-        }
-    }
-}
-
-/**
- * The passport: how many countries the user has stamped, how far they have got on each continent,
- * and a stamp for every country they have opened, the latest first.
- *
- * A glass card over the dimmed globe, springing in like the About card.
- *
- * @param book the passport while it is open; `null` while it is closed.
- * @param onDismiss called when the passport is closed, by its button or a tap outside it.
+ * @param book the passport, or `null` when it's closed.
+ * @param onDismiss called when the card is closed.
  * @param modifier applied to the root element.
  */
 @Composable
 internal fun PassportSheet(book: PassportBook?, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
-    // The card keeps showing its stamps while it fades away, after the passport is closed.
+    // Keep showing the last content while the card fades out.
     var shown by remember { mutableStateOf(book) }
     LaunchedEffect(book) { if (book != null) shown = book }
     AnimatedVisibility(visible = book != null, enter = fadeIn(), exit = fadeOut(), modifier = modifier.fillMaxSize()) {
@@ -174,7 +141,7 @@ internal fun PassportSheet(book: PassportBook?, onDismiss: () -> Unit, modifier:
                         exit = scaleOut(CARD_SPRING, targetScale = CARD_START_SCALE),
                     )
                     .widthIn(max = CARD_MAX_WIDTH)
-                    // Taps on the card itself must not fall through to the scrim and close it.
+                    // Stop taps on the card from reaching the background and closing it.
                     .clickable(interactionSource = null, indication = null, onClick = {}),
             ) {
                 shown?.let { PassportContent(it, onDismiss) }
@@ -205,7 +172,7 @@ private fun PassportContent(book: PassportBook, onDismiss: () -> Unit) {
     }
 }
 
-/** Every stamp in the passport, in rows that wrap. */
+/** All the stamps, in wrapping rows. */
 @Composable
 private fun Stamps(countries: List<Country>) {
     FlowRow(
@@ -216,10 +183,7 @@ private fun Stamps(countries: List<Country>) {
     }
 }
 
-/**
- * One country's stamp: its flag and name inside a dashed rim, in its continent's ink, tilted a
- * little, always the same way for the same country, as if pressed on by hand.
- */
+/** One stamp: the flag and name in a dashed border. The colour depends on the continent and the tilt on the name. */
 @Composable
 private fun Stamp(country: Country) {
     val ink = STAMP_INKS[country.continent.hashCode().mod(STAMP_INKS.size)]
@@ -260,7 +224,7 @@ private fun Stamp(country: Country) {
     }
 }
 
-/** How many of a continent's countries are stamped, in words and as a bar. */
+/** A continent's progress as text and a bar. */
 @Composable
 private fun ContinentRow(progress: ContinentProgress) {
     Column(verticalArrangement = Arrangement.spacedBy(STAMP_PADDING / 2)) {

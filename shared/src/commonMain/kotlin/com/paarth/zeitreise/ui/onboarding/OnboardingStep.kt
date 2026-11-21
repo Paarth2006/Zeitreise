@@ -1,16 +1,11 @@
 package com.paarth.zeitreise.ui.onboarding
 
-/**
- * Where the user is in the onboarding.
- *
- * It teaches by doing rather than by slides: after one welcome screen, each hint waits for the
- * user to try the gesture it describes.
- */
+/** The current onboarding step. After the welcome screen, each hint waits for the user to try it. */
 internal sealed interface OnboardingStep {
-    /** Not yet known whether the onboarding has been seen; nothing is shown. */
+    /** Still checking if the onboarding was done before. */
     data object Checking : OnboardingStep
 
-    /** The welcome screen over the globe, shown on the first launch only. */
+    /** The welcome screen, shown on first launch. */
     data object Welcome : OnboardingStep
 
     /** A hint asking the user to drag the globe. */
@@ -19,11 +14,11 @@ internal sealed interface OnboardingStep {
     /** A hint asking the user to tap a country. */
     data object TrySelecting : OnboardingStep
 
-    /** The onboarding is over, finished or skipped. */
+    /** The onboarding is finished or skipped. */
     data object Finished : OnboardingStep
 }
 
-/** Something the user did that may move the onboarding on. */
+/** A user action that can move the onboarding forward. */
 internal sealed interface OnboardingEvent {
     /** The user tapped Continue on the welcome screen. */
     data object Started : OnboardingEvent
@@ -34,15 +29,13 @@ internal sealed interface OnboardingEvent {
     /** The user selected a country. */
     data object CountrySelected : OnboardingEvent
 
-    /** The user asked to skip the rest of the onboarding. */
+    /** The user tapped Skip. */
     data object Skipped : OnboardingEvent
 }
 
 /**
- * The step that follows this one after [event].
- *
- * Selecting a country before turning the globe finishes the onboarding too: the user has already
- * found the more important gesture, so there is nothing left worth teaching.
+ * The next step after [event]. Selecting a country before turning the globe also finishes the
+ * onboarding, since the user already found the main gesture.
  */
 internal fun OnboardingStep.after(event: OnboardingEvent): OnboardingStep = when (this) {
     OnboardingStep.Checking -> this

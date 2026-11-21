@@ -52,34 +52,34 @@ import zeitreise.shared.generated.resources.welcome_spin_body
 import zeitreise.shared.generated.resources.welcome_spin_title
 import zeitreise.shared.generated.resources.welcome_title
 
-/** Widest the welcome content grows, so it reads as one column on the web and on tablets. */
+/** Maximum width of the welcome content. */
 private val CONTENT_MAX_WIDTH = 480.dp
 
-/** Padding around the welcome content, in from the safe area. */
+/** Padding around the welcome content. */
 private val CONTENT_PADDING = 24.dp
 
-/** Space between the title and the first feature, and between features. */
+/** Spacing between the title and features. */
 private val SECTION_SPACING = 32.dp
 
-/** Space between a feature's glyph and its text. */
+/** Spacing between a feature's icon and text. */
 private val FEATURE_GLYPH_SPACING = 16.dp
 
-/** Size of a feature glyph. */
+/** Size of a feature icon. */
 private val GLYPH_SIZE = 36.dp
 
-/** Stroke width of the feature glyphs. */
+/** Stroke width of the feature icons. */
 private val GLYPH_STROKE = 2.dp
 
-/** Height of the Continue button, the size of a prominent button in Apple's apps. */
+/** Height of the Continue button. */
 private val BUTTON_HEIGHT = 50.dp
 
-/** How much of the globe shows through the welcome screen. */
+/** Opacity of the background over the globe. */
 private const val SCRIM_ALPHA = 0.72f
 
-/** Milliseconds each element takes to fade in. */
+/** Fade-in time for each element, in milliseconds. */
 private const val REVEAL_MILLIS = 500
 
-/** Milliseconds between one element starting to appear and the next. */
+/** Delay between elements appearing, in milliseconds. */
 private const val REVEAL_STAGGER_MILLIS = 150
 
 /** A feature listed on the welcome screen. */
@@ -89,11 +89,8 @@ private enum class WelcomeFeature(val title: StringResource, val body: StringRes
 }
 
 /**
- * The first-launch welcome screen, laid over the turning globe.
- *
- * Follows the welcome screens of Apple's own apps: a large title, a short list of what the app
- * does, and a single button that goes straight to the globe. Everything else is taught later, in
- * place, as the user needs it. The title, features and button appear one after another.
+ * The welcome screen shown on first launch, over the globe. It has a title, a short feature list
+ * and a Continue button, which appear one after another.
  *
  * @param onContinue called when the user taps Continue.
  * @param modifier applied to the root element.
@@ -103,13 +100,13 @@ internal fun WelcomeOverlay(onContinue: () -> Unit, modifier: Modifier = Modifie
     var revealed by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { revealed = true }
 
-    // A surface rather than a plain box: it sets the text colour and keeps touches off the globe.
+    // A Surface sets the text colour and blocks touches from reaching the globe.
     Surface(
         color = MaterialTheme.colorScheme.background.copy(alpha = SCRIM_ALPHA),
         contentColor = MaterialTheme.colorScheme.onBackground,
         modifier = modifier.fillMaxSize(),
     ) {
-        // The surface stretches its child to fill it, so a box centres the narrower column.
+        // The Box centres the column, since the Surface stretches its child.
         Box(contentAlignment = Alignment.Center) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -152,7 +149,7 @@ internal fun WelcomeOverlay(onContinue: () -> Unit, modifier: Modifier = Modifie
     }
 }
 
-/** Fades [content] in and up, [order] steps after the first element. */
+/** Fades [content] in and up, delayed by [order] steps. */
 @Composable
 private fun Reveal(visible: Boolean, order: Int, content: @Composable () -> Unit) {
     val delay = order * REVEAL_STAGGER_MILLIS
@@ -190,7 +187,7 @@ private fun FeatureRow(feature: WelcomeFeature, modifier: Modifier = Modifier) {
     }
 }
 
-/** A globe: an outline, the equator and one meridian seen at an angle. */
+/** A globe icon: a circle with the equator and one meridian. */
 private fun DrawScope.drawGlobeGlyph(tint: Color) {
     val stroke = Stroke(width = GLYPH_STROKE.toPx())
     val radius = size.minDimension / 2 - stroke.width
@@ -200,7 +197,7 @@ private fun DrawScope.drawGlobeGlyph(tint: Color) {
     drawOval(tint, topLeft = Offset(center.x - meridian.width / 2, center.y - radius), size = meridian, style = stroke)
 }
 
-/** A tap: a filled point inside a ring, like the ripple of a finger. */
+/** A tap icon: a dot inside a ring. */
 private fun DrawScope.drawTapGlyph(tint: Color) {
     val stroke = Stroke(width = GLYPH_STROKE.toPx())
     val radius = size.minDimension / 2 - stroke.width

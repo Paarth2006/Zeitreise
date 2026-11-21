@@ -19,69 +19,60 @@ import kotlin.math.exp
 import kotlin.math.min
 import kotlin.math.pow
 
-/** Share of the smaller viewport edge the globe takes up at [GlobeCamera.zoom] of one. */
+/** Globe radius as a share of the smaller screen side, at zoom 1. */
 private const val RADIUS_FRACTION = 0.46f
 
-/**
- * Degrees per second the globe drifts at when the user has left it alone. Slow enough that a
- * region stays readable for a while: a full turn takes four minutes.
- */
+/** Idle drift speed in degrees per second. A full turn takes four minutes. */
 private const val IDLE_SPIN_DEGREES_PER_SECOND = 1.5
 
-/** Seconds of stillness before the idle drift starts again. */
+/** Seconds without input before the idle drift starts. */
 private const val IDLE_DELAY_SECONDS = 4.0f
 
-/** Seconds the idle drift takes to reach full speed, so that it starts without a jolt. */
+/** Seconds for the drift to speed up smoothly. */
 private const val IDLE_RAMP_SECONDS = 2.0f
 
-/** Share of the fling speed that remains after a second, which is how quickly inertia dies away. */
+/** Share of the fling speed left after one second. */
 private const val FLING_RETENTION_PER_SECOND = 0.03f
 
-/** Speed, in degrees per second, below which a fling is treated as finished. */
+/** Below this speed (degrees per second) a fling stops. */
 private const val FLING_STOP_DEGREES_PER_SECOND = 1.0
 
-/** How much of a mouse wheel notch turns into zoom. */
+/** How much one mouse wheel notch zooms. */
 private const val SCROLL_ZOOM_SENSITIVITY = 0.12f
 
-/** Half of the screen: where the centre of the globe sits when nothing is framed. */
+/** The globe's default vertical position, in the middle of the screen. */
 private const val HALF = 0.5f
 
-/** How far a framed country is raised, as a share of the screen's height, to clear the sheet. */
+/** How far a framed country is moved up, so the sheet doesn't cover it. */
 private const val FRAMED_LIFT = 0.16f
 
-/** Seconds a fly-to takes, long enough to read as a journey and short enough not to wait on. */
+/** Duration of a fly-to animation in seconds. */
 private const val FLIGHT_SECONDS = 1.4f
 
-/**
- * Share of the globe's radius at zoom one that a framed country spans, leaving room around it
- * and for the sheet below.
- */
+/** How much of the globe's radius a framed country fills, leaving room for the sheet. */
 private const val FRAME_FILL = 0.7
 
 /**
- * Camera, inertia, idle drift and fly-to animations of the globe.
+ * The globe's camera, inertia, idle drift and fly-to animations.
  *
- * Remembered by [GlobeView] across recompositions. The camera is Compose state read
- * inside the draw lambda, so a new frame redraws the globe without recomposing anything.
+ * The camera is Compose state read only while drawing, so a camera change redraws the globe
+ * without any recomposition.
  */
 internal class GlobeInteractionState {
 
-    /** Orientation and zoom the globe is currently drawn with. */
+    /** The current camera. */
     var camera: GlobeCamera by mutableStateOf(GlobeCamera())
         private set
 
-    /** Size of the area the globe is drawn in, needed to turn a drag in pixels into degrees. */
+    /** Size of the drawing area, used to convert drag pixels into degrees. */
     var viewport: Size by mutableStateOf(Size.Zero)
 
-    /**
-     * How far the centre of the globe sits above the middle of the screen, as a share of its
-     * height: raised while a country is framed, so it shows above the sheet rather than under it.
-     */
+    /** How far the globe is moved up, as a share of the screen height, while a country is framed. */
     private var lift by mutableFloatStateOf(0f)
 
     /**
-     * Whether a flight or the inertia of a fling is still moving the camera, so the frame loop
-     * knows to keep running. Compose state, so the loop can sleep until it turns true again.
+     * Whether a flight or fling is still moving the camera. It's Compose state, so the frame loop can
+     * wait for it instead of running every frame.
      */
     var isMoving: Boolean by mutableStateOf(false)
         private set
@@ -96,7 +87,7 @@ internal class GlobeInteractionState {
 
     private val baseRadius: Float get() = min(viewport.width, viewport.height) * RADIUS_FRACTION
 
-    /** The projection matching what is currently on screen. */
+    /** The projection for what is currently on screen. */
     fun projection(): GlobeProjection = GlobeProjection(
         camera = camera,
         centerX = (viewport.width / 2f).toDouble(),
@@ -104,7 +95,7 @@ internal class GlobeInteractionState {
         baseRadius = baseRadius.toDouble(),
     )
 
-    /** Stops every automatic movement, because the user has taken hold of the globe. */
+    /** Stops all automatic movement because the user grabbed the globe. */
     fun onPressed() {
         flight = null
         flingYaw = 0.0
@@ -122,18 +113,18 @@ internal class GlobeInteractionState {
         )
     }
 
-    /** Magnifies the globe by [factor], within the zoom limits. */
+    /** Zooms by [factor], within the zoom limits. */
     fun onZoomed(factor: Float) {
         stillSeconds = 0f
         camera = camera.zoomedBy(factor.toDouble())
     }
 
-    /** Magnifies the globe in response to a mouse wheel, where [scrollDelta] is in wheel notches. */
+    /** Zooms in response to the mouse wheel. [scrollDelta] is in wheel notches. */
     fun onScrolled(scrollDelta: Float) {
         onZoomed(exp(-scrollDelta * SCROLL_ZOOM_SENSITIVITY))
     }
 
-    /** Lets the globe keep spinning after a drag ends at [velocity] pixels per second. */
+    /** Keeps the globe spinning after a drag that ended at [velocity] pixels per second. */
     fun onReleased(velocity: Velocity) {
         flingYaw = -degreesPerPixel(radius) * velocity.x
         flingPitch = degreesPerPixel(radius) * velocity.y
@@ -141,12 +132,10 @@ internal class GlobeInteractionState {
     }
 
     /**
-     * Advances inertia and idle drift by [seconds].
+     * Advances inertia and idle drift by [seconds]. Called every frame, so it avoids allocations.
      *
-     * Called once per frame, so it must stay free of allocation and of trigonometry.
-     *
-     * @param idle whether the globe may drift on its own. It may not while a country is selected,
-     *   since drifting would carry that country out of view while its sheet is still open.
+     * @param idle whether the globe may drift. It doesn't while a country is selected, or the
+     *   country would drift out of view.
      */
     fun advance(seconds: Float, idle: Boolean) {
         flight?.let { current ->
@@ -177,7 +166,7 @@ internal class GlobeInteractionState {
         }
     }
 
-    /** Flies the camera to frame [region], used when a country is selected. */
+    /** Flies the camera to frame [region]. */
     fun flyToFrame(region: GeoCap) {
         onPressed()
         flight = Flight(
@@ -189,7 +178,7 @@ internal class GlobeInteractionState {
         isMoving = true
     }
 
-    /** Flies the camera back out to the whole globe, keeping the point it faces. */
+    /** Flies back out to show the whole globe. */
     fun flyToWholeGlobe() {
         if (camera.zoom == MIN_ZOOM) return
         onPressed()
@@ -197,7 +186,7 @@ internal class GlobeInteractionState {
         isMoving = true
     }
 
-    /** Fades the idle drift in over [IDLE_RAMP_SECONDS] once the globe has been still long enough. */
+    /** Drift speed factor from 0 to 1, ramping up once the globe has been still long enough. */
     private fun idleRamp(): Double {
         val elapsed = stillSeconds - IDLE_DELAY_SECONDS
         if (elapsed <= 0f) return 0.0
@@ -206,14 +195,12 @@ internal class GlobeInteractionState {
 }
 
 /**
- * Degrees the globe turns per pixel of drag, for a globe drawn at [radius] pixels.
- *
- * A drag at the centre of the globe moves the surface under the finger: the surface arc is the
- * radius times the angle, so the angle is the distance divided by the radius.
+ * Degrees to turn per pixel of drag, for a globe of [radius] pixels. Since arc length is radius
+ * times angle, the angle is the drag distance divided by the radius.
  */
 private fun degreesPerPixel(radius: Float): Double = if (radius <= 0f) 0.0 else DEGREES_PER_HALF_TURN / PI / radius
 
-/** One fly-to animation from [from] to [to], eased so it starts and lands gently. */
+/** One eased fly-to animation from [from] to [to]. */
 private class Flight(
     private val from: GlobeCamera,
     private val to: GlobeCamera,
@@ -226,10 +213,10 @@ private class Flight(
     /** Whether the flight has reached [to]. */
     val isFinished: Boolean get() = elapsed >= FLIGHT_SECONDS
 
-    /** How far the globe is raised at this moment, moving in step with the camera. */
+    /** How far the globe is raised at this point of the flight. */
     val lift: Float get() = fromLift + (toLift - fromLift) * eased
 
-    /** Moves the flight on by [seconds] and returns the camera for that moment. */
+    /** Advances the flight by [seconds] and returns the camera at that point. */
     fun advance(seconds: Float): GlobeCamera {
         elapsed = min(elapsed + seconds, FLIGHT_SECONDS)
         eased = FastOutSlowInEasing.transform(elapsed / FLIGHT_SECONDS)

@@ -10,18 +10,17 @@ import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
-/** Longest fact taken from a Wikipedia article, enough for two plain sentences. */
+/** Maximum length of a fact taken from Wikipedia, about two sentences. */
 private const val MAX_WIKIPEDIA_FACT_LENGTH = 280
 
-/** Shortest a first sentence may be before it is taken as the end of one, which skips "St." and "U.S.". */
+/** Minimum sentence length, so abbreviations like "St." and "U.S." aren't treated as sentence ends. */
 private const val MIN_SENTENCE_LENGTH = 40
 
 private val WHITESPACE_RUN = Regex("\\s+")
 
 /**
- * The guide that needs no AI: it tells the facts and suggests the places bundled with the app for
- * about ten countries, so the app has something to say with no API key at all, and stays quiet
- * about other places.
+ * A guide that works without AI. It uses the bundled stories and places for about ten countries,
+ * so the app works without an API key.
  *
  * @param readStories reads the bundled stories, a JSON object keyed by Wikidata item.
  * @param readPlaces reads the bundled places to visit, a JSON object keyed by Wikidata item.
@@ -41,7 +40,7 @@ internal class DemoGuide(
     override suspend fun suggestPlaces(country: GuidePlace, article: WikiArticle): List<PlaceSuggestion>? =
         country.wikidataId?.let { places.load()[it]?.places }
 
-    /** A bundled file, read and decoded the first time it is needed and kept from then on. */
+    /** A bundled file, read once when first needed. */
     private inner class Bundled<T>(
         private val deserializer: DeserializationStrategy<T>,
         private val read: suspend () -> String,
@@ -56,9 +55,8 @@ internal class DemoGuide(
 }
 
 /**
- * Facts taken straight from a Wikipedia article, for places with no AI or bundled story, so every
- * place still has several true things to say: the article's notable sentences, or failing those,
- * its opening under its own description.
+ * Facts taken directly from a Wikipedia article, for places without an AI or bundled story: its
+ * interesting sentences, or else its first lines.
  */
 internal fun wikipediaFacts(article: WikiArticle, notableFacts: List<String>): List<GuideFact> =
     notableFacts.map { GuideFact(text = it) }.ifEmpty {
@@ -70,12 +68,9 @@ internal fun wikipediaFacts(article: WikiArticle, notableFacts: List<String>): L
         )
     }
 
-/**
- * The opening sentences of [text] that fit in [maxLength] characters, ending on a full stop; or
- * the text cut at a word boundary when even the first sentence is longer.
- */
+/** The first sentences of [text] that fit in [maxLength], or the text cut at a word if one is too long. */
 internal fun leadSentences(text: String, maxLength: Int = MAX_WIKIPEDIA_FACT_LENGTH): String {
-    // Wikipedia leaves a double space where it strips a pronunciation or a native name.
+    // Wikipedia leaves double spaces where it removed pronunciations.
     val trimmed = text.trim().replace(WHITESPACE_RUN, " ")
     if (trimmed.length <= maxLength) return trimmed
     val sentenceEnds = generateSequence(trimmed.indexOf(". ")) { previous ->

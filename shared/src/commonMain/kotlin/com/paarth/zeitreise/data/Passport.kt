@@ -8,33 +8,33 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-/** Key under which the stamped countries are kept. */
+/** Settings key for the stamps. */
 private const val STAMPS_KEY = "passport_stamps"
 
-/** Separates the stamps in the stored text; no Wikidata id or country name holds a line break. */
+/** Separator between stamps in the saved text. Keys never contain a line break. */
 private const val STAMP_SEPARATOR = "\n"
 
-/** The countries the user has visited on the globe, each stamped once, in the order they were first opened. */
+/** The countries the user has opened, each stamped once, in the order they were first opened. */
 public interface Passport {
-    /** The stamps so far, oldest first, as the [passportKey]s of their countries. */
+    /** The [passportKey]s of stamped countries, oldest first. */
     public suspend fun stamps(): List<String>
 
     /**
-     * Stamps [country], unless it already holds a stamp.
+     * Stamps [country] if it isn't stamped yet.
      *
-     * @return whether this was the country's first stamp.
+     * @return `true` if this was a new stamp.
      */
     public suspend fun stamp(country: Country): Boolean
 }
 
 /**
- * Keeps the stamps in the platform's key-value store, so the passport survives the app being closed.
+ * Saves the stamps in the platform's key-value storage.
  *
- * @param dispatcher dispatcher the reads and writes run on, since the first read may touch disk.
+ * @param dispatcher where reads and writes run, since the first read may hit the disk.
  */
 internal class SettingsPassport(private val settings: Settings, private val dispatcher: CoroutineDispatcher) :
     Passport {
-    // Two countries opened in quick succession must not both read the old list and lose a stamp.
+    // Prevents two quick stamps from overwriting each other.
     private val lock = Mutex()
 
     override suspend fun stamps(): List<String> = withContext(dispatcher) { lock.withLock { read() } }

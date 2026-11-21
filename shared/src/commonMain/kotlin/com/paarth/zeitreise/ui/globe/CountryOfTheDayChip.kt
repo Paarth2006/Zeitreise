@@ -22,13 +22,12 @@ import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.country_of_the_day
 import zeitreise.shared.generated.resources.country_of_the_day_label
 
-/** Size of the flag inside the chip, and the gap between it and the name. */
+/** Flag size and the gap between flag and name. */
 private val CHIP_FLAG = DpSize(24.dp, 16.dp)
 private val CHIP_GAP = 8.dp
 
 /**
- * A glass chip naming today's country, with its flag, which opens it when tapped: a reason to come
- * back to the globe tomorrow.
+ * A glass chip showing today's country and its flag. Tapping it opens the country.
  *
  * @param country the country of the day.
  * @param onOpen called with [country] when the chip is tapped.
@@ -39,7 +38,7 @@ internal fun CountryOfTheDayChip(country: Country, onOpen: (Country) -> Unit, mo
     val label = stringResource(Res.string.country_of_the_day_label, country.name)
     GlassButton(
         onClick = { onOpen(country) },
-        // Read as one button, "Country of the day: Peru", rather than as a flag and a name.
+        // Read by screen readers as one button instead of a flag and a name.
         modifier = modifier.clearAndSetSemantics { contentDescription = label },
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(CHIP_GAP)) {

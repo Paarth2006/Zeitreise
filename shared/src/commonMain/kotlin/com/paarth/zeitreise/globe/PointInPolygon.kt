@@ -3,14 +3,12 @@ package com.paarth.zeitreise.globe
 /**
  * Whether [point] falls inside the ring described by [vertices].
  *
- * Uses the even-odd ray casting rule in longitude-latitude space: a ray is cast east from the
- * point and the crossings of the ring's edges are counted. Testing in geographic space rather than
- * on screen keeps the result independent of the camera, so hit testing never has to be redone
- * when the globe turns.
+ * Uses even-odd ray casting in longitude-latitude space: a ray goes east from the point and the
+ * edges it crosses are counted. Working in degrees instead of screen pixels means the result does
+ * not depend on the camera.
  *
- * The ring is treated as closed, whether or not its last vertex repeats its first. Rings that
- * straddle the antimeridian must be split before they are tested; the Natural Earth outlines the
- * app bundles are already split.
+ * The ring is treated as closed. Rings crossing the antimeridian have to be split first, which the
+ * bundled Natural Earth outlines already are.
  *
  * @param vertices packed `longitude, latitude` pairs.
  */
@@ -44,5 +42,5 @@ internal fun isPointInRing(point: GeoPoint, vertices: DoubleArray): Boolean {
     return inside
 }
 
-/** A ring needs at least three vertices, so six packed values, to enclose anything. */
+/** A ring needs at least three vertices (six packed values) to enclose an area. */
 private const val MIN_RING_VALUES = 6

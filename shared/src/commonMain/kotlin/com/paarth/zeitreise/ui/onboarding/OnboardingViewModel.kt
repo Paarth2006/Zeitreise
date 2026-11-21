@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.launch
 
-/** Moves the onboarding along as the user acts, and remembers once it is over. */
+/** Moves the onboarding forward and saves when it's done. */
 internal class OnboardingViewModel(private val store: OnboardingStore) : ViewModel() {
 
     private val _step = MutableStateFlow<OnboardingStep>(OnboardingStep.Checking)
@@ -24,7 +24,7 @@ internal class OnboardingViewModel(private val store: OnboardingStore) : ViewMod
         }
     }
 
-    /** Applies [event], saving the onboarding as complete when it finishes. */
+    /** Handles [event] and saves the onboarding as done when it finishes. */
     fun onEvent(event: OnboardingEvent) {
         val previous = _step.getAndUpdate { it.after(event) }
         if (previous != OnboardingStep.Finished && _step.value == OnboardingStep.Finished) {

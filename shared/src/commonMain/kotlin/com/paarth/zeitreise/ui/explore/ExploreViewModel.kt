@@ -15,30 +15,25 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Finds places to visit in a country when the user asks, and holds the place card that is open.
- *
- * Every state names its country, so the screen shows pins only while that country is selected,
- * and coming back to it shows the same pins again without asking the guide twice.
+ * Finds places to visit and holds the open place card. Each state remembers its country, so
+ * going back to a country shows the same pins without another request.
  */
 public class ExploreViewModel(private val explore: ExploreRepository) : ViewModel() {
 
     private val _state = MutableStateFlow<ExploreState>(ExploreState.Idle)
 
-    /** The places found, or being found, for the country the user last explored. */
+    /** The places for the last explored country. */
     public val state: StateFlow<ExploreState> = _state.asStateFlow()
 
     private val _openCard = MutableStateFlow<LandmarkCard?>(null)
 
-    /** The place card that is open, or `null` when none is. */
+    /** The open place card, or `null`. */
     public val openCard: StateFlow<LandmarkCard?> = _openCard.asStateFlow()
 
     private var exploreJob: Job? = null
     private var factsJob: Job? = null
 
-    /**
-     * Asks the guide for places to visit in [country], unless they are already found or being
-     * found, so one tap costs one request at most.
-     */
+    /** Finds places in [country], unless they are already loaded or loading. */
     public fun explore(country: Country) {
         val current = _state.value
         val alreadyHere = (current is ExploreState.Loading && current.country == country) ||
@@ -52,13 +47,13 @@ public class ExploreViewModel(private val explore: ExploreRepository) : ViewMode
                 .onFailure { if (it is CancellationException) throw it }
                 .fold(
                     onSuccess = { ExploreState.Ready(country, it) },
-                    // Wikipedia could not be reached; the sheet offers to try again.
+                    // Wikipedia couldn't be reached, so the sheet shows Try again.
                     onFailure = { ExploreState.Failed(country) },
                 )
         }
     }
 
-    /** Opens the card for [landmark] and loads a few facts about it. */
+    /** Opens the card for [landmark] and loads some facts. */
     public fun open(landmark: Landmark) {
         factsJob?.cancel()
         _openCard.value = LandmarkCard(landmark)
@@ -68,7 +63,7 @@ public class ExploreViewModel(private val explore: ExploreRepository) : ViewMode
         }
     }
 
-    /** Opens the card for a landmark of the past, once its Wikipedia article has been read. */
+    /** Opens the card for a historic landmark once its article is loaded. */
     public fun openHistoric(pin: HistoricLandmark) {
         factsJob?.cancel()
         factsJob = viewModelScope.launch { explore.landmarkFor(pin)?.let(::open) }

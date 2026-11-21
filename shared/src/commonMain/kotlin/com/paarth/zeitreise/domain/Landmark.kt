@@ -3,31 +3,28 @@ package com.paarth.zeitreise.domain
 import com.paarth.zeitreise.globe.GeoPoint
 import com.paarth.zeitreise.globe.angleTo
 
-/**
- * How far outside a country's outlines, in degrees, a place still counts as in it: about 150 km,
- * enough for a reef or an island just off the coast, not enough for a namesake abroad.
- */
+/** How far outside a country's outlines a place may be (about 150 km), so nearby islands still count. */
 private const val COAST_MARGIN_DEGREES = 1.5
 
 /**
  * A place worth visiting, pinned on the globe.
  *
- * The guide only ever names it; where it is, what it looks like and what it is come from its
- * Wikipedia article, so a pin can never stand on a made-up spot.
+ * The guide only gives the name. The location and photo come from Wikipedia, so a pin can't land
+ * on a made-up spot.
  *
- * @property name the name the guide gave the place.
- * @property article the place's Wikipedia article, which has coordinates.
- * @property location where the pin stands, taken from [article].
+ * @property name the name the guide gave.
+ * @property article the place's Wikipedia article.
+ * @property location the pin's position, taken from [article].
  */
 public data class Landmark(override val name: String, val article: WikiArticle, override val location: GeoPoint) :
     Pinned
 
 /**
- * The places worth visiting in a country.
+ * Places worth visiting in a country.
  *
- * @property landmarks the places, each checked against Wikipedia; empty when none could be found.
- * @property source who chose them: the AI guide or the bundled list.
- * @property notice why the AI guide did not choose them, when it was asked and could not.
+ * @property landmarks the places, all checked against Wikipedia. Empty if none were found.
+ * @property source who picked them: the AI guide or the bundled list.
+ * @property notice why the AI guide didn't pick them, if it failed.
  */
 public data class PlacesToVisit(
     val landmarks: List<Landmark>,
@@ -36,9 +33,8 @@ public data class PlacesToVisit(
 )
 
 /**
- * Whether [point] lies on or just off one of this country's landmasses: inside an outline's
- * bounding circle widened by a coastal margin. Lenient on purpose, since it only has to catch a
- * place the guide put in the wrong country.
+ * Whether [point] is on or near one of this country's landmasses. It is lenient on purpose: it only
+ * needs to catch places the guide put in the wrong country.
  */
 public fun Country.isNear(point: GeoPoint): Boolean = outlines.any { outline ->
     val bounds = outline.exterior.bounds

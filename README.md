@@ -22,7 +22,7 @@
 - [Credits](#credits)
 - [License](#license)
 
-**Zeitreise** (German for "time travel") is a cross-platform app for Android, iOS and the web that turns geography into something you can touch. You spin a 3D globe, tap any country to meet it, and an AI guide grounded in Wikipedia tells you something surprising about it and drops pins on the places worth a visit. Press the hourglass and the borders melt back through 54 historical maps, from 123,000 BC to 2010, while famous landmarks rise and fall with the years. A globe quiz, a passport of stamps and a country of the day turn exploring into a habit. One Kotlin codebase runs all three platforms, with 99% of the code shared.
+**Zeitreise** (German for "time travel") is a cross-platform app for Android, iOS and the web that turns geography into something you can touch. You spin a 3D globe, tap any country to meet it, and an AI guide grounded in Wikipedia tells you something surprising about it and drops pins on the places worth a visit. Press Time Travel and the borders melt back through 54 historical maps, from 123,000 BC to 2010, while famous landmarks rise and fall with the years. A globe quiz, a passport of stamps and a country of the day turn exploring into a habit. One Kotlin codebase runs all three platforms, with 99% of the code shared.
 
 ## Motivation and Background
 
@@ -36,7 +36,7 @@ When I heard about the Kotlin Multiplatform Contest, I wanted to find out how fa
   * Drag to turn the globe, with inertia when you let go; pinch or scroll to zoom
   * All 242 countries and territories, with borders, a graticule, an atmosphere glow and a starfield
   * Tap a country to fly to it; its states and provinces fade in with their names and can be tapped too
-  * Search for any country or state
+  * Search for any country or state, with a glass toolbar above it for Time Travel, the quiz, the passport and About
   * A slow drift when left alone, and no drawing at all while the globe is still, so it costs no battery
 
 * **Countries**
@@ -48,6 +48,7 @@ When I heard about the Kotlin Multiplatform Contest, I wanted to find out how fa
   * "Explore places" asks the guide for about eight places worth a visit
   * Every place is checked against Wikipedia, which supplies its location and photo
   * Pins drop onto the globe one by one; tap one for a card with its photo, summary and facts
+  * Pins never overlap: where two places are too close to tell apart, one is shown until you zoom in, so every pin opens exactly one place
 
 * **Time Travel**
   * A year slider through 54 historical maps, from 123,000 BC to 2010
@@ -196,6 +197,7 @@ The app opens at `http://localhost:8080`. Use Chrome or another Chromium-based b
 * Country, state and province outlines: [Natural Earth](https://www.naturalearthdata.com/), in the public domain.
 * Historical borders: [historical-basemaps](https://github.com/aourednik/historical-basemaps) by André Ourednik and contributors, under the [GNU GPL 3.0](https://www.gnu.org/licenses/gpl-3.0.html). They are downloaded while the app runs and are not part of this repository.
 * Landmark locations and dates, and each country's capitals: [Wikidata](https://www.wikidata.org/), in the public domain (CC0).
+* Toolbar icons: [Material Symbols](https://fonts.google.com/icons) by Google, under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
 * Flags: [Wikimedia Commons](https://commons.wikimedia.org/), where most flags are in the public domain. They are downloaded while the app runs and are not part of this repository.
 * Place descriptions and facts: [Wikipedia](https://www.wikipedia.org/), under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 

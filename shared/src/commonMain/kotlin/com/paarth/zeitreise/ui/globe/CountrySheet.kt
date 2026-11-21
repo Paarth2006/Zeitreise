@@ -31,12 +31,11 @@ import zeitreise.shared.generated.resources.country_capitals
 import zeitreise.shared.generated.resources.passport_new_stamp
 
 /**
- * The glass sheet naming the selected country, or the state tapped inside it, above [content]:
- * what the guide has to say and the places to explore.
+ * The glass sheet for the selected country (or state), with [content] below the header.
  *
  * @param country the selected country, or `null` to hide the sheet.
- * @param subdivision the state tapped inside [country], which the sheet names instead, if any.
- * @param newStamp whether opening [country] just earned it its first stamp in the passport.
+ * @param subdivision the selected state inside [country], if any.
+ * @param newStamp whether [country] was just stamped in the passport for the first time.
  * @param onClose called when the close button is tapped.
  * @param modifier applied to the root element.
  */
@@ -49,7 +48,7 @@ internal fun CountrySheet(
     newStamp: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    // The sheet has to keep naming a country while it slides away, after the selection is gone.
+    // Keep showing the last country while the sheet slides away.
     var lastNamed by remember { mutableStateOf<Country?>(null) }
     LaunchedEffect(country) { if (country != null) lastNamed = country }
     val shown = country ?: lastNamed
@@ -74,7 +73,7 @@ internal fun CountrySheet(
     }
 }
 
-/** "South America · Capital Lima", or just the continent for a land with no capital. */
+/** Subtitle like "South America · Capital Lima", or just the continent if there is no capital. */
 @Composable
 private fun countrySubtitle(country: Country): String {
     val capitals = country.facts.capitals
@@ -83,7 +82,7 @@ private fun countrySubtitle(country: Country): String {
     return "${country.continent} · $capitalText"
 }
 
-/** "State · India", or just the country's name where the state's kind is unknown. */
+/** Subtitle like "State · India", or just the country name if the kind is unknown. */
 private fun Subdivision.subtitleIn(country: Country?): String {
     val countryName = country?.name.orEmpty()
     return if (kind.isBlank()) countryName else "$kind · $countryName"

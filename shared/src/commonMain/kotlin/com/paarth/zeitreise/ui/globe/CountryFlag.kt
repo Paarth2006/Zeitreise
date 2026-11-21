@@ -16,22 +16,21 @@ import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.country_flag
 
-/** Size a flag is drawn in a sheet: three by two, the shape most flags have. */
+/** Default flag size, 3:2 like most flags. */
 internal val FLAG_SIZE = DpSize(42.dp, 28.dp)
 
-/** Rounding of a flag's corners, and the hairline around it that keeps a white flag visible on the glass. */
+/** Corner radius and border width. The border keeps white flags visible on the glass. */
 private val FLAG_CORNER = RoundedCornerShape(4.dp)
 private val FLAG_BORDER = 0.5.dp
 
-/** Opacity of the hairline around a flag. */
+/** Opacity of the border. */
 private const val FLAG_BORDER_ALPHA = 0.2f
 
 /**
- * The flag of [country], downloaded from Wikimedia Commons; nothing at all when the country has
- * no flag, and an empty frame until the picture arrives.
+ * Shows the flag of [country], loaded from Wikimedia Commons. Shows nothing if the country has no flag.
  *
  * @param modifier applied to the root element.
- * @param size how large to draw the flag; a flag of another shape is fitted inside it.
+ * @param size the size to draw the flag at.
  */
 @Composable
 internal fun CountryFlag(country: Country, modifier: Modifier = Modifier, size: DpSize = FLAG_SIZE) {

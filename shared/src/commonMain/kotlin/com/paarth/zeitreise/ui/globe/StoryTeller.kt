@@ -6,14 +6,12 @@ import com.paarth.zeitreise.data.GuideRepository
 import kotlinx.coroutines.CancellationException
 
 /**
- * Turns a selected place into what the sheet shows about it, and moves through its facts.
- *
- * Every visit to a place, and every tap on "Next fact", moves on to the next fact, so tapping a
- * place again tells something new rather than repeating itself.
+ * Loads the story for a selected place and moves through its facts. Each visit and each tap on
+ * "Next fact" shows the next fact, so the same place shows something new next time.
  */
 internal class StoryTeller(private val guide: GuideRepository, private val factCursor: FactCursor) {
 
-    /** What to show for [place]: its story, or why there is none; [StoryState.Idle] for no place. */
+    /** The story state for [place], or [StoryState.Idle] if it's `null`. */
     suspend fun storyFor(place: GuidePlace?): StoryState {
         if (place == null) return StoryState.Idle
         val answer = runCatching { guide.storyFor(place) }
@@ -27,7 +25,7 @@ internal class StoryTeller(private val guide: GuideRepository, private val factC
         )
     }
 
-    /** The same story showing its next fact, starting over after the last one. */
+    /** The same story showing its next fact, wrapping around after the last. */
     fun nextFact(state: StoryState.Ready): StoryState.Ready =
         state.copy(factIndex = factCursor.next(state.answer.article.title, state.answer.facts.size))
 }

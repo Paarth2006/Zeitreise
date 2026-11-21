@@ -21,8 +21,8 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
 /**
- * Identifies the app to Wikimedia, as its API policy asks of every client. Browsers forbid setting
- * `User-Agent`, so Wikimedia reads this header instead on every platform.
+ * Identifies the app to Wikimedia, as their API policy requires. Browsers don't allow setting
+ * `User-Agent`, so this header is used instead.
  */
 private const val API_USER_AGENT = "Zeitreise/1.0 (https://github.com/Paarth2006/Zeitreise)"
 
@@ -32,38 +32,36 @@ private const val WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 
 private val STRING_LIST = ListSerializer(String.serializer())
 
-/** The English Wikipedia, as Wikidata names it among an item's site links. */
+/** Wikidata's site id for English Wikipedia. */
 private const val ENGLISH_WIKIPEDIA = "enwiki"
 
-/** The summary type of a page that only lists other articles, which has nothing to say itself. */
+/** Summary type of a disambiguation page, which has no real content. */
 private const val DISAMBIGUATION = "disambiguation"
 
 /** Finds the Wikipedia article for a place. */
 public interface WikipediaRepository {
     /**
-     * The summary of the article for the place with the Wikidata item [wikidataId], or of the
-     * article titled [fallbackTitle] when the place has no item.
+     * The article summary for Wikidata item [wikidataId], or for [fallbackTitle] if there is no item.
      *
-     * @return the summary, or `null` when no such article exists.
-     * @throws Exception when Wikipedia cannot be reached; a missing article is not an error.
+     * @return the summary, or `null` if there is no such article.
+     * @throws Exception if Wikipedia can't be reached. A missing article is not an error.
      */
     public suspend fun article(wikidataId: String?, fallbackTitle: String): WikiArticle?
 
     /**
-     * The sentences of [article]'s full text most likely to be surprising facts, spread across the
-     * whole article, or an empty list when the full text cannot be read. Never throws for that:
-     * the opening paragraph is always enough to go on.
+     * Interesting sentences from the full text of [article], or an empty list if the text can't be
+     * loaded. The summary alone is still enough, so this never throws.
      */
     public suspend fun notableFacts(article: WikiArticle): List<String>
 }
 
 /**
- * Looks articles up over the Wikipedia and Wikidata web APIs, and keeps each one it finds.
+ * Looks up articles through the Wikipedia and Wikidata APIs and caches them.
  *
- * The Wikidata item gives the article's exact title, so a place is never matched to a namesake by
- * guessing; the title then gives the summary from the Wikipedia REST API.
+ * The Wikidata item gives the exact article title, so places are never matched to the wrong
+ * article. The title is then used to get the summary from the Wikipedia REST API.
  *
- * @param dispatcher dispatcher the requests and parsing run on, keeping the main thread free.
+ * @param dispatcher where requests and parsing run, off the main thread.
  */
 internal class KtorWikipediaRepository(
     private val client: HttpClient,
@@ -87,7 +85,7 @@ internal class KtorWikipediaRepository(
         val text = try {
             fullText(article.title)
         } catch (_: IllegalStateException) {
-            // A failed request: the article's opening is still there to go on.
+            // The request failed, but the summary is still enough.
             null
         } catch (_: IOException) {
             null
@@ -95,7 +93,7 @@ internal class KtorWikipediaRepository(
         text?.let(::notableSentences)?.also { cache.put(key, json.encodeToString(STRING_LIST, it)) }.orEmpty()
     }
 
-    /** The article's whole text, without markup, from the action API's text extracts. */
+    /** The article's full plain text from the action API. */
     private suspend fun fullText(title: String): String? {
         val response = client.get(WIKIPEDIA_API) {
             header(API_USER_AGENT_HEADER, API_USER_AGENT)
@@ -115,7 +113,7 @@ internal class KtorWikipediaRepository(
         ).query?.pages?.firstOrNull()?.extract
     }
 
-    /** The English Wikipedia title of the Wikidata item [wikidataId], if it has an article there. */
+    /** The English Wikipedia title for [wikidataId], if it has one. */
     private suspend fun englishTitle(wikidataId: String): String? {
         val response = client.get(WIKIDATA_API) {
             header(API_USER_AGENT_HEADER, API_USER_AGENT)
@@ -124,7 +122,7 @@ internal class KtorWikipediaRepository(
             parameter("props", "sitelinks")
             parameter("sitefilter", ENGLISH_WIKIPEDIA)
             parameter("format", "json")
-            // Lets a browser read the answer: the action API only sends CORS headers when asked.
+            // Needed on the web: the action API only sends CORS headers when this is set.
             parameter("origin", "*")
         }.requireSuccess()
         val entities = json.decodeFromString(WikidataEntities.serializer(), response.bodyAsText())
@@ -159,7 +157,7 @@ internal class KtorWikipediaRepository(
     }
 }
 
-/** The part of an action API `extracts` answer the app reads. */
+/** The fields read from an action API `extracts` response. */
 @Serializable
 private data class WikiExtracts(val query: WikiQuery? = null)
 
@@ -169,7 +167,7 @@ private data class WikiQuery(val pages: List<WikiPageText> = emptyList())
 @Serializable
 private data class WikiPageText(val extract: String? = null)
 
-/** The part of a Wikidata `wbgetentities` answer the app reads. */
+/** The fields read from a Wikidata `wbgetentities` response. */
 @Serializable
 private data class WikidataEntities(val entities: Map<String, WikidataEntity> = emptyMap())
 
@@ -179,7 +177,7 @@ private data class WikidataEntity(val sitelinks: Map<String, WikidataSitelink>? 
 @Serializable
 private data class WikidataSitelink(val title: String)
 
-/** The part of a Wikipedia REST page summary the app reads. */
+/** The fields read from a Wikipedia REST page summary. */
 @Serializable
 private data class WikiSummary(
     val type: String = "",

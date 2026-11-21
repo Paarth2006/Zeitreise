@@ -6,10 +6,10 @@ import kotlin.math.atan2
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/** Below this length the mean of a ring's vectors has no meaningful direction. */
+/** Below this length the average of a ring's vectors has no usable direction. */
 private const val DEGENERATE_LENGTH = 1e-9
 
-/** Angular radius from which a region covers the whole visible hemisphere. */
+/** Radius at which a region covers the whole visible hemisphere. */
 private const val HEMISPHERE_DEGREES = 90.0
 
 /**
@@ -22,9 +22,8 @@ public data class GeoCap(val center: GeoPoint, val radiusDegrees: Double) {
     /**
      * The zoom at which this region spans [fill] of the globe's radius at zoom one.
      *
-     * In an orthographic view a point at angle θ from the centre lands at `sin θ` of the radius,
-     * so the region's edge reaches `zoom · sin θ`. Solving for the zoom that puts the edge at
-     * [fill] gives `fill / sin θ`, which the camera's limits then clamp.
+     * In an orthographic view a point at angle θ from the centre lands at `sin θ` of the radius, so
+     * the zoom is `fill / sin θ`, clamped to the camera's limits.
      */
     public fun framingZoom(fill: Double): Double {
         val reach = sin(radiusDegrees.toRadians())
@@ -39,9 +38,8 @@ public data class GeoCap(val center: GeoPoint, val radiusDegrees: Double) {
 /**
  * The cap that holds every vertex of packed `x, y, z` unit-sphere triples.
  *
- * Centred on the normalised mean of the vertices, which is cheap and, for a single landmass,
- * close to the smallest enclosing cap. A ring whose vertices cancel out, such as a band around a
- * pole, is centred on its first vertex instead.
+ * It is centred on the average of the vertices, which is cheap and close enough for one landmass.
+ * If the vertices cancel out, like a band around a pole, the first vertex is used as the centre.
  */
 internal fun boundingCap(sphere: DoubleArray): GeoCap {
     require(sphere.size >= SPHERE_STRIDE) { "A cap needs at least one vertex, got ${sphere.size} values" }
@@ -73,10 +71,7 @@ internal fun boundingCap(sphere: DoubleArray): GeoCap {
     return GeoCap(center = center.toGeoPoint(), radiusDegrees = widest.toDegrees())
 }
 
-/**
- * The smallest cap holding both this cap and [other], for framing two regions at once: it spans
- * the arc through both centres, from the far edge of one to the far edge of the other.
- */
+/** The smallest cap that holds both this cap and [other], used to frame two regions at once. */
 internal infix fun GeoCap.union(other: GeoCap): GeoCap {
     val apart = center.angleTo(other.center)
     return when {
@@ -93,8 +88,8 @@ internal infix fun GeoCap.union(other: GeoCap): GeoCap {
 }
 
 /**
- * The point [fraction] of the way along the great circle from this point to [other]. Opposite
- * points have no single great circle between them, so this point is kept.
+ * The point [fraction] of the way along the great circle to [other]. For opposite points there is
+ * no single great circle, so this point is returned.
  */
 private fun GeoPoint.towards(other: GeoPoint, fraction: Double): GeoPoint {
     val from = toSpherePoint()

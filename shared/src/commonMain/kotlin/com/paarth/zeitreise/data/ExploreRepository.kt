@@ -17,19 +17,16 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.io.IOException
 
-/** Most facts shown on a place's card, taken from its Wikipedia article. */
+/** Maximum number of facts on a place's card. */
 private const val MAX_LANDMARK_FACTS = 3
 
-/** Share of a fact's words already in the summary at which the card would only be repeating itself. */
+/** If this share of a fact's words is already in the summary, the fact is a repeat. */
 private const val REPEAT_SHARE = 0.6
 
-/** Words shorter than this, such as "the" and "of", say nothing about whether a fact is new. */
+/** Short words like "the" and "of" are ignored when comparing. */
 private const val MIN_TELLING_WORD_LENGTH = 4
 
-/**
- * Whether [fact] mostly says what [summary] already says, as the article's first sentence does,
- * which the card shows just above its facts.
- */
+/** Whether [fact] mostly repeats [summary], which is shown just above the facts. */
 internal fun repeats(fact: String, summary: String): Boolean {
     val known = tellingWords(summary).toSet()
     val words = tellingWords(fact)
@@ -41,7 +38,7 @@ private val NON_WORD = Regex("[^\\p{L}\\p{N}]+")
 private fun tellingWords(text: String): List<String> =
     text.lowercase().split(NON_WORD).filter { it.length >= MIN_TELLING_WORD_LENGTH }
 
-/** Finds the places worth visiting in a country, and what to say about each. */
+/** Finds places worth visiting in a country and facts about each. */
 public interface ExploreRepository {
     /**
      * The places worth visiting in [country], each checked against Wikipedia.
@@ -50,22 +47,21 @@ public interface ExploreRepository {
      */
     public suspend fun placesToVisit(country: Country): PlacesToVisit
 
-    /** A few notable facts from [landmark]'s Wikipedia article; empty when it cannot be read. */
+    /** A few facts from [landmark]'s Wikipedia article, or an empty list if it can't be read. */
     public suspend fun factsAbout(landmark: Landmark): List<String>
 
-    /** The card's landmark for the historic landmark [pin], or `null` when its article cannot be read. */
+    /** The landmark to show for the historic [pin], or `null` if its article can't be read. */
     public suspend fun landmarkFor(pin: HistoricLandmark): Landmark?
 }
 
 /**
- * Asks the AI guide for places to visit, or the bundled list when the AI cannot answer, then
- * checks every place against Wikipedia before it becomes a pin.
+ * Gets places to visit from the AI guide (or the bundled list if the AI can't answer) and checks
+ * each one against Wikipedia before it becomes a pin.
  *
- * A place is kept only if its article exists, has coordinates, and puts the place in or just off
- * the country; whatever the guide got wrong is dropped, never shown. The articles are looked up
- * at the same time, so eight places take about as long as one.
+ * A place is kept only if its article exists, has coordinates and is in or near the country, so
+ * anything the guide got wrong is dropped. The articles are fetched in parallel.
  *
- * @param aiGuide the AI guide, or `null` when no API key is set.
+ * @param aiGuide the AI guide, or `null` if no API key is set.
  */
 internal class GuidedExploreRepository(
     private val wikipedia: WikipediaRepository,
@@ -94,7 +90,7 @@ internal class GuidedExploreRepository(
     override suspend fun landmarkFor(pin: HistoricLandmark): Landmark? =
         lookUp(pin.wikipediaTitle)?.let { article -> Landmark(pin.name, article, article.location ?: pin.location) }
 
-    /** The suggestions whose Wikipedia articles place them in [country], in the guide's order. */
+    /** The suggestions whose articles put them in [country], in the guide's order. */
     private suspend fun verify(suggestions: List<PlaceSuggestion>, country: Country): List<Landmark> = coroutineScope {
         suggestions
             .map { suggestion -> async { resolve(suggestion, country) } }
@@ -109,17 +105,17 @@ internal class GuidedExploreRepository(
         return if (article != null && location != null) Landmark(suggestion.name, article, location) else null
     }
 
-    /** The article titled [title], or `null` when it is missing or cannot be read right now. */
+    /** The article titled [title], or `null` if it is missing or can't be loaded. */
     private suspend fun lookUp(title: String): WikiArticle? = try {
         wikipedia.article(wikidataId = null, fallbackTitle = title)
     } catch (_: IllegalStateException) {
-        // One place failing to load costs only its own pin.
+        // If one place fails to load, only that pin is skipped.
         null
     } catch (_: IOException) {
         null
     }
 
-    /** The AI's places, or why there are none: no notice when no AI guide is set up at all. */
+    /** The AI's places, or the reason there are none. No notice if there is no AI guide at all. */
     private suspend fun askAi(place: GuidePlace, article: WikiArticle): Pair<List<PlaceSuggestion>?, GuideNotice?> =
         if (aiGuide == null) {
             null to null

@@ -1,20 +1,20 @@
 package com.paarth.zeitreise.domain
 
-/** Results shown for one query; enough to choose from without scrolling. */
+/** Maximum number of search results. */
 public const val MAX_SEARCH_RESULTS: Int = 8
 
 /**
- * The name of a state and the country it belongs to, as listed in the bundled state index, so a
- * state can be found without loading every country's outlines.
+ * A state's name and its country, from the bundled index. This lets search find states without
+ * loading every country's outlines.
  *
  * @property name the state's English name.
  * @property countryCode the ISO 3166-1 alpha-2 code of its country.
  */
 public data class SubdivisionName(val name: String, val countryCode: String)
 
-/** A place a search found. */
+/** A search result. */
 public sealed interface SearchResult {
-    /** The name shown in the result list. */
+    /** The name shown in the results. */
     public val name: String
 
     /** A country whose name matches the query. */
@@ -22,19 +22,19 @@ public sealed interface SearchResult {
         override val name: String get() = country.name
     }
 
-    /** A state whose name matches the query, with the country it is in. */
+    /** A state whose name matches the query, and its country. */
     public data class SubdivisionMatch(override val name: String, val country: Country) : SearchResult
 }
 
-/** How well a name matches a query; lower is better, and [None] means no match at all. */
+/** How well a name matches a query. Lower is better, [None] means no match. */
 private enum class MatchQuality { Exact, Prefix, WordPrefix, Substring, None }
 
 /**
  * Finds the countries and states whose names match [query], best first.
  *
- * Exact names come first, then names that start with the query, then names with a word that
- * starts with it, then names that merely contain it. A country ranks above a state of the same
- * quality. Case and common accents are ignored, so "entre rios" finds "Entre Ríos".
+ * Exact matches come first, then names starting with the query, then names with a word starting
+ * with it, then names containing it. Countries come before states. Case and accents are ignored,
+ * so "entre rios" finds "Entre Ríos".
  *
  * @param subdivisions every state's name and country, resolved against [countries] by ISO code.
  * @return at most [limit] results, or none for a blank query.
@@ -56,7 +56,7 @@ public fun searchPlaces(
     }
     return (countryMatches + subdivisionMatches)
         .filter { (_, quality) -> quality != MatchQuality.None }
-        // A stable sort keeps countries ahead of states of the same quality.
+        // The sort is stable, so countries stay ahead of states with the same rank.
         .sortedBy { (_, quality) -> quality }
         .take(limit)
         .map { (result, _) -> result }
@@ -73,7 +73,7 @@ private fun String.matchQuality(needle: String): MatchQuality {
     }
 }
 
-/** Accented letters common in place names, mapped to the plain letters people type instead. */
+/** Common accented letters mapped to plain ones. */
 private val PLAIN_LETTERS: Map<Char, Char> = buildMap {
     "áàâäãåā".forEach { put(it, 'a') }
     "éèêëē".forEach { put(it, 'e') }
@@ -87,5 +87,5 @@ private val PLAIN_LETTERS: Map<Char, Char> = buildMap {
     put('ğ', 'g')
 }
 
-/** Lower-cases the text, drops common accents and trims it, so matching ignores both. */
+/** Lower-cases and trims the text and removes common accents. */
 internal fun String.foldForSearch(): String = trim().lowercase().map { PLAIN_LETTERS[it] ?: it }.joinToString("")

@@ -19,13 +19,13 @@ import kotlinx.coroutines.withContext
 import kotlinx.io.IOException
 import kotlinx.serialization.json.Json
 
-/** The model the guide talks to: a current Gemini Flash model, fast and within the free tier. */
+/** The Gemini model used. Flash models are fast and in the free tier. */
 internal val GUIDE_MODEL: LLModel = GoogleModels.Gemini3_7Flash
 
-/** Low enough that the guide sticks to the article, high enough that it does not sound canned. */
+/** Low enough to stick to the article, high enough not to sound robotic. */
 private const val GUIDE_TEMPERATURE = 0.4
 
-/** The HTTP status Gemini answers with when the free quota is used up. */
+/** HTTP status Gemini returns when the free quota is used up. */
 private const val TOO_MANY_REQUESTS = 429
 
 private val GUIDE_INSTRUCTIONS = """
@@ -41,10 +41,7 @@ private val GUIDE_INSTRUCTIONS = """
     Never invent numbers, dates or names that the text does not contain.
 """.trimIndent()
 
-/**
- * What the guide is told when the traveller has gone back in time: to speak from that year, and
- * to say so plainly rather than invent anything when the article is silent about it.
- */
+/** Extra instructions for Time Travel: talk from that year and don't invent anything. */
 private fun timeTravelInstructions(year: String) = """
     You are Zeitreise's time-travelling guide. The traveller has just arrived in $year and is
     looking at the place below. You are given its Wikipedia article and further sentences from it.
@@ -73,14 +70,13 @@ private val PLACES_INSTRUCTIONS = """
 """.trimIndent()
 
 /**
- * The AI guide: asks Gemini, through JetBrains' Koog framework, for several facts grounded on the
- * place's Wikipedia article in a single request, and keeps every answer, so a place costs one
- * request at most however often it is opened.
+ * The AI guide. It asks Gemini (through Koog) for several facts based on the Wikipedia article in
+ * one request, and caches the answer, so each place costs at most one request.
  *
- * [tell] and [suggestPlaces] throw [GuideUnavailableException] when Gemini cannot answer, so the
- * caller can fall back to the bundled stories and places.
+ * [tell] and [suggestPlaces] throw [GuideUnavailableException] if Gemini can't answer, so the caller
+ * can fall back to the bundled content.
  *
- * @param dispatcher dispatcher the request and parsing run on, keeping the main thread free.
+ * @param dispatcher where requests and parsing run, off the main thread.
  */
 internal class GeminiGuide(
     private val client: LLMClient,
@@ -91,7 +87,7 @@ internal class GeminiGuide(
 
     override suspend fun tell(place: GuidePlace, article: WikiArticle, notableFacts: List<String>): GuideStory =
         withContext(dispatcher) {
-            // A visit to another year is another story, so each year is kept apart.
+            // Each year gets its own cache entry, since the story is different.
             val key = "story.${place.wikidataId ?: place.name}${place.year?.let { "@$it" }.orEmpty()}"
             cache.get(key)?.let { return@withContext json.decodeFromString(GuideStory.serializer(), it) }
 
@@ -112,7 +108,7 @@ internal class GeminiGuide(
             places
         }
 
-    /** Sends [prompt] to Gemini and returns its text, turning every failure into one exception. */
+    /** Sends [prompt] to Gemini and returns the text. Any failure becomes [GuideUnavailableException]. */
     private suspend fun ask(prompt: Prompt): String = try {
         client.execute(prompt, GUIDE_MODEL, emptyList()).textContent()
     } catch (cause: KoogHttpClientException) {
@@ -137,7 +133,7 @@ internal class GeminiGuide(
         )
     }
 
-    /** The prompt for [place]'s story: of today, or of the year the traveller is visiting. */
+    /** Builds the prompt for [place], for today or for the year being visited. */
     private fun storyPrompt(place: GuidePlace, article: WikiArticle, notableFacts: List<String>) = prompt(
         id = "zeitreise-place-story",
         params = LLMParams(temperature = GUIDE_TEMPERATURE),
@@ -157,7 +153,7 @@ internal class GeminiGuide(
     }
 
     companion object {
-        /** Builds the guide on Koog's Gemini client, sending its requests through [httpClient]. */
+        /** Creates the guide using Koog's Gemini client and the given [httpClient]. */
         fun create(
             apiKey: String,
             httpClient: HttpClient,
@@ -174,14 +170,14 @@ internal class GeminiGuide(
     }
 }
 
-/** Whether [this] or anything that caused it is Gemini saying the free quota is used up. */
+/** Whether this exception (or its cause) means the free quota is used up. */
 private fun Throwable.isRateLimit(): Boolean =
     generateSequence(this) { it.cause }.any { (it as? KoogHttpClientException)?.statusCode == TOO_MANY_REQUESTS }
 
 /**
- * The AI guide could not answer.
+ * Thrown when the AI guide can't answer.
  *
- * @property rateLimited whether the free quota was used up, which passes within a minute or so.
+ * @property rateLimited whether the free quota was used up. It usually resets within a minute.
  */
 internal class GuideUnavailableException(val rateLimited: Boolean, cause: Throwable? = null) :
     Exception("The AI guide could not answer", cause)

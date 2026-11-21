@@ -14,44 +14,42 @@ import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 /**
- * Runs the quiz: asks for one country after another, scores the user's taps on the globe, and
- * remembers the best round.
+ * Runs the quiz: asks the questions, checks the answers and saves the best score. It works offline
+ * and doesn't use the AI.
  *
- * The quiz needs nothing from the network, so it plays offline and never spends the AI guide's quota.
- *
- * @param random where the questions' order comes from; fixed in tests.
+ * @param random used to pick the questions. Tests pass a fixed seed.
  */
 public class QuizViewModel(private val store: QuizStore, private val random: Random = Random.Default) : ViewModel() {
 
     private val _state = MutableStateFlow<QuizState>(QuizState.Off)
 
-    /** Whether the quiz is on, and if so the round under way or its result. */
+    /** The quiz state. */
     public val state: StateFlow<QuizState> = _state.asStateFlow()
 
-    /** Starts a new round asking for some of [countries]. */
+    /** Starts a new round with questions from [countries]. */
     public fun start(countries: List<Country>) {
         val questions = quizQuestions(countries, random)
         if (questions.isNotEmpty()) _state.value = QuizState.Playing(QuizRound(questions))
     }
 
-    /** Answers the current question with the country the user tapped; taps on the ocean don't count. */
+    /** Answers with the tapped country. Taps on the ocean (`null`) are ignored. */
     public fun answer(country: Country?) {
         if (country != null) updateRound { it.answer(country) }
     }
 
-    /** Gives the current question up and shows where the country is. */
+    /** Skips the question and shows the answer. */
     public fun reveal() {
         updateRound { it.answer(null) }
     }
 
-    /** Asks the next question, or ends the round after the last one. */
+    /** Goes to the next question, or ends the round after the last one. */
     public fun next() {
         val round = (_state.value as? QuizState.Playing)?.round ?: return
         if (!round.answered) return
         if (round.isLast) finish(round) else _state.value = QuizState.Playing(round.next())
     }
 
-    /** Leaves the quiz, back to exploring the globe. */
+    /** Ends the quiz. */
     public fun stop() {
         _state.value = QuizState.Off
     }

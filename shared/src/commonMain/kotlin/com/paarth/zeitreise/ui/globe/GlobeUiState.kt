@@ -3,23 +3,22 @@ package com.paarth.zeitreise.ui.globe
 import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.Subdivision
 
-/** What the globe screen is showing. */
+/** The state of the globe screen. */
 public sealed interface GlobeUiState {
-    /** The outlines are still being read. */
+    /** The outlines are still loading. */
     public data object Loading : GlobeUiState
 
-    /** The outlines could not be read, so there is nothing to draw. */
+    /** The outlines couldn't be loaded. */
     public data class Failed(val message: String) : GlobeUiState
 
     /**
      * The globe is ready to draw.
      *
      * @property countries every country, largest first.
-     * @property selected the country the user last tapped, or `null` if none is selected.
-     * @property subdivisions the states and provinces of [selected], largest first; empty while
-     *   they load and for a country that has none.
-     * @property selectedSubdivision the state the user tapped inside [selected], if any.
-     * @property countryOfTheDay the country suggested for today, the same on every device.
+     * @property selected the selected country, if any.
+     * @property subdivisions the states of [selected], largest first. Empty while loading.
+     * @property selectedSubdivision the selected state inside [selected], if any.
+     * @property countryOfTheDay today's country.
      */
     public data class Ready(
         val countries: List<Country>,

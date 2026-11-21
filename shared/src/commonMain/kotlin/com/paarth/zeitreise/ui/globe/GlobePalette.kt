@@ -5,30 +5,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 
 /**
- * The colours the globe is drawn with.
+ * The colours used to draw the globe. Created once, so no colours are computed per frame.
  *
- * Resolved once per composition and then only read inside the draw loop, so that no colour is
- * derived per frame.
- *
- * @property ocean radial gradient of the sphere, lit side first.
- * @property land the shades countries are filled with. Neighbours usually get different shades,
- *   so borders read even where they are thin.
- * @property subdivisionLand the lighter shades a selected country's states are filled with, so
- *   they stand out from the countries around it.
- * @property pastLand the shades realms of the past are filled with: warmer and more varied than
- *   today's, so an old map reads as one and its many small realms tell apart.
- * @property unclaimedLand land no realm held in the year shown, a pale sand.
- * @property ice fill of the polar landmasses, Antarctica and Greenland.
+ * @property ocean the ocean gradient, lit side first.
+ * @property land the country fill shades, so neighbours usually look different.
+ * @property subdivisionLand lighter shades for the selected country's states.
+ * @property pastLand warmer shades for historical realms.
+ * @property unclaimedLand fill for land without a realm.
+ * @property ice fill for Antarctica and Greenland.
  * @property landSelected fill of the selected country.
  * @property quizRight fill of the country the quiz asked for, once it is answered.
  * @property quizWrong fill of the country the user tapped instead.
  * @property border outline of an unselected country.
  * @property borderSelected outline of the selected country.
  * @property graticule the meridians and parallels.
- * @property atmosphere the halo outside the limb, innermost ring first.
+ * @property atmosphere the glow around the globe, innermost ring first.
  * @property stars the starfield behind the globe, faintest first.
  * @property label the names of states drawn on the globe.
- * @property labelHalo the soft glow behind each state name that keeps it legible over any fill.
+ * @property labelHalo the glow behind state names that keeps them readable.
  */
 internal data class GlobePalette(
     val ocean: List<Color>,
@@ -49,13 +43,13 @@ internal data class GlobePalette(
     val labelHalo: Color,
 )
 
-/** Number of rings the atmosphere halo is built from. */
+/** Number of rings in the atmosphere glow. */
 private const val ATMOSPHERE_RINGS = 7
 
-/** Alpha of the innermost atmosphere ring, which fades to nothing by the outermost. */
+/** Alpha of the innermost ring. The outer rings fade to zero. */
 private const val ATMOSPHERE_ALPHA = 0.35f
 
-/** Builds the globe palette, holding it across recompositions. */
+/** Creates the globe palette once and remembers it. */
 @Composable
 internal fun rememberGlobePalette(): GlobePalette = remember {
     val glow = Color(0xFF8CC4FF)

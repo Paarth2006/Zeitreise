@@ -11,15 +11,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** Opens the passport: the countries the user has stamped, and how much of the world they cover. */
+/** Loads the passport when it's opened. */
 public class PassportViewModel(private val passport: Passport, private val countries: CountryRepository) : ViewModel() {
 
     private val _book = MutableStateFlow<PassportBook?>(null)
 
-    /** The passport while it is open, read afresh each time it opens; `null` while it is closed. */
+    /** The passport while open (reloaded each time), or `null` when closed. */
     public val book: StateFlow<PassportBook?> = _book.asStateFlow()
 
-    /** Opens the passport, with every stamp earned so far. */
+    /** Opens the passport. */
     public fun open() {
         viewModelScope.launch { _book.value = passportBook(countries.loadCountries(), passport.stamps()) }
     }

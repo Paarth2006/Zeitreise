@@ -21,9 +21,8 @@ internal fun DoubleArray.ringExtent(): Double {
 }
 
 /**
- * The ring's area in square degrees, measured with longitudes shrunk by the cosine of the ring's
- * mean latitude, so that a landmass near a pole does not look larger than it is. Close enough to
- * rank landmasses by size, which is all it is used for.
+ * The ring's approximate area in square degrees. Longitudes are scaled by the cosine of the mean
+ * latitude so land near the poles is not overestimated. Only used to compare landmasses by size.
  *
  * @receiver packed `longitude, latitude` pairs.
  */

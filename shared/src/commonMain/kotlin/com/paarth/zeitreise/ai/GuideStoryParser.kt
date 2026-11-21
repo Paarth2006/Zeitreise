@@ -5,10 +5,10 @@ import com.paarth.zeitreise.domain.GuideStory
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.json.Json
 
-/** Most "known for" items shown; the sheet has room for a single row of them. */
+/** Maximum "known for" items, enough for one row in the sheet. */
 internal const val MAX_KNOWN_FOR = 3
 
-/** Most facts kept from one answer: enough for several visits, few enough to stay surprising. */
+/** Maximum facts kept from one answer. */
 internal const val MAX_FACTS = 5
 
 private val LENIENT_JSON = Json {
@@ -17,11 +17,9 @@ private val LENIENT_JSON = Json {
 }
 
 /**
- * Reads the guide's story out of a model's reply.
+ * Reads the story from the model's reply, dropping empty facts.
  *
- * Drops facts with no text and checks that at least one is left.
- *
- * @return the story, or `null` when the reply holds no readable fact.
+ * @return the story, or `null` if the reply has no usable fact.
  */
 internal fun parseGuideStory(reply: String): GuideStory? {
     val story = decodeReply(reply, GuideStory.serializer())
@@ -40,12 +38,12 @@ internal fun parseGuideStory(reply: String): GuideStory? {
 }
 
 /**
- * Decodes the outermost JSON object in a model's [reply] with [deserializer].
+ * Decodes the outermost JSON object in [reply].
  *
- * Models do not always answer with bare JSON: they wrap it in a Markdown code fence or add a line
- * around it, so everything outside the outermost braces is ignored.
+ * Models sometimes wrap JSON in a code block or add extra text, so anything outside the outer braces
+ * is ignored.
  *
- * @return the decoded value, or `null` when the reply holds no JSON object of that shape.
+ * @return the decoded value, or `null` if there is no matching JSON object.
  */
 internal fun <T> decodeReply(reply: String, deserializer: DeserializationStrategy<T>): T? {
     val start = reply.indexOf('{')
@@ -54,7 +52,7 @@ internal fun <T> decodeReply(reply: String, deserializer: DeserializationStrateg
     return try {
         LENIENT_JSON.decodeFromString(deserializer, reply.substring(start, end + 1))
     } catch (_: IllegalArgumentException) {
-        // SerializationException is an IllegalArgumentException, so this covers both.
+        // SerializationException extends IllegalArgumentException, so this catches both.
         null
     }
 }

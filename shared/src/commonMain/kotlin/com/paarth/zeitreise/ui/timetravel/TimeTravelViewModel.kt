@@ -23,16 +23,13 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** How long the slider has to rest on a year before its map is downloaded, so a drag fetches one map. */
+/** Wait this long after the slider stops before downloading, so a drag only loads one map. */
 private const val SETTLE_MILLIS = 250L
 
-/** The year Time Travel opens on: the eve of the Age of Discovery, a map everyone recognises. */
+/** The year Time Travel starts on. */
 private const val FIRST_YEAR = 1492
 
-/**
- * Holds Time Travel: which year the globe shows, that year's map, and the realm the user tapped
- * and what the guide says about it.
- */
+/** The Time Travel view model: the selected year, its map, the selected realm and its story. */
 public class TimeTravelViewModel(
     private val history: HistoryRepository,
     private val landmarks: LandmarkHistory,
@@ -44,12 +41,12 @@ public class TimeTravelViewModel(
 
     private val _state = MutableStateFlow<TimeTravelState>(TimeTravelState.Off)
 
-    /** Whether Time Travel is on, and if so the year, its map and the selected realm. */
+    /** The Time Travel state. */
     public val state: StateFlow<TimeTravelState> = _state.asStateFlow()
 
     private val _story = MutableStateFlow<StoryState>(StoryState.Idle)
 
-    /** What the guide says about the selected realm. */
+    /** The story for the selected realm. */
     public val story: StateFlow<StoryState> = _story.asStateFlow()
 
     private val retries = MutableStateFlow(0)
@@ -58,7 +55,7 @@ public class TimeTravelViewModel(
     init {
         viewModelScope.launch {
             val year = _state.map { (it as? TimeTravelState.On)?.yearIndex }.distinctUntilChanged()
-            // A new year, or a retry, cancels the download still running for the last one.
+            // A new year or a retry cancels the previous download.
             combine(year, retries) { index, _ -> index }.collectLatest { index -> if (index != null) load(index) }
         }
         viewModelScope.launch {
@@ -72,12 +69,12 @@ public class TimeTravelViewModel(
         }
     }
 
-    /** Turns Time Travel on, opening on 1492. */
+    /** Starts Time Travel at 1492. */
     public fun start() {
         if (_state.value is TimeTravelState.Off) _state.value = TimeTravelState.On(MAP_YEARS.indexOf(FIRST_YEAR))
     }
 
-    /** Comes back to today's world. */
+    /** Goes back to today. */
     public fun stop() {
         _state.value = TimeTravelState.Off
     }
@@ -86,7 +83,7 @@ public class TimeTravelViewModel(
     public fun selectYear(index: Int) {
         _state.update { state ->
             if (state is TimeTravelState.On && state.yearIndex != index) {
-                // The last year's landmarks stay pinned until this year's are read, so pins don't blink.
+                // Keep the old landmarks until the new ones load, so the pins don't flicker.
                 TimeTravelState.On(index.coerceIn(MAP_YEARS.indices), PastMap.Loading, landmarks = state.landmarks)
             } else {
                 state
@@ -94,17 +91,17 @@ public class TimeTravelViewModel(
         }
     }
 
-    /** Tries the year's map again after it could not be downloaded. */
+    /** Retries downloading the map. */
     public fun retry() {
         retries.update { it + 1 }
     }
 
-    /** Selects [realm], or clears the selection when it is `null`. */
+    /** Selects [realm], or clears it if `null`. */
     public fun selectRealm(realm: Realm?) {
         _state.update { state -> if (state is TimeTravelState.On) state.copy(selected = realm) else state }
     }
 
-    /** Asks the guide about the selected realm again after Wikipedia could not be reached. */
+    /** Retries loading the realm's story. */
     public fun retryStory() {
         storyRetries.update { it + 1 }
     }
@@ -115,7 +112,7 @@ public class TimeTravelViewModel(
     }
 
     private suspend fun load(index: Int) {
-        // The landmarks are bundled, so they move with the slider; the map waits for it to settle.
+        // Landmarks are bundled, so they update right away. The map waits for the slider to stop.
         val standing = landmarks.standingIn(MAP_YEARS[index])
         _state.update { state ->
             if (state is TimeTravelState.On && state.yearIndex == index) state.copy(landmarks = standing) else state
@@ -130,7 +127,7 @@ public class TimeTravelViewModel(
     }
 }
 
-/** The realm as the guide is asked about it, in the year shown, so it tells of that time. */
+/** The realm as a [GuidePlace] for the given year. */
 private fun Realm.guidePlace(year: Int): GuidePlace {
     val within = partOf?.let { " within $it" }.orEmpty()
     return GuidePlace(name = name, description = "a realm$within", wikidataId = null, year = year)

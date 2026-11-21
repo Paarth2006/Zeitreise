@@ -1,16 +1,16 @@
 package com.paarth.zeitreise.domain
 
 /**
- * The user's passport as it is shown: the countries stamped, and how much of the world they cover.
+ * The passport as shown to the user.
  *
- * @property stamped the countries stamped so far, the most recent first.
- * @property total how many countries and territories there are to visit.
- * @property continents how far the user has got on each continent, the best covered first.
+ * @property stamped the stamped countries, newest first.
+ * @property total the number of countries and territories in total.
+ * @property continents progress on each continent, most complete first.
  */
 public data class PassportBook(val stamped: List<Country>, val total: Int, val continents: List<ContinentProgress>)
 
 /**
- * How many of a continent's countries hold a stamp.
+ * Passport progress on one continent.
  *
  * @property continent the continent's name.
  * @property stamped how many of its countries are stamped.
@@ -18,12 +18,12 @@ public data class PassportBook(val stamped: List<Country>, val total: Int, val c
  */
 public data class ContinentProgress(val continent: String, val stamped: Int, val total: Int)
 
-/** What a country's stamp is filed under: its Wikidata item, which outlives renames, or else its name. */
+/** The key a country's stamp is saved under: its Wikidata ID (stable across renames), or its name. */
 public val Country.passportKey: String get() = wikidataId ?: name
 
 /**
- * Opens the passport holding [stamps], the [passportKey]s of the countries stamped, oldest first.
- * Stamps for countries the app no longer knows are left out.
+ * Builds the passport from [stamps], the [passportKey]s of stamped countries, oldest first.
+ * Stamps for unknown countries are skipped.
  */
 internal fun passportBook(countries: List<Country>, stamps: List<String>): PassportBook {
     val byKey = countries.associateBy { it.passportKey }

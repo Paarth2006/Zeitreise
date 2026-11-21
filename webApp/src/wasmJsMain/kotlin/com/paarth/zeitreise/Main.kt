@@ -4,7 +4,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
 import com.paarth.zeitreise.ui.App
 
-/** Entry point of the web app; mounts the shared Compose UI into the page body. */
+/** Web entry point. Shows the shared Compose UI in the page. */
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
     ComposeViewport {

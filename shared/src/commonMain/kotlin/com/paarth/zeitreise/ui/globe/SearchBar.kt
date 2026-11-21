@@ -62,66 +62,64 @@ import zeitreise.shared.generated.resources.search_in_country
 import zeitreise.shared.generated.resources.search_no_results
 import zeitreise.shared.generated.resources.search_placeholder
 
-/** Widest the search bar grows, matching the country sheet on wide screens. */
+/** Maximum width, same as the country sheet. */
 private val SEARCH_MAX_WIDTH = 480.dp
 
-/** Height of the search field, and of each result row: Apple's minimum touch target and then some. */
+/** Height of the search field and each result row. */
 private val FIELD_HEIGHT = 48.dp
 private val ROW_HEIGHT = 52.dp
 
-/** Padding inside the field and the result rows. */
+/** Padding in the field and result rows. */
 private val HORIZONTAL_PADDING = 16.dp
 
-/** Gap between the result card and the field below it. */
+/** Gap between the results and the field. */
 private val RESULTS_GAP = 8.dp
 
-/** Corner radius of the result card. */
+/** Corner radius of the results card. */
 private val RESULTS_CORNER = 16.dp
 
-/** Size of the magnifying glass and of the clear button's cross. */
+/** Size of the search and clear icons. */
 private val GLYPH_SIZE = 16.dp
 private val CLEAR_GLYPH_SIZE = 10.dp
 
-/** Stroke width of the drawn glyphs. */
+/** Stroke width of the icons. */
 private val GLYPH_STROKE = 2.dp
 
 /** Minimum touch target for the clear button. */
 private val TOUCH_TARGET = 44.dp
 
-/** Scale the result card and Cancel button grow from as they appear. */
+/** Starting scale of the results and Cancel button. */
 private const val RESULTS_START_SCALE = 0.92f
 
-/** Where the result card grows from: the middle of its bottom edge, just above the field. */
+/** The results card grows from the middle of its bottom edge. */
 private val RESULTS_ORIGIN = TransformOrigin(pivotFractionX = 0.5f, pivotFractionY = 1f)
 
-/** A lively spring for the results and Cancel button, like iOS's bouncy glass morphs. */
+/** A slightly bouncy spring for the results and Cancel button. */
 private val SEARCH_SPRING = spring<Float>(
     dampingRatio = Spring.DampingRatioLowBouncy,
     stiffness = Spring.StiffnessMediumLow,
 )
 
-/** Where the magnifying glass's lens sits and how far its handle reaches, as shares of its size. */
+/** Position of the magnifying glass's lens and handle, as shares of the icon size. */
 private const val LENS_RADIUS = 0.34f
 private const val LENS_CENTER = 0.42f
 private const val HANDLE_END = 0.95f
 
-/** Where along the lens's diagonal the handle starts: just outside the rim. */
+/** Where the handle starts, just outside the lens. */
 private const val HANDLE_START_FACTOR = 0.75f
 
-/** Opacity of the hairlines between results. */
+/** Opacity of the dividers between results. */
 private const val DIVIDER_ALPHA = 0.12f
 
 /**
- * The search bar at the bottom of the globe, like Apple Maps: a capsule that searches countries
- * and states as the user types, with the results in a card above it.
- *
- * Stateless: the query and the results are hoisted, so the view model does the searching.
+ * The search bar at the bottom of the screen. It searches countries and states while typing and
+ * shows results in a card above it. The query and results are hoisted to the view model.
  *
  * @param query the text in the field.
  * @param results the places matching [query], best first.
  * @param onQueryChange called with the new text as the user types.
  * @param onChoose called when the user picks a result.
- * @param onSubmit called when the user presses Search on the keyboard, to go to the best match.
+ * @param onSubmit called when the user presses Search on the keyboard.
  * @param modifier applied to the root element.
  */
 @Composable

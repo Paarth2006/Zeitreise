@@ -46,7 +46,6 @@ import com.paarth.zeitreise.domain.Realm
 import com.paarth.zeitreise.domain.SearchResult
 import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.ui.about.AboutSheet
-import com.paarth.zeitreise.ui.about.InfoButton
 import com.paarth.zeitreise.ui.explore.ExplorePanel
 import com.paarth.zeitreise.ui.explore.ExploreState
 import com.paarth.zeitreise.ui.explore.ExploreViewModel
@@ -61,16 +60,13 @@ import com.paarth.zeitreise.ui.onboarding.OnboardingEvent
 import com.paarth.zeitreise.ui.onboarding.OnboardingStep
 import com.paarth.zeitreise.ui.onboarding.OnboardingViewModel
 import com.paarth.zeitreise.ui.onboarding.WelcomeOverlay
-import com.paarth.zeitreise.ui.passport.PassportButton
 import com.paarth.zeitreise.ui.passport.PassportSheet
 import com.paarth.zeitreise.ui.passport.PassportViewModel
 import com.paarth.zeitreise.ui.quiz.QuizActions
-import com.paarth.zeitreise.ui.quiz.QuizButton
 import com.paarth.zeitreise.ui.quiz.QuizControls
 import com.paarth.zeitreise.ui.quiz.QuizState
 import com.paarth.zeitreise.ui.quiz.QuizViewModel
 import com.paarth.zeitreise.ui.timetravel.TimeTravelActions
-import com.paarth.zeitreise.ui.timetravel.TimeTravelButton
 import com.paarth.zeitreise.ui.timetravel.TimeTravelControls
 import com.paarth.zeitreise.ui.timetravel.TimeTravelState
 import com.paarth.zeitreise.ui.timetravel.TimeTravelViewModel
@@ -88,39 +84,34 @@ private val MESSAGE_PADDING = 32.dp
 /** Gap between the floating controls and the edges of the safe area. */
 private val CONTROL_MARGIN = 16.dp
 
-/** Room left at the trailing end of the country-of-the-day chip for the buttons beside it. */
-private val TOP_CHIP_END_GAP = 76.dp
-
 /** Gap between the stacked buttons at the top of the screen. */
 private val CONTROL_SPACING = 10.dp
 
 /** Gap between the onboarding hint and the bottom of the safe area. */
 private val HINT_BOTTOM_PADDING = 24.dp
 
-/** Scale a floating control grows from as it appears, so it seems to well up out of the glass. */
+/** Starting scale for controls as they appear. */
 private const val CONTROL_START_SCALE = 0.9f
 
-/** A lively spring for controls appearing and disappearing, like iOS's bouncy glass morphs. */
+/** A slightly bouncy spring for controls appearing and disappearing. */
 private val CONTROL_SPRING = spring<Float>(
     dampingRatio = Spring.DampingRatioLowBouncy,
     stiffness = Spring.StiffnessMediumLow,
 )
 
-/** Backdrop layer of the floating controls, above the globe's (0). */
+/** Haze layer of the controls, above the globe (0). */
 private const val CONTROLS_LAYER = 1f
 
-/** Milliseconds the globe takes to grow and fade in when it first appears. */
+/** Duration of the globe's intro animation in milliseconds. */
 private const val INTRO_MILLIS = 1_200
 
-/** Scale the globe grows from as it appears. */
+/** Starting scale of the intro animation. */
 private const val INTRO_START_SCALE = 0.82f
 
 /**
- * The globe screen: the globe itself, the sheet naming whatever country is selected, and the
- * onboarding on first launch.
+ * The main screen: the globe, the country sheet and the onboarding.
  *
- * The globe fills the whole window, under the system bars, while text and controls stay inside the
- * safe area, as the Human Interface Guidelines ask of full-bleed content.
+ * The globe fills the whole window, while text and controls stay inside the safe area.
  *
  * @param modifier applied to the root element.
  */
@@ -145,10 +136,7 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * The view models the globe screen is driven by, one for each thing the globe can be used for.
- * A data class, so the state remembered against it survives recomposition.
- */
+/** All view models used by the globe screen. It's a data class so it can be used as a `remember` key. */
 private data class ScreenModels(
     val globe: GlobeViewModel,
     val onboarding: OnboardingViewModel,
@@ -158,7 +146,7 @@ private data class ScreenModels(
     val passport: PassportViewModel,
 )
 
-/** The globe once the world has loaded, with everything that floats over it. */
+/** The loaded globe with all its controls. */
 @Composable
 private fun ReadyScreen(current: GlobeUiState.Ready, models: ScreenModels) {
     val travel by models.timeTravel.state.collectAsStateWithLifecycle()
@@ -183,9 +171,7 @@ private fun ReadyScreen(current: GlobeUiState.Ready, models: ScreenModels) {
     )
     var showAbout by rememberSaveable { mutableStateOf(false) }
     CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
-        // The controls are a second layer of the backdrop, above the globe, so the About
-        // card refracts the open sheet as well as the globe. Glass inside this layer
-        // only samples what lies behind it: the globe.
+        // The controls are a second Haze layer, so cards opened on top blur the controls too.
         Box(modifier = Modifier.fillMaxSize().hazeSource(backdrop, zIndex = CONTROLS_LAYER)) {
             Controls(
                 state = current,
@@ -203,10 +189,15 @@ private fun ReadyScreen(current: GlobeUiState.Ready, models: ScreenModels) {
                     showAbout = { showAbout = true },
                 ),
             )
-            TimeTravelControls(travel, models.timeTravel.story.collectAsStateWithLifecycle().value, travelActions)
+            TimeTravelControls(
+                state = travel,
+                story = models.timeTravel.story.collectAsStateWithLifecycle().value,
+                actions = travelActions,
+                cardOpen = places.openCard != null,
+            )
             QuizControls(state = quizState, actions = quizActions)
         }
-        // Presented modally over the controls, so their glass refracts the country's sheet too.
+        // Shown above the controls, so their glass also blurs the country sheet.
         PlaceSheet(card = places.openCard, onClose = { actions.showPin(null) })
         AboutSheet(visible = showAbout, onDismiss = { showAbout = false })
         PassportSheet(book = passportBook, onDismiss = models.passport::close)
@@ -214,25 +205,8 @@ private fun ReadyScreen(current: GlobeUiState.Ready, models: ScreenModels) {
 }
 
 /**
- * What the buttons at the top can start.
- *
- * @property startTimeTravel turns the globe into a map of the past.
- * @property startQuiz starts a round of the quiz.
- * @property showPassport opens the passport.
- * @property showAbout opens the About card.
- */
-private class ModeActions(
-    val startTimeTravel: () -> Unit,
-    val startQuiz: () -> Unit,
-    val showPassport: () -> Unit,
-    val showAbout: () -> Unit,
-)
-
-/**
- * The historical map for the globe while travelling in time, or `null` for today's world.
- *
- * While the next year's map downloads, the last one stays on the globe, so sliding through the
- * years changes the borders in place instead of flashing today's map in between.
+ * The historical map to draw, or `null` for today's world. While the next year's map loads, the
+ * previous one stays visible so today's map doesn't flash in between.
  */
 @Composable
 private fun rememberPastGlobe(travel: TimeTravelState): PastGlobe? {
@@ -243,10 +217,7 @@ private fun rememberPastGlobe(travel: TimeTravelState): PastGlobe? {
     return on?.let { PastGlobe(map = ready ?: lastMap, selected = it.selected) }
 }
 
-/**
- * The Time Travel controls' actions, handed straight to the view model; coming back to today also
- * closes the card of a landmark of the past.
- */
+/** Time Travel actions. Going back to today also closes any open landmark card. */
 private fun TimeTravelViewModel.controlActions(places: ExploreViewModel) = TimeTravelActions(
     selectYear = ::selectYear,
     retry = ::retry,
@@ -259,7 +230,7 @@ private fun TimeTravelViewModel.controlActions(places: ExploreViewModel) = TimeT
     },
 )
 
-/** What the quiz panel can ask for, each round asking for some of [countries]. */
+/** Quiz panel actions. Each round picks from [countries]. */
 private fun QuizViewModel.controlActions(countries: List<Country>) = QuizActions(
     reveal = ::reveal,
     next = ::next,
@@ -267,7 +238,7 @@ private fun QuizViewModel.controlActions(countries: List<Country>) = QuizActions
     stop = ::stop,
 )
 
-/** What the quiz marks on the globe, or `null` when no quiz is on. */
+/** What the quiz highlights on the globe, or `null` if no quiz is running. */
 private val QuizState.globe: QuizGlobe?
     get() = when (this) {
         QuizState.Off -> null
@@ -277,7 +248,7 @@ private val QuizState.globe: QuizGlobe?
         }
     }
 
-/** What the globe is being used for, which decides the controls floating over it. */
+/** The current mode of the globe, which decides which controls are shown. */
 private enum class GlobeMode { Explore, TimeTravel, Quiz }
 
 private fun globeMode(travel: TimeTravelState, quiz: QuizState) = when {
@@ -287,17 +258,15 @@ private fun globeMode(travel: TimeTravelState, quiz: QuizState) = when {
 }
 
 /**
- * The pins on the globe and the card open over it, as the globe and the sheets show them.
+ * The pins on the globe and the open card.
  *
- * @property explore what the guide has found for the selected country; [ExploreState.Idle] when
- *   it has found nothing for it yet, even if it has for another country.
- * @property pins today, the places pinned for the selected country; in the past, the landmarks
- *   that stood in the year shown.
- * @property openCard the card of one of [pins], if one is open.
+ * @property explore the Explore state for the selected country, [ExploreState.Idle] if nothing yet.
+ * @property pins the selected country's places, or the landmarks of the year in Time Travel.
+ * @property openCard the open card for one of [pins], if any.
  */
 private data class PlacesOnGlobe(val explore: ExploreState, val pins: List<Pinned>, val openCard: LandmarkCard?) {
     companion object {
-        /** What of [state], [card] and the past belongs on screen with [selected]. */
+        /** Works out what to show for [selected] from [state], [card] and Time Travel. */
         fun of(state: ExploreState, card: LandmarkCard?, selected: Country?, travel: TimeTravelState): PlacesOnGlobe {
             val landmarks = state.landmarksIn(selected)
             return when (travel) {
@@ -313,9 +282,8 @@ private data class PlacesOnGlobe(val explore: ExploreState, val pins: List<Pinne
 }
 
 /**
- * What the globe screen's parts can ask for, in one place, so the onboarding hears about every
- * selection however it was made: by tapping, by search, or by pressing Search; and so a place's
- * card closes whenever another country is chosen.
+ * All actions of the globe screen in one place. This way the onboarding hears about every
+ * selection (tap or search), and an open place card closes when another country is picked.
  */
 private class GlobeScreenActions(
     private val globe: GlobeViewModel,
@@ -346,7 +314,7 @@ private class GlobeScreenActions(
 
     fun explore(country: Country) = places.explore(country)
 
-    /** Opens the card for [pin], or closes the open card when it is `null`. */
+    /** Opens the card for [pin], or closes it if [pin] is `null`. */
     fun showPin(pin: Pinned?) = when (pin) {
         null -> places.close()
         is Landmark -> places.open(pin)
@@ -376,7 +344,7 @@ private fun ReadyGlobe(
 
     GlobeView(
         content = state,
-        // During a quiz a tapped country is an answer, not a place to open.
+        // During a quiz, tapping a country answers the question.
         onSelectCountry = if (quiz != null) onAnswer else actions::selectCountry,
         onSelectSubdivision = actions::selectSubdivision,
         pins = places.pins,
@@ -396,9 +364,8 @@ private fun ReadyGlobe(
 }
 
 /**
- * Everything floating over the globe: the buttons at the top, the search bar or the country sheet
- * at the bottom, and the onboarding on first launch. The search bar gives way to the sheet whenever
- * a country is open, as the search card does in Apple Maps. The About card goes above all of these.
+ * Everything on top of the globe: the top buttons, the search bar or country sheet at the bottom,
+ * and the onboarding. The search bar is hidden while a country is open.
  */
 @Composable
 private fun BoxScope.Controls(
@@ -413,34 +380,22 @@ private fun BoxScope.Controls(
     modeActions: ModeActions,
 ) {
     val exploring = step == OnboardingStep.Finished && mode == GlobeMode.Explore
-    // Time Travel and the quiz each start from the whole globe, with no country open.
-    TopButtons(
-        showModes = exploring,
+    TodayChip(
         today = state.countryOfTheDay?.takeIf { exploring && state.selected == null },
         onOpenToday = actions::selectCountry,
-        actions = ModeActions(
-            startTimeTravel = {
-                actions.selectCountry(null)
-                modeActions.startTimeTravel()
-            },
-            startQuiz = {
-                actions.selectCountry(null)
-                modeActions.startQuiz()
-            },
-            showPassport = modeActions.showPassport,
-            showAbout = modeActions.showAbout,
-        ),
     )
+    // The toolbar and search bar only show with no country open, so the modes always start from the whole globe.
     SearchControl(
         visible = exploring && state.selected == null,
         results = searchResults,
         actions = actions,
+        modeActions = modeActions,
     )
     CountrySheet(
         country = state.selected,
         subdivision = state.selectedSubdivision,
         newStamp = newStamp != null && newStamp == state.selected,
-        // Closing a state's sheet steps back to its country; closing the country's leaves it.
+        // Closing a state goes back to its country; closing a country clears the selection.
         onClose = {
             if (state.selectedSubdivision != null) actions.selectSubdivision(null) else actions.selectCountry(null)
         },
@@ -470,19 +425,10 @@ private fun BoxScope.Controls(
     }
 }
 
-/**
- * The controls along the top: at the trailing corner, Info, always, and while the globe is being
- * explored, the buttons that turn it into a time machine or a quiz, and the one that opens the
- * passport; at the leading corner, the country of the day, while no country is open.
- */
+/** The country-of-the-day chip at the top, shown while no country is open. */
 @Composable
-private fun BoxScope.TopButtons(
-    showModes: Boolean,
-    today: Country?,
-    onOpenToday: (Country) -> Unit,
-    actions: ModeActions,
-) {
-    // The chip keeps naming its country while it fades away.
+private fun BoxScope.TodayChip(today: Country?, onOpenToday: (Country) -> Unit) {
+    // Keep the last country while the chip fades out.
     var lastToday by remember { mutableStateOf(today) }
     LaunchedEffect(today) { if (today != null) lastToday = today }
     AnimatedVisibility(
@@ -490,37 +436,25 @@ private fun BoxScope.TopButtons(
         enter = fadeIn() + scaleIn(CONTROL_SPRING, initialScale = CONTROL_START_SCALE),
         exit = fadeOut() + scaleOut(CONTROL_SPRING, targetScale = CONTROL_START_SCALE),
         modifier = Modifier
-            .align(Alignment.TopStart)
-            .safeDrawingPadding()
-            .padding(start = CONTROL_MARGIN, top = CONTROL_MARGIN, end = TOP_CHIP_END_GAP),
-    ) {
-        lastToday?.let { CountryOfTheDayChip(country = it, onOpen = onOpenToday) }
-    }
-    Column(
-        verticalArrangement = Arrangement.spacedBy(CONTROL_SPACING),
-        modifier = Modifier
-            .align(Alignment.TopEnd)
+            .align(Alignment.TopCenter)
             .safeDrawingPadding()
             .padding(CONTROL_MARGIN),
     ) {
-        InfoButton(onClick = actions.showAbout)
-        AnimatedVisibility(
-            visible = showModes,
-            enter = fadeIn() + scaleIn(CONTROL_SPRING, initialScale = CONTROL_START_SCALE),
-            exit = fadeOut() + scaleOut(CONTROL_SPRING, targetScale = CONTROL_START_SCALE),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(CONTROL_SPACING)) {
-                TimeTravelButton(onClick = actions.startTimeTravel)
-                QuizButton(onClick = actions.startQuiz)
-                PassportButton(onClick = actions.showPassport)
-            }
-        }
+        lastToday?.let { CountryOfTheDayChip(country = it, onOpen = onOpenToday) }
     }
 }
 
-/** The search bar at the bottom, shown while no country is open; it holds its own query. */
+/**
+ * The toolbar and the search bar, shown while no country is open. The search bar keeps its own
+ * query text, and the toolbar hides while the user is typing a search.
+ */
 @Composable
-private fun BoxScope.SearchControl(visible: Boolean, results: List<SearchResult>, actions: GlobeScreenActions) {
+private fun BoxScope.SearchControl(
+    visible: Boolean,
+    results: List<SearchResult>,
+    actions: GlobeScreenActions,
+    modeActions: ModeActions,
+) {
     var query by rememberSaveable { mutableStateOf("") }
     AnimatedVisibility(
         visible = visible,
@@ -531,22 +465,31 @@ private fun BoxScope.SearchControl(visible: Boolean, results: List<SearchResult>
             .safeDrawingPadding()
             .padding(CONTROL_MARGIN),
     ) {
-        SearchBar(
-            query = query,
-            results = results,
-            onQueryChange = { text ->
-                query = text
-                actions.search(text)
-            },
-            onChoose = { result ->
-                query = ""
-                actions.choose(result)
-            },
-            onSubmit = {
-                actions.submitSearch(query)
-                query = ""
-            },
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(CONTROL_SPACING)) {
+            AnimatedVisibility(
+                visible = query.isEmpty(),
+                enter = fadeIn() + scaleIn(CONTROL_SPRING, initialScale = CONTROL_START_SCALE),
+                exit = fadeOut() + scaleOut(CONTROL_SPRING, targetScale = CONTROL_START_SCALE),
+            ) {
+                ModeToolbar(actions = modeActions, enabled = visible && query.isEmpty())
+            }
+            SearchBar(
+                query = query,
+                results = results,
+                onQueryChange = { text ->
+                    query = text
+                    actions.search(text)
+                },
+                onChoose = { result ->
+                    query = ""
+                    actions.choose(result)
+                },
+                onSubmit = {
+                    actions.submitSearch(query)
+                    query = ""
+                },
+            )
+        }
     }
 }
 

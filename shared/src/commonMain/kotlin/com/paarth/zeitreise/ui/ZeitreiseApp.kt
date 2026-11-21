@@ -12,13 +12,10 @@ import org.koin.compose.KoinApplication
 import org.koin.dsl.koinConfiguration
 
 /**
- * Root composable of the app, shared by the Android, iOS and web entry points.
+ * The root composable, used by the Android, iOS and web entry points.
  *
- * Starts Koin for the composition rather than at platform start-up, so each entry point is only
- * one call and the three platforms cannot drift apart.
- *
- * Not previewed: it starts Koin and the view models, which need a running app. The stateless
- * components it is built from have previews of their own.
+ * Koin is started here instead of in each platform, so every entry point is just one call. There is
+ * no preview because it needs Koin and the view models.
  *
  * @param modifier applied to the root element of the screen.
  */
@@ -31,7 +28,7 @@ public fun App(modifier: Modifier = Modifier) {
                     .background(MaterialTheme.colorScheme.background)
                     .fillMaxSize(),
             ) {
-                // The globe runs under the system bars; the screen keeps its own controls clear of them.
+                // The globe draws behind the system bars; the controls handle their own insets.
                 GlobeScreen()
             }
         }

@@ -6,12 +6,9 @@ import com.paarth.zeitreise.domain.CountryRing
 import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.globe.GeoPoint
 
-/**
- * Small, fixed places for `@Preview`s, so components can be previewed without loading the bundled
- * outlines, which the IDE's preview renderer cannot read.
- */
+/** Sample data for `@Preview`s, since the preview renderer can't load the bundled outlines. */
 internal object PreviewSamples {
-    /** India, drawn as a rough square; previews only need its name and continent. */
+    /** India as a simple square. Previews only need the name and continent. */
     val india: Country = Country(
         name = "India",
         isoA2 = "IN",

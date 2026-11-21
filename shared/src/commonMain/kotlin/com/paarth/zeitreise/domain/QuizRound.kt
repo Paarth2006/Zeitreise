@@ -2,20 +2,20 @@ package com.paarth.zeitreise.domain
 
 import kotlin.random.Random
 
-/** How many countries one round of the quiz asks for. */
+/** Number of questions in a quiz round. */
 public const val QUIZ_LENGTH: Int = 10
 
 /**
- * One question of the quiz: a country to find on the globe, asked for by its name or by its capital.
+ * One quiz question: a country to find, asked by name or by capital.
  *
  * @property country the country to find.
- * @property capital the capital the question names instead of the country, when it asks by capital.
+ * @property capital the capital to show instead of the name, for capital questions.
  */
 public data class QuizQuestion(val country: Country, val capital: String? = null)
 
 /**
- * Picks the questions for a round: [count] different [prominent][isProminent] countries, in
- * random order. About half of those with a capital are asked for by it.
+ * Picks [count] different [prominent][isProminent] countries in random order. About half of the
+ * ones with a capital are asked by capital.
  */
 internal fun quizQuestions(countries: List<Country>, random: Random, count: Int = QUIZ_LENGTH): List<QuizQuestion> =
     countries
@@ -27,15 +27,14 @@ internal fun quizQuestions(countries: List<Country>, random: Random, count: Int 
         }
 
 /**
- * One round of the quiz: a run of countries to find on the globe, and how the user is doing.
+ * One round of the quiz and the player's progress.
  *
- * @property questions the questions, in the order they are asked.
- * @property number the index in [questions] of the question being asked now.
- * @property score how many countries the user has found so far.
- * @property streak how many countries in a row the user has found, ending with the last answer.
- * @property answered whether the current question has been answered, or given up on.
- * @property guess the country the user tapped for the current question; `null` while the question
- *   is open, or when the user gave up and asked to be shown.
+ * @property questions the questions in order.
+ * @property number index of the current question.
+ * @property score number of correct answers so far.
+ * @property streak correct answers in a row, up to the last answer.
+ * @property answered whether the current question was answered or skipped.
+ * @property guess the country tapped for the current question, or `null` if not answered or skipped.
  */
 public data class QuizRound(
     val questions: List<QuizQuestion>,
@@ -56,15 +55,15 @@ public data class QuizRound(
     /** The country the user is asked to find now. */
     public val country: Country get() = question.country
 
-    /** Whether the user found the current country; only meaningful once [answered]. */
+    /** Whether the current answer is right. Only meaningful once [answered]. */
     public val isRight: Boolean get() = guess === country
 
-    /** Whether the current question is the last of the round. */
+    /** Whether this is the last question. */
     public val isLast: Boolean get() = number == questions.lastIndex
 
     /**
-     * Answers the current question with [guess], or gives it up when [guess] is `null`, keeping
-     * score. A question can be answered only once, so later taps change nothing.
+     * Answers the current question with [guess], or skips it if [guess] is `null`. Each question
+     * can only be answered once.
      */
     public fun answer(guess: Country?): QuizRound {
         if (answered) return this
@@ -77,7 +76,7 @@ public data class QuizRound(
         )
     }
 
-    /** Moves on to the next question, once the current one is answered and it is not the last. */
+    /** Goes to the next question. The current one must be answered and not be the last. */
     public fun next(): QuizRound {
         check(answered) { "Question $number has not been answered yet" }
         check(!isLast) { "Question $number is the last of the round" }

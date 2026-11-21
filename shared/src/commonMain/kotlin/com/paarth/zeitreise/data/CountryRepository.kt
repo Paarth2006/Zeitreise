@@ -7,16 +7,16 @@ import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import zeitreise.shared.generated.resources.Res
 
-/** Path of the bundled country outlines inside the compose resources. */
+/** Path of the bundled country outlines. */
 private const val COUNTRIES_RESOURCE = "files/countries.json"
 
-/** Path of the bundled capitals and flags, kept apart from the outlines they belong to. */
+/** Path of the bundled capitals and flags. */
 private const val FACTS_RESOURCE = "files/country_facts.json"
 
-/** Loads the country outlines the globe is drawn from. */
+/** Loads the countries shown on the globe. */
 public interface CountryRepository {
     /**
-     * Reads every country the app knows about, largest first.
+     * Reads every country, largest first.
      *
      * @throws IllegalStateException if the bundled outlines cannot be read or parsed.
      */
@@ -24,11 +24,10 @@ public interface CountryRepository {
 }
 
 /**
- * Reads the Natural Earth outlines that the data preparation tool committed into the compose
- * resources, with each country's capitals and flag, so the globe works offline and needs no
- * network on first run.
+ * Reads the bundled Natural Earth outlines along with each country's capitals and flag. Everything
+ * is bundled, so the globe works offline.
  *
- * @param dispatcher dispatcher the parsing runs on, keeping the main thread free.
+ * @param dispatcher where the parsing runs, off the main thread.
  */
 internal class BundledCountryRepository(
     private val dispatcher: CoroutineDispatcher,

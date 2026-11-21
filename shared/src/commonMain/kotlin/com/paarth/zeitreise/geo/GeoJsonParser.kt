@@ -17,34 +17,22 @@ import kotlinx.serialization.json.double
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 
-/**
- * How far, in degrees, a vertex may be dropped from the line its neighbours describe.
- *
- * The 1:50m source carries detail no one can see on the whole globe; this keeps about a third of
- * its vertices, which still draws crisp coastlines when a country fills the screen. Outlines that
- * cover less than a pixel, which most small islands do at the widest zoom, are skipped as well.
- */
-/**
- * Readable names for the regions Natural Earth files some countries under: the islands of the
- * Indian Ocean and the South Atlantic it calls the "Seven seas (open ocean)".
- */
+/** Readable name for the region Natural Earth calls "Seven seas (open ocean)". */
 private val CONTINENT_NAMES = mapOf("Seven seas (open ocean)" to "Ocean islands")
 
+/**
+ * Simplification tolerance for country outlines, in degrees. It keeps about a third of the
+ * vertices, which still looks sharp when a country fills the screen.
+ */
 private const val SIMPLIFY_TOLERANCE_DEGREES = 0.05
 
-/**
- * The state files were already simplified per country by the data preparation tool, so the app
- * only drops vertices that are practically on a straight line.
- */
+/** The state files are already simplified by the data tool, so only near-straight points are dropped. */
 private const val SUBDIVISION_SIMPLIFY_TOLERANCE_DEGREES = 0.0005
 
-/**
- * Largest share of a ring's own extent its simplification tolerance may reach, so that a country
- * smaller than the usual tolerance, such as Monaco, keeps its shape instead of collapsing.
- */
+/** Caps the tolerance relative to a ring's size, so tiny countries like Monaco keep their shape. */
 private const val SMALL_RING_TOLERANCE_SHARE = 0.05
 
-/** Fewest vertices a ring needs before it is worth drawing at all. */
+/** Minimum number of vertices for a ring to be drawn. */
 private const val MIN_RING_VERTICES = 3
 
 /** Parses the bundled country and state outlines, and the historical world maps. */
@@ -52,8 +40,8 @@ internal class GeoJsonParser(private val json: Json = Json { ignoreUnknownKeys =
     /**
      * Reads a GeoJSON `FeatureCollection` of countries from [source].
      *
-     * Outlines are simplified as they are read, and countries are returned largest first so that
-     * the renderer draws big countries beneath their smaller neighbours.
+     * Outlines are simplified while reading. Countries come back largest first, so small countries
+     * are drawn on top of big ones.
      *
      * @throws kotlinx.serialization.SerializationException if [source] is not the expected GeoJSON.
      */
@@ -64,8 +52,7 @@ internal class GeoJsonParser(private val json: Json = Json { ignoreUnknownKeys =
             .sortedByDescending { it.vertexCount }
 
     /**
-     * Reads a GeoJSON `FeatureCollection` of one country's states and provinces from [source],
-     * largest first, as [parseCountries] does for countries.
+     * Reads one country's states and provinces from [source], largest first.
      *
      * @throws kotlinx.serialization.SerializationException if [source] is not the expected GeoJSON.
      */
@@ -78,8 +65,8 @@ internal class GeoJsonParser(private val json: Json = Json { ignoreUnknownKeys =
     /**
      * Reads one year's world map from [source], a historical-basemaps `FeatureCollection`.
      *
-     * Features that share a name, such as an empire's scattered lands, become one realm; features
-     * without a name become unclaimed land.
+     * Features with the same name (an empire's scattered lands) are merged into one realm, and
+     * features without a name become unclaimed land.
      *
      * @throws kotlinx.serialization.SerializationException if [source] is not the expected GeoJSON.
      */
@@ -131,10 +118,7 @@ internal class GeoJsonParser(private val json: Json = Json { ignoreUnknownKeys =
         )
     }
 
-    /**
-     * The landmasses of a geometry, largest first: the source lists them in no particular order,
-     * and the camera frames a country by its first, which must be the mainland.
-     */
+    /** The landmasses of a geometry, largest first, because the camera treats the first as the mainland. */
     private fun GeoJsonGeometry.toOutlines(tolerance: Double): List<CountryOutline> = toPolygons()
         .mapNotNull { polygon -> toOutline(polygon, tolerance) }
         .sortedByDescending { it.exterior.area }
@@ -163,10 +147,7 @@ internal class GeoJsonParser(private val json: Json = Json { ignoreUnknownKeys =
     }
 }
 
-/**
- * Flattens a geometry to a list of polygons, each a list of rings, so that a `Polygon` and a
- * `MultiPolygon` are handled by the same code.
- */
+/** Turns a `Polygon` or `MultiPolygon` into a list of polygons, each a list of rings. */
 private fun GeoJsonGeometry.toPolygons(): List<JsonArray> = when (type) {
     GEOMETRY_POLYGON -> listOf(coordinates)
     GEOMETRY_MULTI_POLYGON -> coordinates.map { it.jsonArray }

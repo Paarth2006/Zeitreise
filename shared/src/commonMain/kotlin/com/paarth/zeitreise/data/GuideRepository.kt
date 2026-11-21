@@ -17,20 +17,20 @@ public interface GuideRepository {
     /**
      * The story for [place], grounded on its Wikipedia article.
      *
-     * @return the story, or `null` when the place has no Wikipedia article to ground one on.
+     * @return the story, or `null` if the place has no Wikipedia article.
      * @throws Exception when Wikipedia cannot be reached.
      */
     public suspend fun storyFor(place: GuidePlace): GuideAnswer?
 }
 
 /**
- * Reads the place's Wikipedia article and its notable sentences, then asks the guides in order of
- * how much they can say: the AI guide when there is one; otherwise the bundled facts followed by
- * the article's own, so every visit to a place can show something new. The
- * AI failing, for instance on the free tier's rate limit, is never an error; the next guide simply
- * answers, and the answer says why the AI did not.
+ * Reads the place's Wikipedia article, then asks the AI guide if there is one. Otherwise it uses
+ * the bundled facts followed by facts from the article.
  *
- * @param aiGuide the AI guide, or `null` when no API key is set.
+ * If the AI fails (for example because of the rate limit), it falls back to the next source and
+ * the answer says why.
+ *
+ * @param aiGuide the AI guide, or `null` if no API key is set.
  */
 internal class FallbackGuideRepository(
     private val wikipedia: WikipediaRepository,
@@ -45,7 +45,7 @@ internal class FallbackGuideRepository(
         val curated = if (aiStory == null) demoGuide.tell(place, article, notable) else null
         val facts = when {
             aiStory != null -> aiStory.facts.sourcedAs(StorySource.Ai)
-            // The bundled fact first, then the article's own, so a second visit still has news.
+            // Bundled facts first, then the article's, so later visits still show something new.
             else -> curated?.facts.orEmpty().sourcedAs(StorySource.Curated) +
                 wikipediaFacts(article, notable).sourcedAs(StorySource.Wikipedia)
         }
@@ -57,7 +57,7 @@ internal class FallbackGuideRepository(
         )
     }
 
-    /** The AI's story, or why there is none: no notice when no AI guide is set up at all. */
+    /** The AI's story, or the reason there is none. No notice if there is no AI guide at all. */
     private suspend fun askAi(
         place: GuidePlace,
         article: WikiArticle,

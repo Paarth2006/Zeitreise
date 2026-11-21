@@ -6,10 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * The bounding circle is centred on the vertices' mean, which a ring's repeated closing vertex
- * nudges slightly, so it is checked to within a fifth of a degree.
- */
+/** Tolerance for the bounding circle, since the repeated closing vertex shifts the average slightly. */
 private const val TOLERANCE = 0.2
 
 /** A closed circle of [vertices] points, [radius] degrees across, around longitude and latitude zero. */
@@ -34,7 +31,7 @@ class CountryRingTest {
     fun keepsATinyRingRecognisableRatherThanCollapsingIt() {
         val ring = CountryRing(circle(radius = 0.005, vertices = 12))
 
-        // The usual coarse tolerance is wider than the whole ring, which would leave a sliver.
+        // The normal coarse tolerance is bigger than this whole ring.
         assertTrue(ring.coarseSphere.size / 3 >= 8, "coarse vertices ${ring.coarseSphere.size / 3}")
     }
 

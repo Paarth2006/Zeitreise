@@ -6,23 +6,20 @@ import com.paarth.zeitreise.domain.HistoricalMap
 import com.paarth.zeitreise.domain.Realm
 import com.paarth.zeitreise.globe.GlobeProjection
 
-/** Width of a realm's border, and of the selected realm's, in pixels. */
+/** Border widths for realms, in pixels. */
 private const val REALM_BORDER_WIDTH = 0.9f
 private const val SELECTED_REALM_BORDER_WIDTH = 1.8f
 
-/**
- * The projected geometry of one historical map, held across frames the way [GlobeGeometryCache]
- * holds today's countries.
- */
+/** The projected geometry of one historical map, like [GlobeGeometryCache] for today's map. */
 internal class PastGeometry(map: HistoricalMap) {
-    /** Realms in draw order, largest first, so small neighbours end up on top. */
+    /** Realms in draw order, largest first, so small ones are drawn on top. */
     val realms: List<TerritoryGeometry> = map.realms.map(::TerritoryGeometry)
 
-    /** Land no realm held, drawn beneath the realms. */
+    /** Unclaimed land, drawn below the realms. */
     val unclaimed: List<OutlineGeometry> = map.unclaimedLand.map(::OutlineGeometry)
 }
 
-/** Draws a historical map: unclaimed land first, then every realm, with [selected] in gold. */
+/** Draws a historical map, with [selected] in gold. */
 internal fun DrawScope.drawPast(
     geometry: PastGeometry,
     projection: GlobeProjection,

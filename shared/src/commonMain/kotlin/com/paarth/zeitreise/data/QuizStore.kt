@@ -4,22 +4,22 @@ import com.russhwolf.settings.Settings
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
-/** Key under which the best quiz score is remembered. */
+/** Settings key for the best score. */
 private const val BEST_SCORE_KEY = "quiz_best_score"
 
-/** Remembers the best score the user has reached in a round of the quiz. */
+/** Remembers the best quiz score. */
 public interface QuizStore {
-    /** The best score so far, or 0 before the first round. */
+    /** The best score so far, or 0 if no round was played. */
     public suspend fun bestScore(): Int
 
-    /** Records [score] as the best so far. */
+    /** Saves [score] as the new best. */
     public suspend fun saveBestScore(score: Int)
 }
 
 /**
- * Keeps the best score in the platform's key-value store, so it survives the app being closed.
+ * Saves the best score in the platform's key-value storage.
  *
- * @param dispatcher dispatcher the reads and writes run on, since the first read may touch disk.
+ * @param dispatcher where reads and writes run, since the first read may hit the disk.
  */
 internal class SettingsQuizStore(private val settings: Settings, private val dispatcher: CoroutineDispatcher) :
     QuizStore {

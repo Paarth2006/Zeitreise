@@ -22,7 +22,7 @@ private fun square(name: String, origin: Int, size: Int) = """
     }
 """.trimIndent()
 
-/** A ring of [vertices] vertices around [origin], so that one country has more vertices than another. */
+/** A round country with [vertices] vertices, used to make one country more detailed than another. */
 private fun blob(name: String, origin: Int, size: Int, vertices: Int): String {
     val points = (0 until vertices).joinToString(",") { step ->
         val fraction = step.toDouble() / vertices
@@ -68,7 +68,7 @@ class CountryTest {
 
     @Test
     fun prefersTheSmallerOfTwoOverlappingCountries() {
-        // A detailed country enclosing a simple one, as South Africa encloses Lesotho.
+        // A detailed country around a simple one, like South Africa and Lesotho.
         val enclosing = blob("Enclosingland", origin = 0, size = 40, vertices = 60)
         val enclosed = square("Enclavia", origin = 18, size = 4)
         val countries = countriesOf(enclosing, enclosed)

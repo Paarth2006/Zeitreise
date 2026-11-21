@@ -5,18 +5,18 @@ import com.paarth.zeitreise.domain.HistoricalMap
 import com.paarth.zeitreise.domain.MAP_YEARS
 import com.paarth.zeitreise.domain.Realm
 
-/** Whether the globe shows today's world or a year from the past. */
+/** Whether the globe shows today or a past year. */
 public sealed interface TimeTravelState {
-    /** The globe shows today's countries. */
+    /** Today's world. */
     public data object Off : TimeTravelState
 
     /**
-     * The globe shows the world as it was in [year].
+     * The world in [year].
      *
-     * @property yearIndex which of [MAP_YEARS] is chosen.
-     * @property map that year's map, as far as it has loaded.
-     * @property selected the realm the user tapped, if any.
-     * @property landmarks the famous landmarks that stood that year, pinned on the globe.
+     * @property yearIndex index into [MAP_YEARS].
+     * @property map the year's map and its loading state.
+     * @property selected the selected realm, if any.
+     * @property landmarks the landmarks that existed that year.
      */
     public data class On(
         val yearIndex: Int,
@@ -28,22 +28,22 @@ public sealed interface TimeTravelState {
             require(yearIndex in MAP_YEARS.indices) { "No map year at index $yearIndex" }
         }
 
-        /** The year the globe shows; negative before Christ. */
+        /** The selected year, negative for BC. */
         val year: Int get() = MAP_YEARS[yearIndex]
     }
 }
 
-/** How far the chosen year's map has loaded. */
+/** The loading state of the year's map. */
 public sealed interface PastMap {
     /** The map is downloading. */
     public data object Loading : PastMap
 
-    /** The map is ready to draw. */
+    /** The map is loaded. */
     public data class Ready(val map: HistoricalMap) : PastMap
 
-    /** The map could not be downloaded; the user can try again. */
+    /** The map couldn't be downloaded. */
     public data object Failed : PastMap
 }
 
-/** The map to draw, or `null` while there is none for the chosen year. */
+/** The loaded map, or `null` if it isn't ready. */
 internal val TimeTravelState.On.readyMap: HistoricalMap? get() = (map as? PastMap.Ready)?.map

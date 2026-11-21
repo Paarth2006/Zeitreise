@@ -46,19 +46,19 @@ import zeitreise.shared.generated.resources.story_ai_unavailable
 import zeitreise.shared.generated.resources.story_rate_limited
 import zeitreise.shared.generated.resources.story_retry
 
-/** Space between the lines of the panel, and between a glyph and its label. */
+/** Spacing between lines and between an icon and its label. */
 private val PANEL_SPACING = 8.dp
 
-/** Size of the pin glyph on the Explore button, and of the loading indicator. */
+/** Size of the pin icon and the loading indicator. */
 private val GLYPH_SIZE = 18.dp
 private val LOADING_INDICATOR_STROKE = 2.dp
 
 /**
- * The part of the country sheet that finds places to visit: an Explore button, then what the
- * guide is doing, then how many places it pinned and who chose them.
+ * The Explore part of the country sheet: the Explore button, the loading state, and how many places
+ * were pinned.
  *
- * @param state what the guide has found for this country; [ExploreState.Idle] for none yet.
- * @param onExplore called when the user asks for places, or to try again after a failure.
+ * @param state the Explore state for this country.
+ * @param onExplore called when the user taps Explore or Try again.
  * @param modifier applied to the root element.
  */
 @Composable
@@ -139,7 +139,7 @@ private fun LoadingLine(modifier: Modifier = Modifier) {
     }
 }
 
-/** A pin glyph followed by [content], like a label in Apple's apps. */
+/** A pin icon followed by [content]. */
 @Composable
 private fun GlyphRow(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Row(
@@ -152,7 +152,7 @@ private fun GlyphRow(modifier: Modifier = Modifier, content: @Composable () -> U
     }
 }
 
-/** A small map pin, like the ones the places drop onto the globe as. */
+/** A small map pin icon. */
 @Composable
 private fun PinGlyph(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier.size(GLYPH_SIZE)) {

@@ -8,11 +8,11 @@ import kotlinx.serialization.json.Json
 private val FACTS_JSON = Json { ignoreUnknownKeys = true }
 
 /**
- * A country's capitals and flag, as the data preparation tool bundles them from Wikidata.
+ * A country's capitals and flag, as written by the data tool from Wikidata.
  *
- * @property wikidataId the country's Wikidata item, which ties the facts to its outline.
- * @property capitals the country's capitals today.
- * @property flag where a picture of its flag can be downloaded from Wikimedia Commons.
+ * @property wikidataId the country's Wikidata item, used to match it to its outline.
+ * @property capitals its current capitals.
+ * @property flag address of its flag image on Wikimedia Commons.
  */
 @Serializable
 internal data class BundledCountryFacts(
@@ -22,8 +22,8 @@ internal data class BundledCountryFacts(
 )
 
 /**
- * These countries with the capitals and flags read from [source], matched by Wikidata item;
- * a country the facts don't mention is kept as it is.
+ * Adds the capitals and flags from [source] to these countries, matched by Wikidata item.
+ * Countries without an entry are returned unchanged.
  *
  * @throws kotlinx.serialization.SerializationException if [source] is not a list of facts.
  */

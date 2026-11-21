@@ -1,34 +1,33 @@
 package com.paarth.zeitreise.domain
 
-/** Facts taken from one article; enough for several visits without repeating. */
+/** How many facts to take from one article. */
 public const val MAX_NOTABLE_SENTENCES: Int = 8
 
-/** Shortest sentence worth showing as a fact; anything shorter rarely says something complete. */
+/** Shorter sentences rarely make a complete fact. */
 private const val MIN_FACT_LENGTH = 60
 
-/** Longest sentence shown as a fact, so it fits the sheet without scrolling. */
+/** Longest sentence shown, so it fits in the sheet. */
 private const val MAX_FACT_LENGTH = 240
 
-/** Words that usually mark a sentence as surprising rather than merely descriptive. */
+/** Words that usually make a sentence interesting. */
 private val NOTABLE_WORDS = setOf(
     "largest", "smallest", "highest", "lowest", "longest", "shortest", "oldest", "newest", "deepest",
     "tallest", "biggest", "first", "only", "most", "least", "world", "record", "unique", "famous",
     "ancient", "founded", "discovered", "invented", "named", "known",
 )
 
-/** Openings that refer back to an earlier sentence, which make no sense shown on their own. */
+/** Openings that refer to an earlier sentence, so they don't work alone. */
 private val DANGLING_OPENINGS = setOf("it", "this", "these", "they", "he", "she", "his", "her", "its", "their", "such")
 
-/** Where a sentence ends: a full stop, question or exclamation mark, then space and a capital. */
+/** A sentence ends with `.`, `?` or `!`, then a space and a capital letter. */
 private val SENTENCE_BREAK = Regex("""(?<=[.!?])\s+(?=[A-Z"“(])""")
 
 /**
- * Picks the sentences of an article most likely to be surprising facts, in the order they appear.
+ * Picks the sentences from an article that are most likely to be interesting facts.
  *
- * A sentence qualifies when it stands on its own (it does not open with "It" or "They"), fits the
- * sheet, and holds a number or a word such as "largest", "first" or "only". The article is split
- * into [limit] stretches and the best sentence of each is taken, so the facts range over the whole
- * article, from geography to history to culture, instead of clustering in its opening.
+ * A sentence counts if it makes sense on its own, isn't too long, and has a number or a word like
+ * "largest", "first" or "only". The article is split into [limit] parts and the best sentence from
+ * each part is taken, so the facts cover the whole article and not just the start.
  *
  * @param text the article as plain text.
  */
@@ -50,10 +49,10 @@ public fun notableSentences(text: String, limit: Int = MAX_NOTABLE_SENTENCES): L
         .map(Scored::sentence)
 }
 
-/** A sentence that qualified, where it sits in the article, and how notable it looks. */
+/** A candidate sentence, its position in the article and its score. */
 private data class Scored(val position: Int, val sentence: String, val score: Int)
 
-/** How notable the sentence looks, or `null` when it cannot be shown on its own. */
+/** A score for how interesting the sentence is, or `null` if it can't be shown alone. */
 private fun String.notability(): Int? {
     val words = split(' ', ',', ';', '(', ')').map { it.lowercase() }
     val standsAlone = length in MIN_FACT_LENGTH..MAX_FACT_LENGTH &&

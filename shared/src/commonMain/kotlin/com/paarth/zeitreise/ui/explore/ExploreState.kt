@@ -4,26 +4,26 @@ import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.Landmark
 import com.paarth.zeitreise.domain.PlacesToVisit
 
-/** How far the guide has got with finding places to visit. */
+/** The state of finding places to visit. */
 public sealed interface ExploreState {
-    /** Nobody has asked for places yet. */
+    /** Nothing requested yet. */
     public data object Idle : ExploreState
 
-    /** The guide is choosing places in [country] and checking them against Wikipedia. */
+    /** Places for [country] are loading. */
     public data class Loading(val country: Country) : ExploreState
 
-    /** The guide's places in [country], ready to pin on the globe. */
+    /** The places found for [country]. */
     public data class Ready(val country: Country, val places: PlacesToVisit) : ExploreState
 
-    /** Wikipedia could not be reached for [country]; the user can try again. */
+    /** Wikipedia couldn't be reached for [country]. */
     public data class Failed(val country: Country) : ExploreState
 }
 
-/** The places pinned for [country]: none unless the places found are for that country. */
+/** The places for [country], or none if the state is about another country. */
 internal fun ExploreState.landmarksIn(country: Country?): List<Landmark> =
     if (this is ExploreState.Ready && this.country == country) places.landmarks else emptyList()
 
-/** This state if it is about [country], or [ExploreState.Idle] for any other country. */
+/** This state if it's for [country], otherwise [ExploreState.Idle]. */
 internal fun ExploreState.about(country: Country?): ExploreState = when (this) {
     ExploreState.Idle -> this
     is ExploreState.Loading -> takeIf { this.country == country } ?: ExploreState.Idle
@@ -32,9 +32,9 @@ internal fun ExploreState.about(country: Country?): ExploreState = when (this) {
 }
 
 /**
- * The place card that is open.
+ * The open place card.
  *
- * @property landmark the place the card is about.
- * @property facts notable facts from the place's article, or `null` while they load.
+ * @property landmark the place shown.
+ * @property facts facts from its article, or `null` while loading.
  */
 public data class LandmarkCard(val landmark: Landmark, val facts: List<String>? = null)

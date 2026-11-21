@@ -56,31 +56,31 @@ private const val SELECTED_BORDER_WIDTH = 1.8f
 /** Width of a graticule line, in pixels. */
 private const val GRATICULE_WIDTH = 0.6f
 
-/** How far towards the upper left the ocean's lit point sits, as a share of the radius. */
+/** Offset of the ocean's highlight towards the top left, as a share of the radius. */
 private const val OCEAN_LIGHT_OFFSET = 0.35f
 
-/** How far the ocean gradient reaches, as a share of the radius. */
+/** Size of the ocean gradient, as a share of the radius. */
 private const val OCEAN_GRADIENT_SPREAD = 1.45f
 
-/** How far past the limb the outermost atmosphere ring sits, as a share of the radius. */
+/** How far the atmosphere glow extends past the globe, as a share of the radius. */
 private const val ATMOSPHERE_SPREAD = 0.1f
 
 /** Width of one atmosphere ring, in pixels. */
 private const val ATMOSPHERE_RING_WIDTH = 6f
 
-/** Diameter of the faintest stars, in pixels; each brighter group is [STAR_SIZE_STEP] larger. */
+/** Size of the faintest stars in pixels. Each brighter group is [STAR_SIZE_STEP] bigger. */
 private const val STAR_BASE_SIZE = 1.6f
 
-/** How much larger each brighter group of stars is drawn, in pixels. */
+/** Size increase for each brighter group of stars, in pixels. */
 private const val STAR_SIZE_STEP = 1.1f
 
-/** Blur of the light halo behind state names, which keeps them legible over any fill. */
+/** Blur of the glow behind state names. */
 private const val LABEL_HALO_BLUR = 4f
 
-/** Milliseconds the states take to fade in once they have loaded. */
+/** Fade-in time for states, in milliseconds. */
 private const val SUBDIVISION_FADE_MILLIS = 600
 
-/** Milliseconds the pins take to drop onto the globe, one after another. */
+/** Total time for all pins to drop, in milliseconds. */
 private const val PIN_DROP_MILLIS = 1_100
 
 private const val NANOS_PER_SECOND = 1_000_000_000.0
@@ -88,24 +88,20 @@ private const val NANOS_PER_SECOND = 1_000_000_000.0
 /**
  * The interactive globe.
  *
- * Drag to turn it, pinch or scroll to zoom, tap a country to select it; left alone it drifts
- * slowly. Selecting a country flies the camera in to frame it and fades in its states and their
- * names, which can then be tapped in turn; clearing the selection flies back out. Every outline is
- * projected into a buffer allocated when it loads, so a frame allocates nothing for the outlines
- * and the draw loop runs no trigonometry.
+ * Drag to turn it, pinch or scroll to zoom and tap to select a country. Selecting a country flies
+ * the camera to it and shows its states. Outline buffers are allocated once, so drawing a frame
+ * doesn't allocate.
  *
  * @param content the countries, the selection and the selected country's states.
  * @param onSelectCountry called with the country that was tapped, or `null` for the ocean.
- * @param onSelectSubdivision called with the state that was tapped inside the selected country,
- *   or `null` when the selected country was tapped outside any of its states.
+ * @param onSelectSubdivision called with the tapped state, or `null` if no state was hit.
  * @param modifier applied to the root element.
- * @param pins the places and landmarks pinned on the globe, which drop in one by one when they change.
- * @param openPin the pin whose card is open, drawn larger.
- * @param onSelectPin called with the pin that was tapped; a pin wins over the land under it.
- * @param past the historical map to draw instead of today's countries, while travelling in time.
+ * @param pins the pins to show. They drop in one by one when the list changes.
+ * @param openPin the pin whose card is open, drawn bigger.
+ * @param onSelectPin called with the tapped pin. Pins take priority over the land below them.
+ * @param past the historical map to draw in Time Travel.
  * @param onSelectRealm called with the realm of [past] that was tapped, or `null` for the ocean.
- * @param quiz the countries the quiz marks, while a quiz is on; the globe then holds still between
- *   questions and flies to each answer instead of to the selection.
+ * @param quiz what the quiz highlights, while a quiz is running.
  * @param onTurned called when the user finishes a drag or pinch.
  */
 @Composable
@@ -133,7 +129,7 @@ internal fun GlobeView(
     val subdivisionAlpha by animateSubdivisionAlpha(content.subdivisions)
 
     val focus = cameraFocus(content, past, quiz)
-    // While a quiz asks for a country the globe stays where the user turned it, so it can be searched.
+    // No idle drift during a quiz, so the globe stays where the user left it.
     CameraDriver(state, focus = focus, drifting = focus == null && quiz == null)
     val pinDrop = rememberPinDrop(pins)
     val routeTap = rememberTapRouter(
@@ -141,18 +137,19 @@ internal fun GlobeView(
             content = content,
             past = past,
             pins = pins,
+            openPin = openPin,
             callbacks = TapCallbacks(onSelectCountry, onSelectSubdivision, onSelectRealm, onSelectPin),
         ),
     )
-    // The gesture handler is installed once, so it reads the latest callback through this.
+    // The gesture handler is set up once, so it needs the latest callback through this.
     val currentOnTurned by rememberUpdatedState(onTurned)
 
     Canvas(
         modifier = modifier
             .fillMaxSize()
             .semantics { contentDescription = description }
-            // Layout runs before draw, so the viewport is known by the first frame, and the draw
-            // loop never writes Compose state - which would invalidate itself on every frame.
+            // Set the size here and not while drawing, since writing state while drawing would
+            // trigger another redraw every frame.
             .onSizeChanged { state.viewport = Size(it.width.toFloat(), it.height.toFloat()) }
             .globeGestures(
                 onPressed = state::onPressed,
@@ -186,16 +183,16 @@ internal fun GlobeView(
 }
 
 /**
- * A historical map for the globe to draw in place of today's countries.
+ * A historical map to draw instead of today's countries.
  *
- * @property map the map, or `null` while it downloads, when the globe shows bare land and sea.
- * @property selected the realm the user tapped, which the camera frames.
+ * @property map the map, or `null` while it's downloading.
+ * @property selected the selected realm.
  */
 internal data class PastGlobe(val map: HistoricalMap?, val selected: Realm?)
 
 /**
- * What the camera frames: the realm tapped in the past; the quiz's answer, together with the
- * country tapped instead so the user sees how far off they were; or the selected country.
+ * What the camera should frame: the selected realm, the quiz answer (together with a wrong guess),
+ * or the selected country.
  */
 private fun cameraFocus(content: GlobeUiState.Ready, past: PastGlobe?, quiz: QuizGlobe?): GeoCap? = when {
     past != null -> past.selected?.focus
@@ -204,19 +201,17 @@ private fun cameraFocus(content: GlobeUiState.Ready, past: PastGlobe?, quiz: Qui
 }
 
 /**
- * What the quiz marks on the globe.
+ * What the quiz highlights on the globe.
  *
- * @property answer the country asked for, once the question is answered: filled green and framed
- *   by the camera; `null` while the user is still looking for it.
- * @property wrongGuess the country the user tapped instead, filled red and framed with [answer].
+ * @property answer the correct country (green) once answered, `null` while still guessing.
+ * @property wrongGuess the wrongly tapped country (red), if any.
  */
 internal data class QuizGlobe(val answer: Country? = null, val wrongGuess: Country? = null)
 
 /**
- * Moves the camera on its own: flies to [focus] whenever it changes, or out to the whole globe
- * when it is cleared, and advances inertia, flights and, while [drifting], the slow idle turn,
- * once per frame. A still globe asks for no frames at all, so it redraws nothing and costs no
- * battery until a drag, a flight or the drift moves it again.
+ * Moves the camera automatically: flies to [focus] when it changes and runs inertia, flights and
+ * the idle drift. When nothing moves, the loop waits instead of running every frame, which saves
+ * battery.
  */
 @Composable
 private fun CameraDriver(state: GlobeInteractionState, focus: GeoCap?, drifting: Boolean) {
@@ -224,8 +219,7 @@ private fun CameraDriver(state: GlobeInteractionState, focus: GeoCap?, drifting:
         if (focus != null) state.flyToFrame(focus) else state.flyToWholeGlobe()
     }
 
-    // Read inside the frame loop rather than captured, so selecting a place stops the drift
-    // without restarting the loop.
+    // Read inside the loop, so changing it doesn't restart the loop.
     val driftingNow by rememberUpdatedState(drifting)
     LaunchedEffect(state) {
         while (true) {
@@ -246,14 +240,14 @@ private fun CameraDriver(state: GlobeInteractionState, focus: GeoCap?, drifting:
     }
 }
 
-/** Fades the states in once they have loaded, and out when they are cleared. */
+/** Fades the states in when they load and out when they're cleared. */
 @Composable
 private fun animateSubdivisionAlpha(subdivisions: List<Subdivision>): State<Float> = animateFloatAsState(
     targetValue = if (subdivisions.isEmpty()) 0f else 1f,
     animationSpec = tween(SUBDIVISION_FADE_MILLIS),
 )
 
-/** Runs from 0 to 1 each time a new set of [pins] is pinned, dropping their pins in turn. */
+/** Animates from 0 to 1 each time [pins] changes, to drop the pins in. */
 @Composable
 private fun rememberPinDrop(pins: List<Pinned>): Animatable<Float, AnimationVector1D> {
     val drop = remember { Animatable(0f) }
@@ -264,7 +258,7 @@ private fun rememberPinDrop(pins: List<Pinned>): Animatable<Float, AnimationVect
     return drop
 }
 
-/** Measures the selected country's state names once per country, in the palette's label style. */
+/** Measures the state labels once per country. */
 @Composable
 private fun rememberSubdivisionLabels(subdivisions: List<Subdivision>, palette: GlobePalette): SubdivisionLabels {
     val measurer = rememberTextMeasurer()
@@ -276,7 +270,7 @@ private fun rememberSubdivisionLabels(subdivisions: List<Subdivision>, palette: 
     return remember(subdivisions, style) { SubdivisionLabels(subdivisions, measurer, style) }
 }
 
-/** Whom to tell when a tap selects something. */
+/** Callbacks for taps on the globe. */
 private class TapCallbacks(
     val onSelectCountry: (Country?) -> Unit,
     val onSelectSubdivision: (Subdivision?) -> Unit,
@@ -284,22 +278,21 @@ private class TapCallbacks(
     val onSelectPin: (Pinned) -> Unit,
 )
 
-/** Everything a tap on the globe can select. */
+/** Everything a tap can select. */
 private class TapTargets(
     val content: GlobeUiState.Ready,
     val past: PastGlobe?,
     val pins: List<Pinned>,
+    val openPin: Pinned?,
     val callbacks: TapCallbacks,
 ) {
     /**
-     * Decides what a tap at [position] selects: a pin first, wherever it stands. Then, in the past,
-     * a realm or the ocean. Today, a state of the selected country, then the selected country
-     * itself, which steps back from its state, then any other country, or the ocean, which clears
-     * the selection.
+     * Decides what a tap at [position] selects. Pins come first. In Time Travel it's a realm,
+     * otherwise a state, then the selected country, then any other country. The ocean clears it.
      */
     fun route(position: Offset, projection: GlobeProjection, density: Density) {
         val point = projection.unproject(position.x.toDouble(), position.y.toDouble())
-        val pinned = landmarkAt(position, pins, projection, density)
+        val pinned = landmarkAt(position, pins, projection, openPin, density)
         val realm = past?.map?.realms?.let { realms -> point?.let { realms.territoryAt(it) } }
         val subdivision = point?.let { content.subdivisions.territoryAt(it) }
         val country = point?.let { content.countries.territoryAt(it) }
@@ -313,10 +306,7 @@ private class TapTargets(
     }
 }
 
-/**
- * The tap handler for the gesture detector, which is installed once: it routes each tap through
- * the latest [targets] rather than the ones it was created with.
- */
+/** The tap handler. It's created once but always uses the latest [targets]. */
 @Composable
 private fun rememberTapRouter(targets: TapTargets): (Offset, GlobeProjection) -> Unit {
     val density = LocalDensity.current
@@ -359,12 +349,11 @@ private fun DrawScope.drawGraticule(graticule: GraticuleGeometry, projection: Gl
 }
 
 /**
- * Which countries stand out from the rest, and how.
+ * Which countries are highlighted and how.
  *
- * @property selected the selected country, filled gold until its states have loaded; once they
- *   fade in over it, it keeps its ordinary shade so the states read against it.
- * @property statesShown whether the selected country's states are showing.
- * @property quiz the quiz's right answer and wrong guess, filled green and red.
+ * @property selected the selected country, gold until its states have loaded.
+ * @property statesShown whether its states are visible.
+ * @property quiz the quiz answer (green) and wrong guess (red).
  */
 private class CountryHighlight(val selected: Country?, val statesShown: Boolean, val quiz: QuizGlobe?) {
     fun isMarked(country: TerritoryGeometry): Boolean = country.territory.let {
@@ -379,7 +368,7 @@ private class CountryHighlight(val selected: Country?, val statesShown: Boolean,
     }
 }
 
-/** Draws every country, with the selected one and the quiz's answers picked out by [highlight]. */
+/** Draws all countries, with the highlights from [highlight]. */
 private fun DrawScope.drawCountries(
     geometry: GlobeGeometryCache,
     projection: GlobeProjection,
@@ -398,7 +387,7 @@ private fun DrawScope.drawCountries(
     }
 }
 
-/** Draws the selected country's states over it, faded in by [alpha], with the tapped one in gold. */
+/** Draws the selected country's states with [alpha], and the selected state in gold. */
 private fun DrawScope.drawSubdivisions(
     subdivisions: List<TerritoryGeometry>,
     projection: GlobeProjection,
@@ -421,10 +410,8 @@ private fun DrawScope.drawSubdivisions(
 }
 
 /**
- * Draws the halo outside the limb as a stack of fading rings.
- *
- * Concentric strokes rather than one gradient brush, because a brush with explicit colour stops
- * would have to be rebuilt for every frame's radius.
+ * Draws the atmosphere glow as fading rings. Rings are used instead of a gradient brush because the
+ * brush would have to be rebuilt whenever the radius changes.
  */
 private fun DrawScope.drawAtmosphere(projection: GlobeProjection, palette: GlobePalette) {
     val center = projection.screenCenter()
