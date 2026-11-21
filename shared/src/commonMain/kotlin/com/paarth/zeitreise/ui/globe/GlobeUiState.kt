@@ -19,6 +19,7 @@ public sealed interface GlobeUiState {
      * @property subdivisions the states of [selected], largest first. Empty while loading.
      * @property selectedSubdivision the selected state inside [selected], if any.
      * @property countryOfTheDay today's country.
+     * @property home the user's home country, if they gave one. The globe starts facing it.
      */
     public data class Ready(
         val countries: List<Country>,
@@ -26,5 +27,6 @@ public sealed interface GlobeUiState {
         val subdivisions: List<Subdivision> = emptyList(),
         val selectedSubdivision: Subdivision? = null,
         val countryOfTheDay: Country? = null,
+        val home: Country? = null,
     ) : GlobeUiState
 }

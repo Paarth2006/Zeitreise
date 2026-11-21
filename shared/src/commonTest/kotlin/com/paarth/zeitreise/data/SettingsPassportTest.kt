@@ -53,4 +53,27 @@ class SettingsPassportTest {
 
         assertEquals(listOf("Q1"), passport().stamps())
     }
+
+    @Test
+    fun hasNoHomeUntilTheUserGivesOne() = runTest {
+        assertEquals(null, passport().home())
+    }
+
+    @Test
+    fun remembersTheHomeCountryAndStampsIt() = runTest {
+        passport().setHome(westland)
+
+        assertEquals("Q1", passport().home())
+        assertEquals(listOf("Q1"), passport().stamps())
+    }
+
+    @Test
+    fun aHomeCountryOpenedBeforeIsNotStampedTwice() = runTest {
+        passport().stamp(eastland)
+        passport().stamp(westland)
+
+        passport().setHome(westland)
+
+        assertEquals(listOf("Eastland", "Q1"), passport().stamps())
+    }
 }

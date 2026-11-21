@@ -56,6 +56,7 @@ import com.paarth.zeitreise.ui.explore.landmarksIn
 import com.paarth.zeitreise.ui.glass.LocalGlassBackdrop
 import com.paarth.zeitreise.ui.glass.SHEET_BODY_END_PADDING
 import com.paarth.zeitreise.ui.onboarding.CoachHint
+import com.paarth.zeitreise.ui.onboarding.HomePicker
 import com.paarth.zeitreise.ui.onboarding.OnboardingEvent
 import com.paarth.zeitreise.ui.onboarding.OnboardingStep
 import com.paarth.zeitreise.ui.onboarding.OnboardingViewModel
@@ -307,6 +308,9 @@ private class GlobeScreenActions(
     private val onboarding: OnboardingViewModel,
     private val places: ExploreViewModel,
 ) {
+    /** Passes an onboarding event on, such as the globe being turned. */
+    val onboardingEvent: (OnboardingEvent) -> Unit = onboarding::onEvent
+
     fun selectCountry(country: Country?) {
         places.close()
         globe.select(country)
@@ -338,7 +342,10 @@ private class GlobeScreenActions(
         is HistoricLandmark -> places.openHistoric(pin)
     }
 
-    fun onboardingEvent(event: OnboardingEvent) = onboarding.onEvent(event)
+    fun chooseHome(country: Country) {
+        globe.chooseHome(country)
+        onboarding.onEvent(OnboardingEvent.HomeChosen)
+    }
 
     fun retryStory() = globe.retryStory()
 
@@ -437,14 +444,22 @@ private fun BoxScope.Controls(
             ExplorePanel(state = places.explore, onExplore = { actions.explore(country) }, modifier = bodyModifier)
         }
     }
-    OnboardingLayers(step = step, tourTargets = tourTargets, onEvent = actions::onboardingEvent)
+    OnboardingLayers(
+        step = step,
+        tourTargets = tourTargets,
+        countries = state.countries,
+        onChooseHome = actions::chooseHome,
+        onEvent = actions.onboardingEvent,
+    )
 }
 
-/** The onboarding on top of everything: the gesture hints, the welcome screen and the tour. */
+/** The onboarding on top of everything: the gesture hints, the welcome screen, the home question and the tour. */
 @Composable
 private fun BoxScope.OnboardingLayers(
     step: OnboardingStep,
     tourTargets: TourTargets,
+    countries: List<Country>,
+    onChooseHome: (Country) -> Unit,
     onEvent: (OnboardingEvent) -> Unit,
 ) {
     CoachHint(
@@ -467,6 +482,9 @@ private fun BoxScope.OnboardingLayers(
                 onSkip = { onEvent(OnboardingEvent.Skipped) },
             )
         }
+    }
+    AnimatedVisibility(visible = step == OnboardingStep.ChooseHome, enter = fadeIn(), exit = fadeOut()) {
+        HomePicker(countries = countries, onChoose = onChooseHome, onSkip = { onEvent(OnboardingEvent.HomeSkipped) })
     }
     AnimatedVisibility(visible = step == OnboardingStep.Welcome, enter = EnterTransition.None, exit = fadeOut()) {
         WelcomeOverlay(onContinue = { onEvent(OnboardingEvent.Started) })

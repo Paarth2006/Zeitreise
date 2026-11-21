@@ -120,7 +120,8 @@ internal fun GlobeView(
     onTurned: () -> Unit = {},
     showcase: GlobeShowcase? = null,
 ) {
-    val state = remember { GlobeInteractionState() }
+    // Facing the home country only matters for the first frame, so later changes don't move the camera.
+    val state = remember { GlobeInteractionState(start = content.home?.focus?.center) }
     val geometry = remember(content.countries) { GlobeGeometryCache(content.countries) }
     val subdivisionGeometry = remember(content.subdivisions) { content.subdivisions.map(::TerritoryGeometry) }
     val pastGeometry = remember(past?.map) { past?.map?.let(::PastGeometry) }

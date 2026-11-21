@@ -10,6 +10,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.unit.Velocity
 import com.paarth.zeitreise.globe.DEGREES_PER_HALF_TURN
 import com.paarth.zeitreise.globe.GeoCap
+import com.paarth.zeitreise.globe.GeoPoint
 import com.paarth.zeitreise.globe.GlobeCamera
 import com.paarth.zeitreise.globe.GlobeProjection
 import com.paarth.zeitreise.globe.MIN_ZOOM
@@ -61,13 +62,17 @@ private const val FRAME_FILL = 0.7
 /**
  * The globe's camera, inertia, idle drift and fly-to animations.
  *
+ * @param start the point the globe faces at first, such as the user's home country.
+ *
  * The camera is Compose state read only while drawing, so a camera change redraws the globe
  * without any recomposition.
  */
-internal class GlobeInteractionState {
+internal class GlobeInteractionState(start: GeoPoint? = null) {
 
-    /** The current camera. */
-    var camera: GlobeCamera by mutableStateOf(GlobeCamera())
+    /** The current camera. It starts facing [start], or the default spot if there is none. */
+    var camera: GlobeCamera by mutableStateOf(
+        start?.let { GlobeCamera().pointingAt(it, zoom = MIN_ZOOM) } ?: GlobeCamera(),
+    )
         private set
 
     /** Size of the drawing area, used to convert drag pixels into degrees. */

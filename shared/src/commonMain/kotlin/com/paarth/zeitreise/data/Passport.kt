@@ -11,10 +11,16 @@ import kotlinx.coroutines.withContext
 /** Settings key for the stamps. */
 private const val STAMPS_KEY = "passport_stamps"
 
+/** Settings key for the user's home country. */
+private const val HOME_KEY = "passport_home"
+
 /** Separator between stamps in the saved text. Keys never contain a line break. */
 private const val STAMP_SEPARATOR = "\n"
 
-/** The countries the user has opened, each stamped once, in the order they were first opened. */
+/**
+ * The countries the user has opened, each stamped once, in the order they were first opened, and
+ * the user's home country.
+ */
 public interface Passport {
     /** The [passportKey]s of stamped countries, oldest first. */
     public suspend fun stamps(): List<String>
@@ -25,6 +31,12 @@ public interface Passport {
      * @return `true` if this was a new stamp.
      */
     public suspend fun stamp(country: Country): Boolean
+
+    /** The [passportKey] of the user's home country, or `null` if they didn't say. */
+    public suspend fun home(): String?
+
+    /** Saves [country] as the user's home country and stamps it, so it's usually their first stamp. */
+    public suspend fun setHome(country: Country)
 }
 
 /**
@@ -47,6 +59,13 @@ internal class SettingsPassport(private val settings: Settings, private val disp
                 if (isNew) settings.putString(STAMPS_KEY, (stamps + key).joinToString(STAMP_SEPARATOR))
             }
         }
+    }
+
+    override suspend fun home(): String? = withContext(dispatcher) { settings.getStringOrNull(HOME_KEY) }
+
+    override suspend fun setHome(country: Country) {
+        withContext(dispatcher) { settings.putString(HOME_KEY, country.passportKey) }
+        stamp(country)
     }
 
     private fun read(): List<String> =

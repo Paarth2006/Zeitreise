@@ -5,6 +5,7 @@ import androidx.compose.ui.unit.Velocity
 import com.paarth.zeitreise.globe.GeoCap
 import com.paarth.zeitreise.globe.GeoPoint
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
@@ -85,5 +86,14 @@ class GlobeInteractionStateTest {
 
         state.advance(seconds = MOMENT, idle = false)
         assertNotEquals(PERU.center.longitude, state.camera.yaw)
+    }
+
+    @Test
+    fun startsFacingTheGivenPoint() {
+        val home = GeoPoint(latitude = 20.0, longitude = 78.0)
+
+        val camera = GlobeInteractionState(start = home).camera
+
+        assertEquals(home, camera.center)
     }
 }

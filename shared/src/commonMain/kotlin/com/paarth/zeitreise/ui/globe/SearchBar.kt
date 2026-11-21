@@ -54,6 +54,7 @@ import com.paarth.zeitreise.ui.ZeitreiseTheme
 import com.paarth.zeitreise.ui.glass.CapsuleShape
 import com.paarth.zeitreise.ui.glass.GlassButton
 import com.paarth.zeitreise.ui.glass.GlassPanel
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.search_cancel
@@ -121,6 +122,7 @@ private const val DIVIDER_ALPHA = 0.12f
  * @param onChoose called when the user picks a result.
  * @param onSubmit called when the user presses Search on the keyboard.
  * @param modifier applied to the root element.
+ * @param placeholder the hint shown while the field is empty.
  */
 @Composable
 internal fun SearchBar(
@@ -130,6 +132,7 @@ internal fun SearchBar(
     onChoose: (SearchResult) -> Unit,
     onSubmit: () -> Unit,
     modifier: Modifier = Modifier,
+    placeholder: StringResource = Res.string.search_placeholder,
 ) {
     val focusManager = LocalFocusManager.current
     var focused by remember { mutableStateOf(false) }
@@ -155,6 +158,7 @@ internal fun SearchBar(
         ) {
             SearchField(
                 query = query,
+                placeholder = placeholder,
                 onQueryChange = onQueryChange,
                 onSearch = {
                     focusManager.clearFocus()
@@ -186,6 +190,7 @@ internal fun SearchBar(
 @Composable
 private fun SearchField(
     query: String,
+    placeholder: StringResource,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     modifier: Modifier = Modifier,
@@ -201,7 +206,7 @@ private fun SearchField(
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                 if (query.isEmpty()) {
                     Text(
-                        text = stringResource(Res.string.search_placeholder),
+                        text = stringResource(placeholder),
                         style = MaterialTheme.typography.bodyLarge,
                         color = secondary,
                         maxLines = 1,

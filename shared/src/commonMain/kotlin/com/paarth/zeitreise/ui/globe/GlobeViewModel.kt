@@ -13,6 +13,7 @@ import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.SearchResult
 import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.domain.countryOfTheDay
+import com.paarth.zeitreise.domain.passportKey
 import com.paarth.zeitreise.domain.searchPlaces
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +28,7 @@ import kotlinx.coroutines.launch
 
 /**
  * The globe screen's view model. It handles loading, selection, search and stories, and stamps
- * every opened country in the [passport].
+ * every opened country in the [passport], which also keeps the user's home country.
  */
 public class GlobeViewModel(
     private val countries: CountryRepository,
@@ -89,9 +90,10 @@ public class GlobeViewModel(
         storyRetries.update { it + 1 }
     }
 
-    /** Selects [country] (or clears the selection if `null`) and loads its states. */
-    public fun select(country: Country?) {
-        select(country, subdivisionName = null)
+    /** Saves [country] as the user's home country and stamps it in the passport, as their first stamp. */
+    public fun chooseHome(country: Country) {
+        updateReady { it.copy(home = country) }
+        viewModelScope.launch { passport.setHome(country) }
     }
 
     /** Searches for [query]. A blank query clears the results. */
@@ -132,8 +134,11 @@ public class GlobeViewModel(
         updateReady { it.copy(selectedSubdivision = subdivision) }
     }
 
-    /** Selects [country], loads its states and then selects [subdivisionName] if given (for search). */
-    private fun select(country: Country?, subdivisionName: String?) {
+    /**
+     * Selects [country] (or clears the selection if `null`) and loads its states. Search passes
+     * [subdivisionName] to select one of those states once they're loaded.
+     */
+    public fun select(country: Country?, subdivisionName: String? = null) {
         subdivisionLoad?.cancel()
         updateReady { it.copy(selected = country, subdivisions = emptyList(), selectedSubdivision = null) }
         _newStamp.value = null
@@ -155,10 +160,15 @@ public class GlobeViewModel(
 
     private fun loadCountries() {
         viewModelScope.launch {
+            val homeKey = passport.home()
             _uiState.value = runCatching { countries.loadCountries() }
                 .fold(
-                    onSuccess = {
-                        GlobeUiState.Ready(countries = it, countryOfTheDay = countryOfTheDay(it, dayClock.today()))
+                    onSuccess = { loaded ->
+                        GlobeUiState.Ready(
+                            countries = loaded,
+                            countryOfTheDay = countryOfTheDay(loaded, dayClock.today()),
+                            home = homeKey?.let { key -> loaded.firstOrNull { it.passportKey == key } },
+                        )
                     },
                     onFailure = { GlobeUiState.Failed(it.message ?: "The country outlines could not be read.") },
                 )

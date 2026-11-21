@@ -97,7 +97,12 @@ private fun HintCapsule(text: String, onSkip: () -> Unit, modifier: Modifier = M
 private fun OnboardingStep.hint(): StringResource? = when (this) {
     OnboardingStep.TryTurning -> Res.string.hint_turn
     OnboardingStep.TrySelecting -> Res.string.hint_select
-    OnboardingStep.Checking, OnboardingStep.Welcome, is OnboardingStep.Tour, OnboardingStep.Finished -> null
+    OnboardingStep.Checking,
+    OnboardingStep.Welcome,
+    OnboardingStep.ChooseHome,
+    is OnboardingStep.Tour,
+    OnboardingStep.Finished,
+    -> null
 }
 
 @Preview

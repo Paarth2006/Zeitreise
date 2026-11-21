@@ -7,7 +7,7 @@ class OnboardingStepTest {
 
     @Test
     fun walksThroughTheTourAndEveryHintWhenTheUserFollowsThem() {
-        val events = listOf(OnboardingEvent.Started) +
+        val events = listOf(OnboardingEvent.Started, OnboardingEvent.HomeChosen) +
             List(TourStop.entries.size) { OnboardingEvent.TourNext } +
             listOf(OnboardingEvent.GlobeTurned, OnboardingEvent.CountrySelected)
 
@@ -19,11 +19,24 @@ class OnboardingStepTest {
     }
 
     @Test
-    fun continueOnTheWelcomeScreenStartsTheTour() {
-        assertEquals(
-            OnboardingStep.Tour(TourStop.CountryOfTheDay),
-            OnboardingStep.Welcome.after(OnboardingEvent.Started),
-        )
+    fun continueOnTheWelcomeScreenAsksWhereTheUserIsFrom() {
+        assertEquals(OnboardingStep.ChooseHome, OnboardingStep.Welcome.after(OnboardingEvent.Started))
+    }
+
+    @Test
+    fun choosingOrSkippingAHomeCountryStartsTheTour() {
+        listOf(OnboardingEvent.HomeChosen, OnboardingEvent.HomeSkipped).forEach { event ->
+            assertEquals(
+                OnboardingStep.Tour(TourStop.CountryOfTheDay),
+                OnboardingStep.ChooseHome.after(event),
+                "$event",
+            )
+        }
+    }
+
+    @Test
+    fun theHomeQuestionIgnoresGesturesBehindIt() {
+        assertEquals(OnboardingStep.ChooseHome, OnboardingStep.ChooseHome.after(OnboardingEvent.GlobeTurned))
     }
 
     @Test
@@ -77,7 +90,12 @@ class OnboardingStepTest {
 
     @Test
     fun skipFinishesTheOnboardingFromEveryVisibleStep() {
-        listOf(OnboardingStep.Welcome, OnboardingStep.TryTurning, OnboardingStep.TrySelecting).forEach { step ->
+        listOf(
+            OnboardingStep.Welcome,
+            OnboardingStep.ChooseHome,
+            OnboardingStep.TryTurning,
+            OnboardingStep.TrySelecting,
+        ).forEach { step ->
             assertEquals(OnboardingStep.Finished, step.after(OnboardingEvent.Skipped), "skipping from $step")
         }
     }

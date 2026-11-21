@@ -1,8 +1,8 @@
 package com.paarth.zeitreise.ui.onboarding
 
 /**
- * The current onboarding step: the welcome screen, a short tour of the controls, then two hints
- * that wait for the user to try the main gestures.
+ * The current onboarding step: the welcome screen, a question about the user's home country, a
+ * short tour of the controls, then two hints that wait for the user to try the main gestures.
  */
 internal sealed interface OnboardingStep {
     /** Still checking if the onboarding was done before. */
@@ -10,6 +10,9 @@ internal sealed interface OnboardingStep {
 
     /** The welcome screen, shown on first launch. */
     data object Welcome : OnboardingStep
+
+    /** Asks which country the user is from. */
+    data object ChooseHome : OnboardingStep
 
     /**
      * A tour card explaining one control on screen.
@@ -45,6 +48,12 @@ internal sealed interface OnboardingEvent {
     /** The user tapped Continue on the welcome screen. */
     data object Started : OnboardingEvent
 
+    /** The user picked their home country. */
+    data object HomeChosen : OnboardingEvent
+
+    /** The user chose not to say where they are from. */
+    data object HomeSkipped : OnboardingEvent
+
     /** The user tapped Next on a tour card. */
     data object TourNext : OnboardingEvent
 
@@ -65,6 +74,7 @@ internal sealed interface OnboardingEvent {
 internal fun OnboardingStep.after(event: OnboardingEvent): OnboardingStep = when (this) {
     OnboardingStep.Checking -> this
     OnboardingStep.Welcome -> welcomeAfter(event)
+    OnboardingStep.ChooseHome -> homeAfter(event)
     is OnboardingStep.Tour -> tourAfter(event)
     OnboardingStep.TryTurning -> turningAfter(event)
     OnboardingStep.TrySelecting -> selectingAfter(event)
@@ -74,9 +84,16 @@ internal fun OnboardingStep.after(event: OnboardingEvent): OnboardingStep = when
 private fun firstTourStep(replay: Boolean = false) = OnboardingStep.Tour(TourStop.entries.first(), replay)
 
 private fun welcomeAfter(event: OnboardingEvent): OnboardingStep = when (event) {
-    OnboardingEvent.Started -> firstTourStep()
+    OnboardingEvent.Started -> OnboardingStep.ChooseHome
     OnboardingEvent.Skipped -> OnboardingStep.Finished
     else -> OnboardingStep.Welcome
+}
+
+/** Picking a home country is optional, so both answers go on to the tour. */
+private fun homeAfter(event: OnboardingEvent): OnboardingStep = when (event) {
+    OnboardingEvent.HomeChosen, OnboardingEvent.HomeSkipped -> firstTourStep()
+    OnboardingEvent.Skipped -> OnboardingStep.Finished
+    else -> OnboardingStep.ChooseHome
 }
 
 /** Next moves through the stops. After the last one a replay ends, and a first tour goes on to the hints. */
