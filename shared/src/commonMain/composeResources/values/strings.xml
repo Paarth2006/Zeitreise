@@ -109,4 +109,22 @@
     <string name="toolbar_quiz">Quiz</string>
     <string name="toolbar_passport">Passport</string>
     <string name="toolbar_about">About</string>
+    <string name="tour_progress">%1$d of %2$d</string>
+    <string name="tour_next">Next</string>
+    <string name="tour_done">Done</string>
+    <string name="tour_start_exploring">Start exploring</string>
+    <string name="tour_skip">Skip tour</string>
+    <string name="tour_replay">Take the tour</string>
+    <string name="tour_today_title">Country of the day</string>
+    <string name="tour_today_body">Every day this chip shows a new country, the same for everyone. Tap it to fly there and read about it.</string>
+    <string name="tour_search_title">Search</string>
+    <string name="tour_search_body">Type the name of any country, state or province to fly straight to it.</string>
+    <string name="tour_time_travel_title">Time Travel</string>
+    <string name="tour_time_travel_body">Turns the globe into a map of the past. Drag the year slider from 123,000 BC to 2010, then tap an empire or a landmark pin to read its story.</string>
+    <string name="tour_quiz_title">Quiz</string>
+    <string name="tour_quiz_body">Ten questions a round. Find each country, or the country with a given capital, by tapping it on the globe.</string>
+    <string name="tour_passport_title">Passport</string>
+    <string name="tour_passport_body">Every country you open gets a stamp here, so you can see how much of each continent you have explored.</string>
+    <string name="tour_about_title">About</string>
+    <string name="tour_about_body">What Zeitreise is and where its data comes from. You can start this tour again from here at any time.</string>
 </resources>

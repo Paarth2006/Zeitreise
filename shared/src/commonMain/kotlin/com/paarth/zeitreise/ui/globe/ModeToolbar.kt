@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,6 +25,8 @@ import com.paarth.zeitreise.ui.ZeitreiseTheme
 import com.paarth.zeitreise.ui.glass.CapsuleShape
 import com.paarth.zeitreise.ui.glass.GLASS_TOUCH_TARGET
 import com.paarth.zeitreise.ui.glass.GlassPanel
+import com.paarth.zeitreise.ui.onboarding.TourStop
+import com.paarth.zeitreise.ui.onboarding.tourHighlight
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
@@ -44,6 +47,9 @@ private val TOOLBAR_MAX_WIDTH = 480.dp
 /** Padding inside the toolbar and inside each item. */
 private val TOOLBAR_PADDING = 6.dp
 private val ITEM_PADDING = 6.dp
+
+/** Shape of the highlight ring around an item during the tour. */
+private val ITEM_SHAPE = RoundedCornerShape(16.dp)
 
 /** Size of each icon and the gap between icon and label. */
 private val ICON_SIZE = 24.dp
@@ -70,24 +76,57 @@ internal class ModeActions(
  *
  * @param actions what each button does.
  * @param modifier applied to the root element.
+ * @param highlight the tour stop being explained, so its button gets a highlight ring.
  * @param enabled whether the buttons react to taps. It's `false` while the toolbar animates away, so
  *   a quick second tap can't start another feature.
  */
 @Composable
-internal fun ModeToolbar(actions: ModeActions, modifier: Modifier = Modifier, enabled: Boolean = true) {
+internal fun ModeToolbar(
+    actions: ModeActions,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    highlight: TourStop? = null,
+) {
     GlassPanel(shape = CapsuleShape, modifier = modifier.widthIn(max = TOOLBAR_MAX_WIDTH).fillMaxWidth()) {
         Row(modifier = Modifier.padding(TOOLBAR_PADDING)) {
-            ToolbarItem(Res.drawable.ic_time_travel, Res.string.toolbar_time_travel, enabled, actions.startTimeTravel)
-            ToolbarItem(Res.drawable.ic_quiz, Res.string.toolbar_quiz, enabled, actions.startQuiz)
-            ToolbarItem(Res.drawable.ic_passport, Res.string.toolbar_passport, enabled, actions.showPassport)
-            ToolbarItem(Res.drawable.ic_about, Res.string.toolbar_about, enabled, actions.showAbout)
+            listOf(
+                ToolbarEntry(
+                    Res.drawable.ic_time_travel,
+                    Res.string.toolbar_time_travel,
+                    TourStop.TimeTravel,
+                    actions.startTimeTravel,
+                ),
+                ToolbarEntry(Res.drawable.ic_quiz, Res.string.toolbar_quiz, TourStop.Quiz, actions.startQuiz),
+                ToolbarEntry(
+                    Res.drawable.ic_passport,
+                    Res.string.toolbar_passport,
+                    TourStop.Passport,
+                    actions.showPassport,
+                ),
+                ToolbarEntry(Res.drawable.ic_about, Res.string.toolbar_about, TourStop.About, actions.showAbout),
+            ).forEach { entry -> ToolbarItem(entry, enabled, highlighted = highlight == entry.stop) }
         }
     }
 }
 
+/**
+ * One toolbar button.
+ *
+ * @property icon the button's icon.
+ * @property label the text under the icon.
+ * @property stop the tour stop that explains this button.
+ * @property onClick what the button does.
+ */
+private class ToolbarEntry(
+    val icon: DrawableResource,
+    val label: StringResource,
+    val stop: TourStop,
+    val onClick: () -> Unit,
+)
+
 /** One toolbar button: an icon above its label. */
 @Composable
-private fun RowScope.ToolbarItem(icon: DrawableResource, label: StringResource, enabled: Boolean, onClick: () -> Unit) {
+private fun RowScope.ToolbarItem(entry: ToolbarEntry, enabled: Boolean, highlighted: Boolean) {
     val color = MaterialTheme.colorScheme.primary
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -95,13 +134,14 @@ private fun RowScope.ToolbarItem(icon: DrawableResource, label: StringResource, 
         modifier = Modifier
             .weight(1f)
             .heightIn(min = GLASS_TOUCH_TARGET)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .tourHighlight(highlighted, ITEM_SHAPE)
+            .clickable(enabled = enabled, role = Role.Button, onClick = entry.onClick)
             .padding(ITEM_PADDING),
     ) {
         // The label below already describes the button, so the icon itself needs no description.
-        Icon(painterResource(icon), contentDescription = null, tint = color, modifier = Modifier.size(ICON_SIZE))
+        Icon(painterResource(entry.icon), contentDescription = null, tint = color, modifier = Modifier.size(ICON_SIZE))
         Text(
-            text = stringResource(label),
+            text = stringResource(entry.label),
             style = MaterialTheme.typography.labelMedium,
             color = color,
             maxLines = 1,

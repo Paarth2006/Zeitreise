@@ -43,6 +43,7 @@ import zeitreise.shared.generated.resources.about_credit_natural_earth
 import zeitreise.shared.generated.resources.about_credit_wikipedia
 import zeitreise.shared.generated.resources.about_credits_heading
 import zeitreise.shared.generated.resources.about_title
+import zeitreise.shared.generated.resources.tour_replay
 
 /** Maximum width of the About card. */
 private val CARD_MAX_WIDTH = 420.dp
@@ -69,10 +70,16 @@ private val CARD_SPRING = spring<Float>(
  *
  * @param visible whether the card is shown.
  * @param onDismiss called when the card is closed.
+ * @param onTakeTour called when the user asks to see the tour again. The card closes first.
  * @param modifier applied to the root element.
  */
 @Composable
-internal fun AboutSheet(visible: Boolean, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+internal fun AboutSheet(
+    visible: Boolean,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    onTakeTour: () -> Unit = {},
+) {
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(),
@@ -99,14 +106,14 @@ internal fun AboutSheet(visible: Boolean, onDismiss: () -> Unit, modifier: Modif
                     // Stop taps on the card from reaching the background and closing it.
                     .clickable(interactionSource = null, indication = null, onClick = {}),
             ) {
-                AboutContent(onDismiss)
+                AboutContent(onDismiss = onDismiss, onTakeTour = onTakeTour)
             }
         }
     }
 }
 
 @Composable
-private fun AboutContent(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+private fun AboutContent(onDismiss: () -> Unit, onTakeTour: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         verticalArrangement = Arrangement.spacedBy(CARD_SPACING),
         modifier = modifier.padding(CARD_PADDING),
@@ -134,6 +141,15 @@ private fun AboutContent(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = SECONDARY_TEXT_ALPHA),
             )
+        }
+        GlassButton(
+            onClick = {
+                onDismiss()
+                onTakeTour()
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(text = stringResource(Res.string.tour_replay), style = MaterialTheme.typography.titleMedium)
         }
         GlassButton(onClick = onDismiss, prominent = true, modifier = Modifier.fillMaxWidth()) {
             Text(text = stringResource(Res.string.about_close), style = MaterialTheme.typography.titleMedium)

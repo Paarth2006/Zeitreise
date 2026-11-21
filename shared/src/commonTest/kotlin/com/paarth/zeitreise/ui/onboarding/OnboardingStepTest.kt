@@ -6,19 +6,63 @@ import kotlin.test.assertEquals
 class OnboardingStepTest {
 
     @Test
-    fun walksThroughEveryHintWhenTheUserFollowsThem() {
-        val finalStep = listOf(
-            OnboardingEvent.Started,
-            OnboardingEvent.GlobeTurned,
-            OnboardingEvent.CountrySelected,
-        ).fold<OnboardingEvent, OnboardingStep>(OnboardingStep.Welcome) { step, event -> step.after(event) }
+    fun walksThroughTheTourAndEveryHintWhenTheUserFollowsThem() {
+        val events = listOf(OnboardingEvent.Started) +
+            List(TourStop.entries.size) { OnboardingEvent.TourNext } +
+            listOf(OnboardingEvent.GlobeTurned, OnboardingEvent.CountrySelected)
+
+        val finalStep = events.fold<OnboardingEvent, OnboardingStep>(OnboardingStep.Welcome) { step, event ->
+            step.after(event)
+        }
 
         assertEquals(OnboardingStep.Finished, finalStep)
     }
 
     @Test
-    fun continueOnTheWelcomeScreenShowsTheTurningHint() {
-        assertEquals(OnboardingStep.TryTurning, OnboardingStep.Welcome.after(OnboardingEvent.Started))
+    fun continueOnTheWelcomeScreenStartsTheTour() {
+        assertEquals(
+            OnboardingStep.Tour(TourStop.CountryOfTheDay),
+            OnboardingStep.Welcome.after(OnboardingEvent.Started),
+        )
+    }
+
+    @Test
+    fun theTourVisitsEveryControlInOrder() {
+        val stops = generateSequence<OnboardingStep>(OnboardingStep.Tour(TourStop.entries.first())) {
+            it.after(OnboardingEvent.TourNext)
+        }.takeWhile { it is OnboardingStep.Tour }.map { (it as OnboardingStep.Tour).stop }.toList()
+
+        assertEquals(TourStop.entries, stops)
+    }
+
+    @Test
+    fun theLastTourCardLeadsToTheTurningHint() {
+        assertEquals(
+            OnboardingStep.TryTurning,
+            OnboardingStep.Tour(TourStop.entries.last()).after(OnboardingEvent.TourNext),
+        )
+    }
+
+    @Test
+    fun aReplayedTourEndsAfterTheLastCard() {
+        val replay = OnboardingStep.Finished.after(OnboardingEvent.TourRequested)
+        assertEquals(OnboardingStep.Tour(TourStop.entries.first(), replay = true), replay)
+
+        val last = OnboardingStep.Tour(TourStop.entries.last(), replay = true)
+        assertEquals(OnboardingStep.Finished, last.after(OnboardingEvent.TourNext))
+    }
+
+    @Test
+    fun skippingTheTourFinishesTheOnboarding() {
+        assertEquals(OnboardingStep.Finished, OnboardingStep.Tour(TourStop.Quiz).after(OnboardingEvent.Skipped))
+    }
+
+    @Test
+    fun theTourIgnoresGesturesOnTheGlobe() {
+        val tour = OnboardingStep.Tour(TourStop.Search)
+
+        assertEquals(tour, tour.after(OnboardingEvent.GlobeTurned))
+        assertEquals(tour, tour.after(OnboardingEvent.CountrySelected))
     }
 
     @Test

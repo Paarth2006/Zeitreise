@@ -133,13 +133,13 @@ private fun StoryContent(state: StoryState.Ready, onNextFact: () -> Unit, modifi
             horizontalArrangement = Arrangement.spacedBy(CHIP_SPACING),
             modifier = Modifier.fillMaxWidth().padding(top = CHIP_SPACING),
         ) {
+            GlassButton(onClick = { uriHandler.openUri(answer.article.pageUrl) }, modifier = Modifier.weight(1f)) {
+                ButtonLabel(stringResource(Res.string.story_read_more))
+            }
             if (answer.facts.size > 1) {
                 GlassButton(onClick = onNextFact, prominent = true) {
                     ButtonLabel(stringResource(Res.string.story_next_fact))
                 }
-            }
-            GlassButton(onClick = { uriHandler.openUri(answer.article.pageUrl) }, modifier = Modifier.weight(1f)) {
-                ButtonLabel(stringResource(Res.string.story_read_more))
             }
         }
     }
