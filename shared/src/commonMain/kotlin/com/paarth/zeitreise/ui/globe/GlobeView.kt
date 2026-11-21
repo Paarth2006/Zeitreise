@@ -229,6 +229,9 @@ internal sealed interface GlobeShowcase {
 
     /** Spins the globe backwards, for Time Travel. */
     data object Rewind : GlobeShowcase
+
+    /** Turns the user's [home] country to face them once the tour is over, without selecting it. */
+    data class Homecoming(val home: Country) : GlobeShowcase
 }
 
 /**
@@ -248,11 +251,14 @@ internal data class QuizGlobe(val answer: Country? = null, val wrongGuess: Count
 private fun CameraDriver(state: GlobeInteractionState, focus: GeoCap?, drifting: Boolean, showcase: GlobeShowcase?) {
     val lowered = (showcase as? GlobeShowcase.Highlight)?.lowered == true
     val rewind = showcase == GlobeShowcase.Rewind
+    val homecoming = showcase as? GlobeShowcase.Homecoming
     LaunchedEffect(focus, lowered) {
         if (focus != null) state.flyToFrame(focus, lowered) else state.flyToWholeGlobe()
     }
-    // Started after the flight above, which would otherwise cancel the spin.
+    // Started after the flight above, which would otherwise cancel the spin or the turn home.
     LaunchedEffect(rewind) { if (rewind) state.rewind() }
+    // Keyed on the showcase alone, so it turns home once and closing a sheet later doesn't do it again.
+    LaunchedEffect(homecoming) { homecoming?.let { state.flyToWholeGlobe(facing = it.home.focus.center) } }
 
     // Read inside the loop, so changing it doesn't restart the loop.
     val driftingNow by rememberUpdatedState(drifting)

@@ -33,6 +33,16 @@ internal sealed interface OnboardingStep {
     data object Finished : OnboardingStep
 }
 
+/**
+ * Whether the user got past the welcome screen, the home question and the tour. The onboarding is
+ * saved as done from here, so closing the app during the gesture hints doesn't start it all over.
+ */
+internal val OnboardingStep.isPastTour: Boolean
+    get() = when (this) {
+        OnboardingStep.Checking, OnboardingStep.Welcome, OnboardingStep.ChooseHome, is OnboardingStep.Tour -> false
+        OnboardingStep.TryTurning, OnboardingStep.TrySelecting, OnboardingStep.Finished -> true
+    }
+
 /** The controls the tour explains, in the order it shows them. */
 internal enum class TourStop {
     CountryOfTheDay,

@@ -2,6 +2,8 @@ package com.paarth.zeitreise.ui.onboarding
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class OnboardingStepTest {
 
@@ -121,5 +123,24 @@ class OnboardingStepTest {
         listOf(OnboardingStep.Checking, OnboardingStep.Finished).forEach { step ->
             events.forEach { event -> assertEquals(step, step.after(event), "$event on $step") }
         }
+    }
+
+    @Test
+    fun countsAsPastTheTourOnlyOnceTheGestureHintsStart() {
+        val before = listOf(
+            OnboardingStep.Checking,
+            OnboardingStep.Welcome,
+            OnboardingStep.ChooseHome,
+            OnboardingStep.Tour(TourStop.About),
+        )
+        val after = listOf(OnboardingStep.TryTurning, OnboardingStep.TrySelecting, OnboardingStep.Finished)
+
+        before.forEach { assertFalse(it.isPastTour, "$it") }
+        after.forEach { assertTrue(it.isPastTour, "$it") }
+    }
+
+    @Test
+    fun theLastTourCardLeadsPastTheTour() {
+        assertTrue(OnboardingStep.Tour(TourStop.entries.last()).after(OnboardingEvent.TourNext).isPastTour)
     }
 }

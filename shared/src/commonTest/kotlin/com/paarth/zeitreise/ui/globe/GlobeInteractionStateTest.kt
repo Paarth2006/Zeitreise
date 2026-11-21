@@ -96,4 +96,18 @@ class GlobeInteractionStateTest {
 
         assertEquals(home, camera.center)
     }
+
+    @Test
+    fun zoomsOutTurnedTowardsTheGivenPoint() {
+        val home = GeoPoint(latitude = 52.0, longitude = 10.0)
+        state.flyToFrame(PERU)
+        state.advance(seconds = LONG_ENOUGH, idle = false)
+
+        state.flyToWholeGlobe(facing = home)
+        state.advance(seconds = LONG_ENOUGH, idle = false)
+
+        val wholeGlobe = GlobeInteractionState(start = home).camera
+        assertEquals(home, state.camera.center)
+        assertEquals(wholeGlobe.zoom, state.camera.zoom)
+    }
 }

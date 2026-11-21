@@ -193,11 +193,12 @@ internal class GlobeInteractionState(start: GeoPoint? = null) {
         isMoving = true
     }
 
-    /** Flies back out to show the whole globe. */
-    fun flyToWholeGlobe() {
-        if (camera.zoom == MIN_ZOOM) return
+    /** Flies back out to show the whole globe, turned so [facing] is in the middle if it's given. */
+    fun flyToWholeGlobe(facing: GeoPoint? = null) {
+        if (facing == null && camera.zoom == MIN_ZOOM) return
         onPressed()
-        flight = Flight(from = camera, to = camera.copy(zoom = MIN_ZOOM), fromLift = lift, toLift = 0f)
+        val to = facing?.let { camera.pointingAt(it, zoom = MIN_ZOOM) } ?: camera.copy(zoom = MIN_ZOOM)
+        flight = Flight(from = camera, to = to, fromLift = lift, toLift = 0f)
         isMoving = true
     }
 

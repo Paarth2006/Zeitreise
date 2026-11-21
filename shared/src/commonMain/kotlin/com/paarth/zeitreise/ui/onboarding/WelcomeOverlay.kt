@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -42,14 +43,23 @@ import androidx.compose.ui.unit.dp
 import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
 import com.paarth.zeitreise.ui.ZeitreiseTheme
 import com.paarth.zeitreise.ui.glass.GlassButton
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
+import zeitreise.shared.generated.resources.ic_quiz
+import zeitreise.shared.generated.resources.ic_time_travel
 import zeitreise.shared.generated.resources.welcome_continue
+import zeitreise.shared.generated.resources.welcome_play_body
+import zeitreise.shared.generated.resources.welcome_play_title
 import zeitreise.shared.generated.resources.welcome_select_body
 import zeitreise.shared.generated.resources.welcome_select_title
 import zeitreise.shared.generated.resources.welcome_spin_body
 import zeitreise.shared.generated.resources.welcome_spin_title
+import zeitreise.shared.generated.resources.welcome_tagline
+import zeitreise.shared.generated.resources.welcome_time_body
+import zeitreise.shared.generated.resources.welcome_time_title
 import zeitreise.shared.generated.resources.welcome_title
 
 /** Maximum width of the welcome content. */
@@ -58,8 +68,10 @@ private val CONTENT_MAX_WIDTH = 480.dp
 /** Padding around the welcome content. */
 private val CONTENT_PADDING = 24.dp
 
-/** Spacing between the title and features. */
+/** Spacing between the title and features, between the title and tagline, and between features. */
 private val SECTION_SPACING = 32.dp
+private val TAGLINE_SPACING = 8.dp
+private val FEATURE_SPACING = 24.dp
 
 /** Spacing between a feature's icon and text. */
 private val FEATURE_GLYPH_SPACING = 16.dp
@@ -86,11 +98,13 @@ private const val REVEAL_STAGGER_MILLIS = 150
 private enum class WelcomeFeature(val title: StringResource, val body: StringResource) {
     Spin(Res.string.welcome_spin_title, Res.string.welcome_spin_body),
     Select(Res.string.welcome_select_title, Res.string.welcome_select_body),
+    TimeTravel(Res.string.welcome_time_title, Res.string.welcome_time_body),
+    Play(Res.string.welcome_play_title, Res.string.welcome_play_body),
 }
 
 /**
- * The welcome screen shown on first launch, over the globe. It has a title, a short feature list
- * and a Continue button, which appear one after another.
+ * The welcome screen shown on first launch, over the globe. It has a title, a tagline, a short
+ * feature list and a Continue button, which appear one after another.
  *
  * @param onContinue called when the user taps Continue.
  * @param modifier applied to the root element.
@@ -117,16 +131,9 @@ internal fun WelcomeOverlay(onContinue: () -> Unit, modifier: Modifier = Modifie
                     .fillMaxSize(),
             ) {
                 Spacer(Modifier.weight(1f))
-                Reveal(visible = revealed, order = 0) {
-                    Text(
-                        text = stringResource(Res.string.welcome_title),
-                        style = MaterialTheme.typography.headlineLarge,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.semantics { heading() },
-                    )
-                }
+                Reveal(visible = revealed, order = 0) { WelcomeTitle() }
                 Spacer(Modifier.height(SECTION_SPACING))
-                Column(verticalArrangement = Arrangement.spacedBy(SECTION_SPACING)) {
+                Column(verticalArrangement = Arrangement.spacedBy(FEATURE_SPACING)) {
                     WelcomeFeature.entries.forEachIndexed { index, feature ->
                         Reveal(visible = revealed, order = index + 1) { FeatureRow(feature) }
                     }
@@ -146,6 +153,28 @@ internal fun WelcomeOverlay(onContinue: () -> Unit, modifier: Modifier = Modifie
                 }
             }
         }
+    }
+}
+
+/** The app's name and a line on what it's about. */
+@Composable
+private fun WelcomeTitle() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(TAGLINE_SPACING),
+    ) {
+        Text(
+            text = stringResource(Res.string.welcome_title),
+            style = MaterialTheme.typography.headlineLarge,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.semantics { heading() },
+        )
+        Text(
+            text = stringResource(Res.string.welcome_tagline),
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = SECONDARY_TEXT_ALPHA),
+        )
     }
 }
 
@@ -170,11 +199,12 @@ private fun FeatureRow(feature: WelcomeFeature, modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(FEATURE_GLYPH_SPACING),
         modifier = modifier.fillMaxWidth(),
     ) {
-        Canvas(modifier = Modifier.size(GLYPH_SIZE)) {
-            when (feature) {
-                WelcomeFeature.Spin -> drawGlobeGlyph(tint)
-                WelcomeFeature.Select -> drawTapGlyph(tint)
-            }
+        when (feature) {
+            WelcomeFeature.Spin -> Canvas(modifier = Modifier.size(GLYPH_SIZE)) { drawGlobeGlyph(tint) }
+            WelcomeFeature.Select -> Canvas(modifier = Modifier.size(GLYPH_SIZE)) { drawTapGlyph(tint) }
+            // The same icons as the toolbar buttons, so the user recognises them later.
+            WelcomeFeature.TimeTravel -> ToolbarGlyph(Res.drawable.ic_time_travel, tint)
+            WelcomeFeature.Play -> ToolbarGlyph(Res.drawable.ic_quiz, tint)
         }
         Column {
             Text(text = stringResource(feature.title), style = MaterialTheme.typography.titleMedium)
@@ -185,6 +215,11 @@ private fun FeatureRow(feature: WelcomeFeature, modifier: Modifier = Modifier) {
             )
         }
     }
+}
+
+@Composable
+private fun ToolbarGlyph(icon: DrawableResource, tint: Color) {
+    Icon(painter = painterResource(icon), contentDescription = null, tint = tint, modifier = Modifier.size(GLYPH_SIZE))
 }
 
 /** A globe icon: a circle with the equator and one meridian. */

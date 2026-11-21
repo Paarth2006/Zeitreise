@@ -5,8 +5,13 @@
     <string name="welcome_title">Welcome to Zeitreise</string>
     <string name="welcome_spin_title">Spin the World</string>
     <string name="welcome_spin_body">Drag the globe to turn it, and pinch or scroll to look closer.</string>
+    <string name="welcome_tagline">See the world as it is, and as it once was.</string>
     <string name="welcome_select_title">Meet a Country</string>
-    <string name="welcome_select_body">Tap any country to find out where you have landed.</string>
+    <string name="welcome_select_body">Tap any country and the guide tells you something surprising, checked against Wikipedia.</string>
+    <string name="welcome_time_title">Travel in Time</string>
+    <string name="welcome_time_body">Watch borders and empires change from 123,000 BC to 2010.</string>
+    <string name="welcome_play_title">Play and Collect</string>
+    <string name="welcome_play_body">Test yourself in the quiz and fill your passport with stamps.</string>
     <string name="welcome_continue">Continue</string>
     <string name="hint_turn">Drag to spin the globe</string>
     <string name="hint_select">Now tap a country</string>

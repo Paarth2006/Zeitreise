@@ -24,10 +24,10 @@ internal class OnboardingViewModel(private val store: OnboardingStore) : ViewMod
         }
     }
 
-    /** Handles [event] and saves the onboarding as done when it finishes. */
+    /** Handles [event] and saves the onboarding as done once the user is past the tour. */
     fun onEvent(event: OnboardingEvent) {
         val previous = _step.getAndUpdate { it.after(event) }
-        if (previous != OnboardingStep.Finished && _step.value == OnboardingStep.Finished) {
+        if (!previous.isPastTour && _step.value.isPastTour) {
             viewModelScope.launch { store.markComplete() }
         }
     }

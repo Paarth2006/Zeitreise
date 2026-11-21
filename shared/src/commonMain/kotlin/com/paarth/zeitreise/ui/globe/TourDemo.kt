@@ -1,9 +1,12 @@
 package com.paarth.zeitreise.ui.globe
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.ui.onboarding.TourStop
 import kotlinx.coroutines.delay
@@ -25,11 +28,13 @@ private const val TYPING_LETTER_MILLIS = 110L
 internal data class TourDemo(val showcase: GlobeShowcase? = null, val searchText: String? = null)
 
 /**
- * The demo for the tour card at [stop], or no demo if the tour isn't running. The search card types
- * a country's name into the search bar and then flies there, like a real search.
+ * The demo for the tour card at [stop]. The search card types a country's name into the search bar
+ * and then flies there, like a real search. Once a tour is over, the globe turns back to the user's
+ * home country, since the demos left it somewhere else.
  */
 @Composable
 internal fun rememberTourDemo(stop: TourStop?, state: GlobeUiState.Ready): TourDemo {
+    val homecoming = rememberHomecoming(stop, state.home)
     val searchCountry = remember(state.countries) { state.countries.withCode(SEARCH_DEMO_ISO) }
     val quizCountry = remember(state.countries) { state.countries.withCode(QUIZ_DEMO_ISO) }
     val typed by produceState("", stop, searchCountry) {
@@ -43,7 +48,8 @@ internal fun rememberTourDemo(stop: TourStop?, state: GlobeUiState.Ready): TourD
         }
     }
     return when (stop) {
-        null, TourStop.Passport, TourStop.About -> TourDemo()
+        null -> TourDemo(showcase = homecoming)
+        TourStop.Passport, TourStop.About -> TourDemo()
         // The card for the chip sits at the top, so the country is framed below it.
         TourStop.CountryOfTheDay -> TourDemo(
             showcase = state.countryOfTheDay?.let { GlobeShowcase.Highlight(it, lowered = true) },
@@ -55,6 +61,14 @@ internal fun rememberTourDemo(stop: TourStop?, state: GlobeUiState.Ready): TourD
         TourStop.TimeTravel -> TourDemo(showcase = GlobeShowcase.Rewind)
         TourStop.Quiz -> TourDemo(showcase = quizCountry?.let { GlobeShowcase.Highlight(it, asQuizAnswer = true) })
     }
+}
+
+/** Turns the globe to [home] once a tour has run and is over, or nothing if there's no home country. */
+@Composable
+private fun rememberHomecoming(stop: TourStop?, home: Country?): GlobeShowcase? {
+    var toured by remember { mutableStateOf(false) }
+    LaunchedEffect(stop) { if (stop != null) toured = true }
+    return home?.takeIf { toured && stop == null }?.let { GlobeShowcase.Homecoming(it) }
 }
 
 private fun List<Country>.withCode(isoA2: String): Country? = firstOrNull { it.isoA2 == isoA2 }
