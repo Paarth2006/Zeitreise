@@ -100,6 +100,9 @@
     <string name="passport_title">Passport</string>
     <string name="passport_progress">%1$d of %2$d countries and territories stamped</string>
     <string name="passport_close">Close the passport</string>
+    <string name="passport_holder">Holder</string>
+    <string name="passport_holder_hint">Tap to write your name</string>
+    <string name="passport_home">Home</string>
     <string name="passport_empty">No stamps yet. Open any country on the globe to stamp it into your passport.</string>
     <string name="passport_continent">%1$d of %2$d</string>
     <string name="passport_new_stamp">New stamp in your passport!</string>

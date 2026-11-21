@@ -210,6 +210,7 @@ private fun ReadyScreen(current: GlobeUiState.Ready, models: ScreenModels) {
         PassportSheet(
             book = models.passport.book.collectAsStateWithLifecycle().value,
             onDismiss = models.passport::close,
+            onRename = models.passport::rename,
         )
     }
 }

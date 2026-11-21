@@ -76,4 +76,18 @@ class SettingsPassportTest {
 
         assertEquals(listOf("Eastland", "Q1"), passport().stamps())
     }
+
+    @Test
+    fun hasNoHolderUntilTheUserWritesTheirName() = runTest {
+        assertEquals(null, passport().holder())
+    }
+
+    @Test
+    fun remembersTheHolderTrimmedAndForgetsABlankName() = runTest {
+        passport().setHolder("  Ada Lovelace ")
+        assertEquals("Ada Lovelace", passport().holder())
+
+        passport().setHolder("   ")
+        assertEquals(null, passport().holder())
+    }
 }

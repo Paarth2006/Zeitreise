@@ -52,4 +52,17 @@ class PassportBookTest {
     fun filesAStampUnderTheWikidataItemOrElseTheName() {
         assertEquals("Q1", WORLD.first { it.name == "Westland" }.passportKey)
     }
+
+    @Test
+    fun carriesTheHolderAndLooksUpTheirHomeCountry() {
+        val book = passportBook(WORLD, stamps = emptyList(), holder = "Ada", home = "Q2")
+
+        assertEquals("Ada", book.holder)
+        assertEquals("Eastland", book.home?.name)
+    }
+
+    @Test
+    fun hasNoHomeWhenTheHomeCountryIsNoLongerKnown() {
+        assertEquals(null, passportBook(WORLD, stamps = emptyList(), home = "Q404").home)
+    }
 }

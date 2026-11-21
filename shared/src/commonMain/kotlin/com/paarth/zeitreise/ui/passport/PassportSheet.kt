@@ -24,6 +24,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -39,11 +42,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -62,6 +71,9 @@ import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.passport_close
 import zeitreise.shared.generated.resources.passport_continent
 import zeitreise.shared.generated.resources.passport_empty
+import zeitreise.shared.generated.resources.passport_holder
+import zeitreise.shared.generated.resources.passport_holder_hint
+import zeitreise.shared.generated.resources.passport_home
 import zeitreise.shared.generated.resources.passport_progress
 import zeitreise.shared.generated.resources.passport_title
 
@@ -106,6 +118,10 @@ private val STAMP_INKS = listOf(
     Color(0xFF4A5A6A),
 )
 
+/** Size of the home country's flag, and width of the line the name is written on. */
+private val HOME_FLAG = DpSize(24.dp, 16.dp)
+private val NAME_LINE = 1.dp
+
 /** Progress bar height and track opacity. */
 private val PROGRESS_HEIGHT = 6.dp
 private const val TRACK_ALPHA = 0.12f
@@ -116,10 +132,16 @@ private const val TRACK_ALPHA = 0.12f
  *
  * @param book the passport, or `null` when it's closed.
  * @param onDismiss called when the card is closed.
+ * @param onRename called with the holder's name as the user types it.
  * @param modifier applied to the root element.
  */
 @Composable
-internal fun PassportSheet(book: PassportBook?, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+internal fun PassportSheet(
+    book: PassportBook?,
+    onDismiss: () -> Unit,
+    onRename: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     // Keep showing the last content while the card fades out.
     var shown by remember { mutableStateOf(book) }
     LaunchedEffect(book) { if (book != null) shown = book }
@@ -144,14 +166,15 @@ internal fun PassportSheet(book: PassportBook?, onDismiss: () -> Unit, modifier:
                     // Stop taps on the card from reaching the background and closing it.
                     .clickable(interactionSource = null, indication = null, onClick = {}),
             ) {
-                shown?.let { PassportContent(it, onDismiss) }
+                // The book updates as the user types the name, so show it rather than the copy kept for fading out.
+                (book ?: shown)?.let { PassportContent(it, onDismiss, onRename) }
             }
         }
     }
 }
 
 @Composable
-private fun PassportContent(book: PassportBook, onDismiss: () -> Unit) {
+private fun PassportContent(book: PassportBook, onDismiss: () -> Unit, onRename: (String) -> Unit) {
     Column(
         verticalArrangement = Arrangement.spacedBy(CARD_SPACING),
         modifier = Modifier.verticalScroll(rememberScrollState()).padding(CARD_PADDING),
@@ -162,6 +185,7 @@ private fun PassportContent(book: PassportBook, onDismiss: () -> Unit) {
             closeLabel = stringResource(Res.string.passport_close),
             onClose = onDismiss,
         )
+        HolderRow(holder = book.holder.orEmpty(), home = book.home, onRename = onRename)
         ProgressBar(fraction = book.stamped.size.toFloat() / book.total.coerceAtLeast(1))
         if (book.stamped.isEmpty()) {
             SecondaryText(stringResource(Res.string.passport_empty))
@@ -170,6 +194,73 @@ private fun PassportContent(book: PassportBook, onDismiss: () -> Unit) {
             book.continents.forEach { ContinentRow(it) }
         }
     }
+}
+
+/** The holder's name, written on a line like in a real passport, and their home country. */
+@Composable
+private fun HolderRow(holder: String, home: Country?, onRename: (String) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(CARD_SPACING)) {
+        Column(modifier = Modifier.weight(1f)) {
+            Label(stringResource(Res.string.passport_holder))
+            NameField(holder, onRename)
+        }
+        home?.let {
+            Column(horizontalAlignment = Alignment.End) {
+                Label(stringResource(Res.string.passport_home))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(STAMP_PADDING / 2),
+                ) {
+                    CountryFlag(it, size = HOME_FLAG)
+                    Text(text = it.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NameField(holder: String, onRename: (String) -> Unit) {
+    val focusManager = LocalFocusManager.current
+    val secondary = MaterialTheme.colorScheme.onSurface.copy(alpha = SECONDARY_TEXT_ALPHA)
+    val label = stringResource(Res.string.passport_holder)
+    Box(
+        modifier = Modifier.fillMaxWidth().drawBehind {
+            val y = size.height - NAME_LINE.toPx() / 2
+            drawLine(secondary, Offset(0f, y), Offset(size.width, y), NAME_LINE.toPx())
+        },
+    ) {
+        if (holder.isEmpty()) {
+            Text(
+                text = stringResource(Res.string.passport_holder_hint),
+                style = MaterialTheme.typography.titleMedium,
+                color = secondary,
+            )
+        }
+        BasicTextField(
+            value = holder,
+            onValueChange = onRename,
+            singleLine = true,
+            textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                imeAction = ImeAction.Done,
+            ),
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
+        )
+    }
+}
+
+/** A small caption above a value on the passport. */
+@Composable
+private fun Label(text: String) {
+    Text(
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = SECONDARY_TEXT_ALPHA),
+    )
 }
 
 /** All the stamps, in wrapping rows. */
@@ -266,7 +357,10 @@ private fun SecondaryText(text: String, modifier: Modifier = Modifier) {
 @Composable
 private fun EmptyPassportPreview() {
     ZeitreiseTheme {
-        PassportContent(book = PassportBook(stamped = emptyList(), total = 242, continents = emptyList()), onDismiss = {
-        })
+        PassportContent(
+            book = PassportBook(stamped = emptyList(), total = 242, continents = emptyList(), holder = "Ada Lovelace"),
+            onDismiss = {},
+            onRename = {},
+        )
     }
 }
