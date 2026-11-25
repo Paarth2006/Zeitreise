@@ -30,8 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -42,6 +40,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
 import com.paarth.zeitreise.ui.ZeitreiseTheme
+import com.paarth.zeitreise.ui.drawGlobeGlyph
 import com.paarth.zeitreise.ui.glass.GlassButton
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
@@ -200,7 +199,7 @@ private fun FeatureRow(feature: WelcomeFeature, modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxWidth(),
     ) {
         when (feature) {
-            WelcomeFeature.Spin -> Canvas(modifier = Modifier.size(GLYPH_SIZE)) { drawGlobeGlyph(tint) }
+            WelcomeFeature.Spin -> Canvas(modifier = Modifier.size(GLYPH_SIZE)) { drawGlobeGlyph(tint, GLYPH_STROKE) }
             WelcomeFeature.Select -> Canvas(modifier = Modifier.size(GLYPH_SIZE)) { drawTapGlyph(tint) }
             // The same icons as the toolbar buttons, so the user recognises them later.
             WelcomeFeature.TimeTravel -> ToolbarGlyph(Res.drawable.ic_time_travel, tint)
@@ -220,16 +219,6 @@ private fun FeatureRow(feature: WelcomeFeature, modifier: Modifier = Modifier) {
 @Composable
 private fun ToolbarGlyph(icon: DrawableResource, tint: Color) {
     Icon(painter = painterResource(icon), contentDescription = null, tint = tint, modifier = Modifier.size(GLYPH_SIZE))
-}
-
-/** A globe icon: a circle with the equator and one meridian. */
-private fun DrawScope.drawGlobeGlyph(tint: Color) {
-    val stroke = Stroke(width = GLYPH_STROKE.toPx())
-    val radius = size.minDimension / 2 - stroke.width
-    drawCircle(tint, radius = radius, style = stroke)
-    drawLine(tint, Offset(center.x - radius, center.y), Offset(center.x + radius, center.y), stroke.width)
-    val meridian = Size(radius, radius * 2)
-    drawOval(tint, topLeft = Offset(center.x - meridian.width / 2, center.y - radius), size = meridian, style = stroke)
 }
 
 /** A tap icon: a dot inside a ring. */

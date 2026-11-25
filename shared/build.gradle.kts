@@ -9,22 +9,29 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
 }
 
-// The Gemini key lives in local.properties, which is never committed, and is written into a
-// generated constant at build time, so no source file in the repository ever holds a key. Without
-// one the constant is empty and the app runs on its bundled demo guide.
-val geminiApiKey: String = rootProject.file("local.properties")
-    .takeIf { it.exists() }
-    ?.let { file -> Properties().apply { file.inputStream().use(::load) }.getProperty("GEMINI_API_KEY") }
-    .orEmpty()
-    .trim()
+// The API keys live in local.properties, which is never committed, and are written into generated
+// constants at build time, so no source file in the repository ever holds a key. Without the Gemini
+// key the app runs on its bundled demo guide; without the Supabase settings, sync is hidden.
+val localProperties: Properties = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use(::load)
+}
+
+fun localProperty(name: String): String = localProperties.getProperty(name).orEmpty().trim()
+
+/** Escapes [value] for a Kotlin string literal. */
+fun kotlinString(value: String): String = value.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
 
 val generateApiKeys by tasks.registering {
-    val key = geminiApiKey
+    // Escaped here, while configuring, because the task action can't call functions of this script.
+    val gemini = kotlinString(localProperty("GEMINI_API_KEY"))
+    val supabaseUrl = kotlinString(localProperty("SUPABASE_URL").trimEnd('/'))
+    val supabaseKey = kotlinString(localProperty("SUPABASE_ANON_KEY"))
     val outputDir = layout.buildDirectory.dir("generated/apiKeys/commonMain/kotlin")
-    inputs.property("geminiApiKey", key)
+    inputs.property("geminiApiKey", gemini)
+    inputs.property("supabaseUrl", supabaseUrl)
+    inputs.property("supabaseKey", supabaseKey)
     outputs.dir(outputDir)
     doLast {
-        val escaped = key.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
         outputDir.get().file("com/paarth/zeitreise/ai/ApiKeys.kt").asFile.apply {
             parentFile.mkdirs()
             writeText(
@@ -32,7 +39,22 @@ val generateApiKeys by tasks.registering {
                 |package com.paarth.zeitreise.ai
                 |
                 |/** The Gemini API key from local.properties, or empty when none is set. Generated at build time. */
-                |internal const val GEMINI_API_KEY: String = "$escaped"
+                |internal const val GEMINI_API_KEY: String = "$gemini"
+                |
+                """.trimMargin(),
+            )
+        }
+        outputDir.get().file("com/paarth/zeitreise/sync/SyncKeys.kt").asFile.apply {
+            parentFile.mkdirs()
+            writeText(
+                """
+                |package com.paarth.zeitreise.sync
+                |
+                |/** The Supabase project address from local.properties, or empty when none is set. Generated at build time. */
+                |internal const val SUPABASE_URL: String = "$supabaseUrl"
+                |
+                |/** The Supabase project's public (anon) key from local.properties, or empty. Generated at build time. */
+                |internal const val SUPABASE_ANON_KEY: String = "$supabaseKey"
                 |
                 """.trimMargin(),
             )

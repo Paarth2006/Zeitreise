@@ -5,7 +5,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
 /** Settings key for the best score. */
-private const val BEST_SCORE_KEY = "quiz_best_score"
+internal const val BEST_SCORE_KEY = "quiz_best_score"
 
 /** Remembers the best quiz score. */
 public interface QuizStore {

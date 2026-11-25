@@ -10,6 +10,7 @@
   - [AI Guide](#ai-guide)
   - [Data](#data)
   - [Time Travel](#time-travel)
+  - [Sync](#sync)
   - [UI](#ui)
   - [Architecture](#architecture)
   - [Code Quality](#code-quality)
@@ -64,6 +65,12 @@ When I heard about the Kotlin Multiplatform Contest, I wanted to find out how fa
   * Every country you open is stamped into your passport
   * Stamps show each country's flag in its continent's ink, tilted as if pressed by hand
   * Progress overall and for each continent
+  * Write your name in it, next to the flag of the home country you picked when you started
+
+* **Sync Across Devices (optional)**
+  * Create an account with an email and password, then sign in with it on your other devices
+  * Your passport, home country, name and best quiz score follow you to Android, iOS and the web
+  * Everything still works offline and without an account; signing in only adds the sync
 
 * **Works Without a Key**
   * Without a Gemini key, every country and state still gets a story from its Wikipedia article, and ten countries have hand-written stories and places to visit
@@ -134,6 +141,12 @@ The historical borders come from [historical-basemaps](https://github.com/aoured
 
 Dragging the slider through dozens of years would start dozens of downloads, so the app waits until the slider has rested on a year for 250 ms before fetching its map, and keeps the last four maps in memory. The bundled landmarks, by contrast, update instantly as you slide.
 
+### Sync
+
+Sync is optional and written entirely in common code. Each device keeps its own copy of the user's progress, so the app works offline and without an account. A signed-in user also has one row in a [Supabase](https://supabase.com) table, holding the same progress as JSON. Each change is merged into it two seconds later, so typing a name sends one request, not one per letter. Each launch pulls in what other devices saved.
+
+The two copies are merged by a pure function. Stamps from both are kept and the best score wins. For the home country and the name, the account wins when signing in on a new device, and the device wins when it changed them since the last sync. Accounts use an email and password, and the project doesn't ask new users to confirm their email, so no email is ever sent and anyone can try it. The app keeps only the session token, never the password. The app talks to Supabase's REST APIs with plain Ktor calls, so the same code runs on Android, iOS and in the browser, and the tests use a fake server on Ktor's mock engine. Row-level security lets each user reach only their own row, which is what makes it safe to ship the project's public key in the app.
+
 ### UI
 
 All the UI is written once with Compose Multiplatform and Material 3. The app is a single screen, like Apple Maps: every feature is a view of the same globe, so the globe and its camera are never rebuilt. The controls are Liquid Glass panes made with [Haze](https://github.com/chrisbanes/haze), which refract the globe behind them, and the controls are a second backdrop layer so that cards opened over them refract the controls too. On wide screens, such as the web or a tablet, the sheets become floating cards.
@@ -158,6 +171,16 @@ Each mode of the globe has its own `ViewModel` exposing `StateFlow`s: the globe 
 GEMINI_API_KEY=your-key-here
 ```
 `local.properties` is never committed, and the key is written into a generated file at build time, so no source file ever holds it. On the web the key is compiled into the downloaded app, so use a key restricted to the Gemini API and leave it out of any public deployment.
+
+Optional: to let users sync their progress across devices, set up a free [Supabase](https://supabase.com) project:
+* In the SQL editor, run [`supabase/setup.sql`](supabase/setup.sql). It creates the progress table and its row-level security.
+* Under Authentication, in Sign In / Providers, open Email and turn off Confirm email, so new accounts work right away without an email.
+* Under Project Settings, in the API keys section, copy the project URL and the anon (or publishable) key into `local.properties`, then rebuild:
+```properties
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+```
+Without them, sync is simply hidden.
 
 #### Android
 4) Make sure the Android SDK with API level 37 is installed and an emulator or device is available (Android 7.0 or newer).

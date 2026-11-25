@@ -29,6 +29,15 @@ import com.paarth.zeitreise.data.SettingsResponseCache
 import com.paarth.zeitreise.data.SubdivisionRepository
 import com.paarth.zeitreise.data.SystemDayClock
 import com.paarth.zeitreise.data.WikipediaRepository
+import com.paarth.zeitreise.sync.Account
+import com.paarth.zeitreise.sync.CloudSync
+import com.paarth.zeitreise.sync.SUPABASE_ANON_KEY
+import com.paarth.zeitreise.sync.SUPABASE_URL
+import com.paarth.zeitreise.sync.SupabaseApi
+import com.paarth.zeitreise.sync.SyncingOnboardingStore
+import com.paarth.zeitreise.sync.SyncingPassport
+import com.paarth.zeitreise.sync.SyncingQuizStore
+import com.paarth.zeitreise.ui.about.AccountViewModel
 import com.paarth.zeitreise.ui.explore.ExploreViewModel
 import com.paarth.zeitreise.ui.globe.GlobeViewModel
 import com.paarth.zeitreise.ui.onboarding.OnboardingViewModel
@@ -38,7 +47,9 @@ import com.paarth.zeitreise.ui.timetravel.TimeTravelViewModel
 import com.russhwolf.settings.Settings
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.viewModel
@@ -71,10 +82,30 @@ public val sharedModule: Module = module {
     single<FactCursor> { SettingsFactCursor(settings = get()) }
     single<CountryRepository> { BundledCountryRepository(dispatcher = get()) }
     single<SubdivisionRepository> { BundledSubdivisionRepository(dispatcher = get()) }
-    single<OnboardingStore> { SettingsOnboardingStore(settings = get(), dispatcher = get()) }
-    single<QuizStore> { SettingsQuizStore(settings = get(), dispatcher = get()) }
+    single {
+        CloudSync(
+            api = supabaseApi(client = get()),
+            settings = get(),
+            // Lives as long as the app, so a sync started by a change finishes after the screen that made it.
+            scope = CoroutineScope(SupervisorJob() + get<CoroutineDispatcher>()),
+            dispatcher = get(),
+        )
+    }
+    single<Account> { get<CloudSync>() }
+    // Each store tells the sync about its changes, so they reach the user's other devices.
+    single<OnboardingStore> {
+        SyncingOnboardingStore(
+            SettingsOnboardingStore(settings = get(), dispatcher = get()),
+            trigger = get<CloudSync>(),
+        )
+    }
+    single<QuizStore> {
+        SyncingQuizStore(SettingsQuizStore(settings = get(), dispatcher = get()), trigger = get<CloudSync>())
+    }
     single<DayClock> { SystemDayClock }
-    single<Passport> { SettingsPassport(settings = get(), dispatcher = get()) }
+    single<Passport> {
+        SyncingPassport(SettingsPassport(settings = get(), dispatcher = get()), trigger = get<CloudSync>())
+    }
     single<WikipediaRepository> { KtorWikipediaRepository(client = get(), cache = get(), dispatcher = get()) }
     single<DemoGuide> {
         DemoGuide(
@@ -102,4 +133,12 @@ public val sharedModule: Module = module {
     viewModelOf(::OnboardingViewModel)
     viewModel { QuizViewModel(store = get()) }
     viewModelOf(::PassportViewModel)
+    viewModelOf(::AccountViewModel)
+}
+
+/** The Supabase project set at build time, or `null` when there is none, which hides sync. */
+private fun supabaseApi(client: HttpClient): SupabaseApi? = if (SUPABASE_URL.isBlank() || SUPABASE_ANON_KEY.isBlank()) {
+    null
+} else {
+    SupabaseApi(client = client, url = SUPABASE_URL, key = SUPABASE_ANON_KEY)
 }

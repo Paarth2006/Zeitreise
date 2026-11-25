@@ -9,16 +9,16 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /** Settings key for the stamps. */
-private const val STAMPS_KEY = "passport_stamps"
+internal const val STAMPS_KEY = "passport_stamps"
 
 /** Settings key for the user's home country. */
-private const val HOME_KEY = "passport_home"
+internal const val HOME_KEY = "passport_home"
 
 /** Settings key for the name the user wrote in the passport. */
-private const val HOLDER_KEY = "passport_holder"
+internal const val HOLDER_KEY = "passport_holder"
 
 /** Separator between stamps in the saved text. Keys never contain a line break. */
-private const val STAMP_SEPARATOR = "\n"
+internal const val STAMP_SEPARATOR = "\n"
 
 /**
  * The countries the user has opened, each stamped once, in the order they were first opened, the

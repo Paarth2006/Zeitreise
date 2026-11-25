@@ -5,7 +5,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
 /** Settings key for the onboarding flag. */
-private const val ONBOARDING_COMPLETE_KEY = "onboarding_complete"
+internal const val ONBOARDING_COMPLETE_KEY = "onboarding_complete"
 
 /** Remembers whether the onboarding was completed, so it is only shown once. */
 public interface OnboardingStore {

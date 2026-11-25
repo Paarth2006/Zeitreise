@@ -46,6 +46,8 @@ import com.paarth.zeitreise.domain.Realm
 import com.paarth.zeitreise.domain.SearchResult
 import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.ui.about.AboutSheet
+import com.paarth.zeitreise.ui.about.AccountViewModel
+import com.paarth.zeitreise.ui.about.actions
 import com.paarth.zeitreise.ui.explore.ExplorePanel
 import com.paarth.zeitreise.ui.explore.ExploreState
 import com.paarth.zeitreise.ui.explore.ExploreViewModel
@@ -129,6 +131,7 @@ internal fun GlobeScreen(modifier: Modifier = Modifier) {
         timeTravel = koinViewModel(),
         quiz = koinViewModel(),
         passport = koinViewModel(),
+        account = koinViewModel(),
     )
     val state by models.globe.uiState.collectAsStateWithLifecycle()
 
@@ -149,6 +152,7 @@ private data class ScreenModels(
     val timeTravel: TimeTravelViewModel,
     val quiz: QuizViewModel,
     val passport: PassportViewModel,
+    val account: AccountViewModel,
 )
 
 /** The loaded globe with all its controls. */
@@ -202,17 +206,25 @@ private fun ReadyScreen(current: GlobeUiState.Ready, models: ScreenModels) {
         }
         // Shown above the controls, so their glass also blurs the country sheet.
         PlaceSheet(card = places.openCard, onClose = { actions.showPin(null) })
-        AboutSheet(
-            visible = showAbout,
-            onDismiss = { showAbout = false },
-            onTakeTour = { models.onboarding.onEvent(OnboardingEvent.TourRequested) },
-        )
-        PassportSheet(
-            book = models.passport.book.collectAsStateWithLifecycle().value,
-            onDismiss = models.passport::close,
-            onRename = models.passport::rename,
-        )
+        CardSheets(models, showAbout = showAbout, onDismissAbout = { showAbout = false })
     }
+}
+
+/** The About and Passport cards, over everything else. */
+@Composable
+private fun CardSheets(models: ScreenModels, showAbout: Boolean, onDismissAbout: () -> Unit) {
+    AboutSheet(
+        visible = showAbout,
+        onDismiss = onDismissAbout,
+        onTakeTour = { models.onboarding.onEvent(OnboardingEvent.TourRequested) },
+        account = models.account.state.collectAsStateWithLifecycle().value,
+        accountActions = remember(models.account) { models.account.actions() },
+    )
+    PassportSheet(
+        book = models.passport.book.collectAsStateWithLifecycle().value,
+        onDismiss = models.passport::close,
+        onRename = models.passport::rename,
+    )
 }
 
 /** Toolbar actions. Each one starts a mode or opens a sheet over the globe. */
