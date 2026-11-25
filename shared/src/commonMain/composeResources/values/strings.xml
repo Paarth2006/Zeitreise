@@ -51,6 +51,7 @@
     <string name="explore_failed">Couldn’t reach Wikipedia to check the places.</string>
     <string name="explore_source_ai">Chosen by the AI guide, checked against Wikipedia</string>
     <string name="explore_source_curated">From the Zeitreise guidebook, checked against Wikipedia</string>
+    <string name="explore_source_wikipedia">Well-known sights found on Wikipedia</string>
     <string name="place_photo">Photo of %1$s</string>
     <string name="place_facts_loading">Reading up on this place…</string>
     <string name="place_close">Back to the country</string>

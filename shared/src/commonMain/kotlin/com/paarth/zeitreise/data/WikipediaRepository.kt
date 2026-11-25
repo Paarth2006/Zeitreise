@@ -2,6 +2,7 @@ package com.paarth.zeitreise.data
 
 import com.paarth.zeitreise.domain.WikiArticle
 import com.paarth.zeitreise.domain.notableSentences
+import com.paarth.zeitreise.globe.GeoPoint
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -31,12 +32,31 @@ private const val SUMMARY_API = "https://en.wikipedia.org/api/rest_v1/page/summa
 private const val WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 
 private val STRING_LIST = ListSerializer(String.serializer())
+private val SIGHT_LIST = ListSerializer(CachedSight.serializer())
 
 /** Wikidata's site id for English Wikipedia. */
 private const val ENGLISH_WIKIPEDIA = "enwiki"
 
 /** Summary type of a disambiguation page, which has no real content. */
 private const val DISAMBIGUATION = "disambiguation"
+
+/**
+ * The kinds of place Wikipedia's search looks for when there is no guide to suggest places. Naming
+ * them keeps towns, people and events out, and the search ranks better-known articles first.
+ */
+private const val SIGHT_KINDS = "fort OR palace OR castle OR temple OR cathedral OR mosque OR monastery OR museum " +
+    "OR \"national park\" OR monument OR lake OR waterfall OR beach OR island"
+
+/** How many results the sight search asks for, so enough are left after the ones outside the area. */
+private const val SIGHT_RESULTS = 40
+
+/**
+ * A place Wikipedia's search found near a point.
+ *
+ * @property title the title of its English Wikipedia article.
+ * @property location where the article puts it.
+ */
+public data class NearbySight(val title: String, val location: GeoPoint)
 
 /** Finds the Wikipedia article for a place. */
 public interface WikipediaRepository {
@@ -53,6 +73,14 @@ public interface WikipediaRepository {
      * loaded. The summary alone is still enough, so this never throws.
      */
     public suspend fun notableFacts(article: WikiArticle): List<String>
+
+    /**
+     * Well-known sights within [radiusKm] of [center], best known first: forts, palaces, museums,
+     * parks, lakes and the like.
+     *
+     * @throws Exception if Wikipedia can't be reached.
+     */
+    public suspend fun sightsNear(center: GeoPoint, radiusKm: Int): List<NearbySight>
 }
 
 /**
@@ -91,6 +119,32 @@ internal class KtorWikipediaRepository(
             null
         }
         text?.let(::notableSentences)?.also { cache.put(key, json.encodeToString(STRING_LIST, it)) }.orEmpty()
+    }
+
+    override suspend fun sightsNear(center: GeoPoint, radiusKm: Int): List<NearbySight> = withContext(dispatcher) {
+        val key = "sights.${center.latitude},${center.longitude},$radiusKm"
+        cache.get(key)?.let { return@withContext json.decodeFromString(SIGHT_LIST, it).map(CachedSight::toSight) }
+
+        val response = client.get(WIKIPEDIA_API) {
+            header(API_USER_AGENT_HEADER, API_USER_AGENT)
+            parameter("action", "query")
+            parameter("generator", "search")
+            parameter("gsrsearch", "nearcoord:${radiusKm}km,${center.latitude},${center.longitude} $SIGHT_KINDS")
+            parameter("gsrnamespace", "0")
+            parameter("gsrlimit", SIGHT_RESULTS)
+            parameter("prop", "coordinates")
+            parameter("colimit", "max")
+            parameter("format", "json")
+            parameter("formatversion", "2")
+            parameter("origin", "*")
+        }.requireSuccess()
+        val pages = json.decodeFromString(WikiSearch.serializer(), response.bodyAsText()).query?.pages.orEmpty()
+        // The pages come in no particular order; the search's own ranking is in `index`.
+        val sights = pages.sortedBy { it.index }.mapNotNull { page ->
+            page.coordinates?.firstOrNull()?.let { CachedSight(page.title, it.lat, it.lon) }
+        }
+        cache.put(key, json.encodeToString(SIGHT_LIST, sights))
+        sights.map(CachedSight::toSight)
     }
 
     /** The article's full plain text from the action API. */
@@ -191,6 +245,26 @@ private data class WikiSummary(
 
 @Serializable
 private data class WikiCoordinates(val lat: Double, val lon: Double)
+
+/** The fields read from a search with coordinates. */
+@Serializable
+private data class WikiSearch(val query: WikiSearchQuery? = null)
+
+@Serializable
+private data class WikiSearchQuery(val pages: List<WikiSearchPage> = emptyList())
+
+@Serializable
+private data class WikiSearchPage(
+    val title: String,
+    val index: Int = Int.MAX_VALUE,
+    val coordinates: List<WikiCoordinates>? = null,
+)
+
+/** A sight as it's cached. */
+@Serializable
+private data class CachedSight(val title: String, val lat: Double, val lon: Double) {
+    fun toSight() = NearbySight(title, GeoPoint(latitude = lat, longitude = lon))
+}
 
 @Serializable
 private data class WikiImage(val source: String)

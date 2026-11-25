@@ -1,34 +1,34 @@
 package com.paarth.zeitreise.ui.explore
 
-import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.Landmark
 import com.paarth.zeitreise.domain.PlacesToVisit
+import com.paarth.zeitreise.domain.Territory
 
 /** The state of finding places to visit. */
 public sealed interface ExploreState {
     /** Nothing requested yet. */
     public data object Idle : ExploreState
 
-    /** Places for [country] are loading. */
-    public data class Loading(val country: Country) : ExploreState
+    /** Places in [area], a country or a state, are loading. */
+    public data class Loading(val area: Territory) : ExploreState
 
-    /** The places found for [country]. */
-    public data class Ready(val country: Country, val places: PlacesToVisit) : ExploreState
+    /** The places found in [area]. */
+    public data class Ready(val area: Territory, val places: PlacesToVisit) : ExploreState
 
-    /** Wikipedia couldn't be reached for [country]. */
-    public data class Failed(val country: Country) : ExploreState
+    /** Wikipedia couldn't be reached for [area]. */
+    public data class Failed(val area: Territory) : ExploreState
 }
 
-/** The places for [country], or none if the state is about another country. */
-internal fun ExploreState.landmarksIn(country: Country?): List<Landmark> =
-    if (this is ExploreState.Ready && this.country == country) places.landmarks else emptyList()
+/** The places in [area], or none if this state is about another country or state. */
+internal fun ExploreState.landmarksIn(area: Territory?): List<Landmark> =
+    if (this is ExploreState.Ready && this.area == area) places.landmarks else emptyList()
 
-/** This state if it's for [country], otherwise [ExploreState.Idle]. */
-internal fun ExploreState.about(country: Country?): ExploreState = when (this) {
+/** This state if it's for [area], otherwise [ExploreState.Idle]. */
+internal fun ExploreState.about(area: Territory?): ExploreState = when (this) {
     ExploreState.Idle -> this
-    is ExploreState.Loading -> takeIf { this.country == country } ?: ExploreState.Idle
-    is ExploreState.Ready -> takeIf { this.country == country } ?: ExploreState.Idle
-    is ExploreState.Failed -> takeIf { this.country == country } ?: ExploreState.Idle
+    is ExploreState.Loading -> takeIf { this.area == area } ?: ExploreState.Idle
+    is ExploreState.Ready -> takeIf { this.area == area } ?: ExploreState.Idle
+    is ExploreState.Failed -> takeIf { this.area == area } ?: ExploreState.Idle
 }
 
 /**

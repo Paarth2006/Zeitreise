@@ -19,6 +19,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 private val JSON_HEADERS = headersOf(HttpHeaders.ContentType, "application/json")
 
@@ -156,5 +157,35 @@ class WikipediaRepositoryTest {
         val article = requireNotNull(wikipedia.article("Q668", fallbackTitle = "India"))
 
         assertEquals(emptyList(), wikipedia.notableFacts(article))
+    }
+
+    @Test
+    fun findsSightsNearAPointInTheSearchsOrder() = runTest {
+        val answer = """
+            { "query": { "pages": [
+              { "title": "Hawa Mahal", "index": 2, "coordinates": [{ "lat": 26.92, "lon": 75.83 }] },
+              { "title": "No Location", "index": 3 },
+              { "title": "Amber Fort", "index": 1, "coordinates": [{ "lat": 26.99, "lon": 75.85 }] }
+            ] } }
+        """.trimIndent()
+        val wikipedia = repository { respond(answer, headers = JSON_HEADERS) }
+
+        val sights = wikipedia.sightsNear(GeoPoint(latitude = 26.6, longitude = 73.8), radiusKm = 300)
+
+        assertEquals(listOf("Amber Fort", "Hawa Mahal"), sights.map { it.title })
+        assertEquals(GeoPoint(latitude = 26.99, longitude = 75.85), sights.first().location)
+        val search = requireNotNull(requests.single().url.parameters["gsrsearch"])
+        assertTrue(search.startsWith("nearcoord:300km,26.6,73.8 "), search)
+    }
+
+    @Test
+    fun remembersTheSightsSoTheSearchRunsOnce() = runTest {
+        val wikipedia = repository { respond("""{ "query": { "pages": [] } }""", headers = JSON_HEADERS) }
+        val center = GeoPoint(latitude = 47.0, longitude = 11.0)
+
+        wikipedia.sightsNear(center, radiusKm = 200)
+        wikipedia.sightsNear(center, radiusKm = 200)
+
+        assertEquals(1, requests.size)
     }
 }

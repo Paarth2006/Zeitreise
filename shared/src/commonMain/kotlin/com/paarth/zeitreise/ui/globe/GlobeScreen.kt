@@ -45,6 +45,7 @@ import com.paarth.zeitreise.domain.Pinned
 import com.paarth.zeitreise.domain.Realm
 import com.paarth.zeitreise.domain.SearchResult
 import com.paarth.zeitreise.domain.Subdivision
+import com.paarth.zeitreise.domain.Territory
 import com.paarth.zeitreise.ui.about.AboutSheet
 import com.paarth.zeitreise.ui.about.AccountViewModel
 import com.paarth.zeitreise.ui.about.actions
@@ -166,7 +167,8 @@ private fun ReadyScreen(current: GlobeUiState.Ready, models: ScreenModels) {
     val travelActions = remember(models) { models.timeTravel.controlActions(models.explore) }
     val quizActions = remember(models, current.countries) { models.quiz.controlActions(current.countries) }
     val backdrop = rememberHazeState()
-    val places = PlacesOnGlobe.of(exploreState, openCard, current.selected, travel)
+    // A selected state has its own places; otherwise the country's are shown.
+    val places = PlacesOnGlobe.of(exploreState, openCard, current.selectedSubdivision ?: current.selected, travel)
     val step by models.onboarding.step.collectAsStateWithLifecycle()
     val demo = rememberTourDemo((step as? OnboardingStep.Tour)?.stop, current)
     ReadyGlobe(
@@ -291,14 +293,14 @@ private fun globeMode(travel: TimeTravelState, quiz: QuizState) = when {
 /**
  * The pins on the globe and the open card.
  *
- * @property explore the Explore state for the selected country, [ExploreState.Idle] if nothing yet.
- * @property pins the selected country's places, or the landmarks of the year in Time Travel.
+ * @property explore the Explore state for the selected country or state, [ExploreState.Idle] if nothing yet.
+ * @property pins the selected country's or state's places, or the landmarks of the year in Time Travel.
  * @property openCard the open card for one of [pins], if any.
  */
 private data class PlacesOnGlobe(val explore: ExploreState, val pins: List<Pinned>, val openCard: LandmarkCard?) {
     companion object {
         /** Works out what to show for [selected] from [state], [card] and Time Travel. */
-        fun of(state: ExploreState, card: LandmarkCard?, selected: Country?, travel: TimeTravelState): PlacesOnGlobe {
+        fun of(state: ExploreState, card: LandmarkCard?, selected: Territory?, travel: TimeTravelState): PlacesOnGlobe {
             val landmarks = state.landmarksIn(selected)
             return when (travel) {
                 is TimeTravelState.On -> PlacesOnGlobe(ExploreState.Idle, travel.landmarks, card)
@@ -346,7 +348,7 @@ private class GlobeScreenActions(
         onboarding.onEvent(OnboardingEvent.CountrySelected)
     }
 
-    fun explore(country: Country) = places.explore(country)
+    fun explore(country: Country, subdivision: Subdivision?) = places.explore(country, subdivision)
 
     /** Opens the card for [pin], or closes it if [pin] is `null`. */
     fun showPin(pin: Pinned?) = when (pin) {
@@ -454,7 +456,11 @@ private fun BoxScope.Controls(
             modifier = bodyModifier,
         )
         state.selected?.let { country ->
-            ExplorePanel(state = places.explore, onExplore = { actions.explore(country) }, modifier = bodyModifier)
+            ExplorePanel(
+                state = places.explore,
+                onExplore = { actions.explore(country, state.selectedSubdivision) },
+                modifier = bodyModifier,
+            )
         }
     }
     OnboardingLayers(

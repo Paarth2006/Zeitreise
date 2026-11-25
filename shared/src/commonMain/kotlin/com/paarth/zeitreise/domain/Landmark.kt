@@ -33,10 +33,10 @@ public data class PlacesToVisit(
 )
 
 /**
- * Whether [point] is on or near one of this country's landmasses. It is lenient on purpose: it only
- * needs to catch places the guide put in the wrong country.
+ * Whether [point] is on or near one of this country's or state's landmasses. It is lenient on
+ * purpose: it only needs to catch places the guide put in the wrong country or state.
  */
-public fun Country.isNear(point: GeoPoint): Boolean = outlines.any { outline ->
+public fun Territory.isNear(point: GeoPoint): Boolean = outlines.any { outline ->
     val bounds = outline.exterior.bounds
     bounds.center.angleTo(point) <= bounds.radiusDegrees + COAST_MARGIN_DEGREES
 }

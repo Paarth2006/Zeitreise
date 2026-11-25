@@ -59,13 +59,13 @@ private fun timeTravelInstructions(year: String) = """
 """.trimIndent()
 
 private val PLACES_INSTRUCTIONS = """
-    You are Zeitreise's travel guide. Given a country, name the $MAX_PLACES places in it most worth
-    visiting: famous landmarks, natural wonders, historic sites and remarkable towns, spread across
-    the country rather than bunched in one city. Reply with one JSON object and nothing else:
+    You are Zeitreise's travel guide. Given a country, or a state or province of one, name the
+    $MAX_PLACES places in it most worth visiting: famous landmarks, natural wonders, historic sites and
+    remarkable towns, spread across it rather than bunched in one city. Reply with one JSON object and nothing else:
     {"places": [{"name": "...", "wikipediaTitle": "..."}]}
     - name: the place's usual English name.
     - wikipediaTitle: the exact title of the place's own English Wikipedia article.
-    Only name real places that have their own English Wikipedia article and lie inside the country.
+    Only name real places that have their own English Wikipedia article and lie inside the area.
     Do not give coordinates, links or descriptions.
 """.trimIndent()
 
@@ -97,12 +97,12 @@ internal class GeminiGuide(
             story
         }
 
-    override suspend fun suggestPlaces(country: GuidePlace, article: WikiArticle): List<PlaceSuggestion> =
+    override suspend fun suggestPlaces(area: GuidePlace, article: WikiArticle): List<PlaceSuggestion> =
         withContext(dispatcher) {
-            val key = "places.${country.wikidataId ?: country.name}"
+            val key = "places.${area.wikidataId ?: area.name}"
             cache.get(key)?.let { return@withContext json.decodeFromString(PlaceSuggestions.serializer(), it).places }
 
-            val places = parsePlaceSuggestions(ask(placesPrompt(country, article)))
+            val places = parsePlaceSuggestions(ask(placesPrompt(area, article)))
                 ?: throw GuideUnavailableException(rateLimited = false)
             cache.put(key, json.encodeToString(PlaceSuggestions.serializer(), PlaceSuggestions(places)))
             places
@@ -119,14 +119,14 @@ internal class GeminiGuide(
         throw GuideUnavailableException(rateLimited = false, cause = cause)
     }
 
-    private fun placesPrompt(country: GuidePlace, article: WikiArticle) = prompt(
+    private fun placesPrompt(area: GuidePlace, article: WikiArticle) = prompt(
         id = "zeitreise-places-to-visit",
         params = LLMParams(temperature = GUIDE_TEMPERATURE),
     ) {
         system(PLACES_INSTRUCTIONS)
         user(
             """
-            Country: ${country.name}, ${country.description}
+            Area: ${area.name}, ${area.description}
             Wikipedia article "${article.title}":
             ${article.extract}
             """.trimIndent(),

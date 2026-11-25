@@ -39,9 +39,10 @@ public interface Guide {
     public suspend fun tell(place: GuidePlace, article: WikiArticle, notableFacts: List<String>): GuideStory?
 
     /**
-     * Suggests places to visit in [country]. The [article] makes sure the right country is meant.
+     * Suggests places to visit in [area], a country or a state. The [article] makes sure the right
+     * one is meant.
      *
      * @return the suggestions, best first, or `null` if this guide has none.
      */
-    public suspend fun suggestPlaces(country: GuidePlace, article: WikiArticle): List<PlaceSuggestion>?
+    public suspend fun suggestPlaces(area: GuidePlace, article: WikiArticle): List<PlaceSuggestion>?
 }

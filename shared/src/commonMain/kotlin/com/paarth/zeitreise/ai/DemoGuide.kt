@@ -37,8 +37,8 @@ internal class DemoGuide(
     override suspend fun tell(place: GuidePlace, article: WikiArticle, notableFacts: List<String>): GuideStory? =
         place.wikidataId?.let { stories.load()[it] }
 
-    override suspend fun suggestPlaces(country: GuidePlace, article: WikiArticle): List<PlaceSuggestion>? =
-        country.wikidataId?.let { places.load()[it]?.places }
+    override suspend fun suggestPlaces(area: GuidePlace, article: WikiArticle): List<PlaceSuggestion>? =
+        area.wikidataId?.let { places.load()[it]?.places }
 
     /** A bundled file, read once when first needed. */
     private inner class Bundled<T>(

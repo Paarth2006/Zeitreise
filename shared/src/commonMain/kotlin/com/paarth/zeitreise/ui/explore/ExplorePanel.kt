@@ -42,6 +42,7 @@ import zeitreise.shared.generated.resources.explore_loading
 import zeitreise.shared.generated.resources.explore_none
 import zeitreise.shared.generated.resources.explore_source_ai
 import zeitreise.shared.generated.resources.explore_source_curated
+import zeitreise.shared.generated.resources.explore_source_wikipedia
 import zeitreise.shared.generated.resources.story_ai_unavailable
 import zeitreise.shared.generated.resources.story_rate_limited
 import zeitreise.shared.generated.resources.story_retry
@@ -57,7 +58,7 @@ private val LOADING_INDICATOR_STROKE = 2.dp
  * The Explore part of the country sheet: the Explore button, the loading state, and how many places
  * were pinned.
  *
- * @param state the Explore state for this country.
+ * @param state the Explore state for this country or state.
  * @param onExplore called when the user taps Explore or Try again.
  * @param modifier applied to the root element.
  */
@@ -110,7 +111,8 @@ private fun FoundPlaces(places: PlacesToVisit, modifier: Modifier = Modifier) {
             }
             val credit = when (places.source) {
                 StorySource.Ai -> Res.string.explore_source_ai
-                StorySource.Curated, StorySource.Wikipedia -> Res.string.explore_source_curated
+                StorySource.Curated -> Res.string.explore_source_curated
+                StorySource.Wikipedia -> Res.string.explore_source_wikipedia
             }
             SecondaryText(stringResource(credit))
         }

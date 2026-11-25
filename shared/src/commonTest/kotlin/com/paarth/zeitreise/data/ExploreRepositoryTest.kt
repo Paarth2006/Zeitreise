@@ -10,7 +10,9 @@ import com.paarth.zeitreise.domain.CountryRing
 import com.paarth.zeitreise.domain.GuideNotice
 import com.paarth.zeitreise.domain.GuideStory
 import com.paarth.zeitreise.domain.StorySource
+import com.paarth.zeitreise.domain.Subdivision
 import com.paarth.zeitreise.domain.WikiArticle
+import com.paarth.zeitreise.globe.GeoPoint
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -40,10 +42,32 @@ private fun article(title: String, latitude: Double? = null, longitude: Double? 
     longitude = longitude,
 )
 
-/** A Wikipedia with an article on Squareland and on a few places in and out of it. */
-private class SquarelandWikipedia(private val down: Set<String> = emptySet()) : WikipediaRepository {
+/** Squareland's southern province, from 10° to 14° north. */
+private val SOUTH_SQUARE = Subdivision(
+    name = "South Square",
+    kind = "Province",
+    isoCode = null,
+    wikidataId = "Q2",
+    labelPoint = GeoPoint(latitude = 12.0, longitude = 15.0),
+    outlines = listOf(
+        CountryOutline(
+            exterior = CountryRing(doubleArrayOf(10.0, 10.0, 20.0, 10.0, 20.0, 14.0, 10.0, 14.0, 10.0, 10.0)),
+            holes = emptyList(),
+        ),
+    ),
+)
+
+/**
+ * A Wikipedia with an article on Squareland and on a few places in and out of it. Its search finds
+ * [sights].
+ */
+private class SquarelandWikipedia(
+    private val down: Set<String> = emptySet(),
+    private val sights: List<String> = emptyList(),
+) : WikipediaRepository {
     private val articles = listOf(
         article("Squareland"),
+        article("South Square"),
         article("Square Tower", latitude = 15.0, longitude = 15.0),
         article("Corner Falls", latitude = 11.0, longitude = 19.0),
         article("Faraway Castle", latitude = -40.0, longitude = 120.0),
@@ -57,13 +81,21 @@ private class SquarelandWikipedia(private val down: Set<String> = emptySet()) : 
 
     override suspend fun notableFacts(article: WikiArticle): List<String> =
         listOf("First fact.", "Second fact.", "Third fact.", "Fourth fact.")
+
+    override suspend fun sightsNear(center: GeoPoint, radiusKm: Int): List<NearbySight> = sights.mapNotNull { title ->
+        articles[title]?.location?.let { NearbySight(title, it) }
+    }
 }
 
 /** A guide that suggests [places], or fails the way the AI guide does when [failure] is set. */
 private class PlacesGuide(private val places: List<PlaceSuggestion>?, private val failure: Throwable? = null) : Guide {
+    /** The area the guide was last asked about. */
+    var askedAbout: GuidePlace? = null
+
     override suspend fun tell(place: GuidePlace, article: WikiArticle, notableFacts: List<String>): GuideStory? = null
 
-    override suspend fun suggestPlaces(country: GuidePlace, article: WikiArticle): List<PlaceSuggestion>? {
+    override suspend fun suggestPlaces(area: GuidePlace, article: WikiArticle): List<PlaceSuggestion>? {
+        askedAbout = area
         failure?.let { throw it }
         return places
     }
@@ -144,6 +176,41 @@ class ExploreRepositoryTest {
         assertEquals(StorySource.Curated, places.source)
         assertEquals(GuideNotice.RateLimited, places.notice)
         assertEquals(1, places.landmarks.size)
+    }
+
+    @Test
+    fun searchesWikipediaWhenNoGuideKnowsTheCountry() = runTest {
+        val places = GuidedExploreRepository(
+            wikipedia = SquarelandWikipedia(sights = listOf("Corner Falls", "Faraway Castle", "Square Tower")),
+            aiGuide = null,
+            demoGuide = PlacesGuide(null),
+        ).placesToVisit(SQUARELAND)
+
+        assertEquals(listOf("Corner Falls", "Square Tower"), places.landmarks.map { it.article.title })
+        assertEquals(StorySource.Wikipedia, places.source)
+    }
+
+    @Test
+    fun asksTheGuideAboutTheStateAndKeepsOnlyItsPlaces() = runTest {
+        val guide = PlacesGuide(suggest("Square Tower", "Corner Falls"))
+
+        val places = GuidedExploreRepository(SquarelandWikipedia(), aiGuide = guide, demoGuide = PlacesGuide(null))
+            .placesToVisit(SQUARELAND, SOUTH_SQUARE)
+
+        assertEquals("South Square", guide.askedAbout?.name)
+        assertEquals("a province of Squareland", guide.askedAbout?.description)
+        assertEquals(listOf("Corner Falls"), places.landmarks.map { it.article.title })
+    }
+
+    @Test
+    fun searchesWikipediaForAStateWithoutAGuideAndKeepsWhatIsInside() = runTest {
+        val places = GuidedExploreRepository(
+            wikipedia = SquarelandWikipedia(sights = listOf("Square Tower", "Corner Falls")),
+            aiGuide = null,
+            demoGuide = PlacesGuide(null),
+        ).placesToVisit(SQUARELAND, SOUTH_SQUARE)
+
+        assertEquals(listOf("Corner Falls"), places.landmarks.map { it.article.title })
     }
 
     @Test

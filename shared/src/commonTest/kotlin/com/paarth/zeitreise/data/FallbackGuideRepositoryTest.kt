@@ -10,6 +10,7 @@ import com.paarth.zeitreise.domain.GuideStory
 import com.paarth.zeitreise.domain.SourcedFact
 import com.paarth.zeitreise.domain.StorySource
 import com.paarth.zeitreise.domain.WikiArticle
+import com.paarth.zeitreise.globe.GeoPoint
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -35,6 +36,8 @@ private object FakeWikipedia : WikipediaRepository {
         ARTICLE.takeIf { wikidataId == PLACE.wikidataId }
 
     override suspend fun notableFacts(article: WikiArticle): List<String> = NOTABLE
+
+    override suspend fun sightsNear(center: GeoPoint, radiusKm: Int): List<NearbySight> = emptyList()
 }
 
 /** A guide that answers with [story], or fails the way the AI guide does when [failure] is set. */
@@ -50,7 +53,7 @@ private class FakeGuide(private val story: GuideStory?, private val failure: Thr
         return story
     }
 
-    override suspend fun suggestPlaces(country: GuidePlace, article: WikiArticle): List<PlaceSuggestion>? = null
+    override suspend fun suggestPlaces(area: GuidePlace, article: WikiArticle): List<PlaceSuggestion>? = null
 }
 
 class FallbackGuideRepositoryTest {
