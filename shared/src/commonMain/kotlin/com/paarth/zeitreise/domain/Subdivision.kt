@@ -1,5 +1,6 @@
 package com.paarth.zeitreise.domain
 
+import com.paarth.zeitreise.globe.GeoCap
 import com.paarth.zeitreise.globe.GeoPoint
 
 /**
@@ -23,6 +24,9 @@ public class Subdivision internal constructor(
     init {
         require(outlines.isNotEmpty()) { "Subdivision $name has no outlines" }
     }
+
+    /** The region the camera frames when the state is selected. */
+    public val focus: GeoCap by lazy { outlines.mainlandFocus() }
 
     override fun toString(): String = "Subdivision($name)"
 }

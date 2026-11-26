@@ -37,6 +37,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -279,6 +280,8 @@ private fun Chevron() {
 
 @Composable
 private fun NameField(holder: String, onRename: (String) -> Unit) {
+    // Typed into here first and saved along the way, so fast typing never waits on the saved copy.
+    var name by rememberSaveable { mutableStateOf(holder) }
     val focusManager = LocalFocusManager.current
     val secondary = MaterialTheme.colorScheme.onSurface.copy(alpha = SECONDARY_TEXT_ALPHA)
     val label = stringResource(Res.string.passport_holder)
@@ -288,21 +291,28 @@ private fun NameField(holder: String, onRename: (String) -> Unit) {
             drawLine(secondary, Offset(0f, y), Offset(size.width, y), NAME_LINE.toPx())
         },
     ) {
-        if (holder.isEmpty()) {
+        if (name.isEmpty()) {
             Text(
                 text = stringResource(Res.string.passport_holder_hint),
                 style = MaterialTheme.typography.titleMedium,
                 color = secondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         BasicTextField(
-            value = holder,
-            onValueChange = onRename,
+            value = name,
+            onValueChange = { typed ->
+                name = typed.take(MAX_HOLDER_LENGTH)
+                onRename(name)
+            },
             singleLine = true,
             textStyle = MaterialTheme.typography.titleMedium.copy(color = MaterialTheme.colorScheme.onSurface),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            // No autocorrect: it would turn a name like Paarth into "Party".
             keyboardOptions = KeyboardOptions(
                 capitalization = KeyboardCapitalization.Words,
+                autoCorrectEnabled = false,
                 imeAction = ImeAction.Done,
             ),
             keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),

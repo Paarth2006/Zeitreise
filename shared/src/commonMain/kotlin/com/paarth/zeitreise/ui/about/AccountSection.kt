@@ -18,6 +18,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -88,20 +92,16 @@ private val AVATAR_SIZE = 44.dp
 /**
  * What the user can do in the account section.
  *
- * @property onEmailChange called with the email as the user types it.
- * @property onPasswordChange called with the password as the user types it.
- * @property createAccount creates an account.
- * @property signIn signs in.
+ * @property createAccount creates an account with the typed email and password.
+ * @property signIn signs in with the typed email and password.
  * @property syncNow syncs right away.
  * @property signOut signs out.
  * @property confirmDelete asks to confirm deleting the account, or stops asking when given false.
  * @property deleteAccount deletes the account once confirmed.
  */
 internal data class AccountActions(
-    val onEmailChange: (String) -> Unit = {},
-    val onPasswordChange: (String) -> Unit = {},
-    val createAccount: () -> Unit = {},
-    val signIn: () -> Unit = {},
+    val createAccount: (email: String, password: String) -> Unit = { _, _ -> },
+    val signIn: (email: String, password: String) -> Unit = { _, _ -> },
     val syncNow: () -> Unit = {},
     val signOut: () -> Unit = {},
     val confirmDelete: (Boolean) -> Unit = {},
@@ -110,8 +110,6 @@ internal data class AccountActions(
 
 /** The actions of [this] view model. */
 internal fun AccountViewModel.actions(): AccountActions = AccountActions(
-    onEmailChange = ::onEmailChange,
-    onPasswordChange = ::onPasswordChange,
     createAccount = ::createAccount,
     signIn = ::signIn,
     syncNow = ::syncNow,
@@ -149,6 +147,11 @@ internal fun AccountSection(state: AccountUiState, actions: AccountActions, modi
 
 @Composable
 private fun SignInForm(state: AccountUiState.SignedOut, actions: AccountActions) {
+    // Kept here rather than in the view model, so each keystroke lands at once, however fast.
+    // Left behind when the form goes away after signing in, so the password isn't kept.
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    val signIn = { actions.signIn(email.trim(), password) }
     Text(
         text = stringResource(Res.string.account_heading),
         style = MaterialTheme.typography.titleMedium,
@@ -156,26 +159,26 @@ private fun SignInForm(state: AccountUiState.SignedOut, actions: AccountActions)
     )
     SecondaryText(stringResource(Res.string.account_body))
     AccountField(
-        value = state.email,
-        onValueChange = actions.onEmailChange,
+        value = email,
+        onValueChange = { email = it },
         hint = Res.string.account_email_hint,
         keyboardType = KeyboardType.Email,
         imeAction = ImeAction.Next,
     )
     // Shown once the user tried to go on, and updated as they fix it.
-    if (state.showProblems && !isValidEmail(state.email)) ProblemText(Res.string.account_email_problem)
+    if (state.showProblems && !isValidEmail(email)) ProblemText(Res.string.account_email_problem)
     AccountField(
-        value = state.password,
-        onValueChange = actions.onPasswordChange,
+        value = password,
+        onValueChange = { password = it },
         hint = Res.string.account_password_hint,
         keyboardType = KeyboardType.Password,
-        onDone = actions.signIn,
+        onDone = signIn,
     )
-    if (state.showProblems && !isValidPassword(state.password)) ProblemText(Res.string.account_password_problem)
+    if (state.showProblems && !isValidPassword(password)) ProblemText(Res.string.account_password_problem)
     state.failure?.let { FailureText(it) }
     // Stacked, so both labels fit on narrow phones. Signing in is the everyday action, so it comes first.
-    WideButton(label = Res.string.account_sign_in, busy = state.busy, onClick = actions.signIn)
-    GlassButton(onClick = actions.createAccount, modifier = Modifier.fillMaxWidth()) {
+    WideButton(label = Res.string.account_sign_in, busy = state.busy, onClick = signIn)
+    GlassButton(onClick = { actions.createAccount(email.trim(), password) }, modifier = Modifier.fillMaxWidth()) {
         Text(stringResource(Res.string.account_create), style = MaterialTheme.typography.titleSmall)
     }
 }
@@ -302,7 +305,12 @@ private fun AccountField(
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+                // Emails and passwords are typed exactly, so autocorrect would only get in the way.
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = keyboardType,
+                    autoCorrectEnabled = false,
+                    imeAction = imeAction,
+                ),
                 keyboardActions = KeyboardActions(onDone = { onDone() }),
                 visualTransformation = if (keyboardType == KeyboardType.Password) {
                     PasswordVisualTransformation()
@@ -348,7 +356,7 @@ private fun SecondaryText(text: String) {
 @Composable
 private fun SignedOutPreview() {
     ZeitreiseTheme {
-        AccountSection(state = AccountUiState.SignedOut(email = "ada@example.com"), actions = AccountActions())
+        AccountSection(state = AccountUiState.SignedOut(), actions = AccountActions())
     }
 }
 

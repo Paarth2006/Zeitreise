@@ -125,18 +125,20 @@ internal class KtorWikipediaRepository(
         val key = "sights.${center.latitude},${center.longitude},$radiusKm"
         cache.get(key)?.let { return@withContext json.decodeFromString(SIGHT_LIST, it).map(CachedSight::toSight) }
 
-        val response = client.get(WIKIPEDIA_API) {
-            header(API_USER_AGENT_HEADER, API_USER_AGENT)
-            parameter("action", "query")
-            parameter("generator", "search")
-            parameter("gsrsearch", "nearcoord:${radiusKm}km,${center.latitude},${center.longitude} $SIGHT_KINDS")
-            parameter("gsrnamespace", "0")
-            parameter("gsrlimit", SIGHT_RESULTS)
-            parameter("prop", "coordinates")
-            parameter("colimit", "max")
-            parameter("format", "json")
-            parameter("formatversion", "2")
-            parameter("origin", "*")
+        val response = reaching {
+            client.get(WIKIPEDIA_API) {
+                header(API_USER_AGENT_HEADER, API_USER_AGENT)
+                parameter("action", "query")
+                parameter("generator", "search")
+                parameter("gsrsearch", "nearcoord:${radiusKm}km,${center.latitude},${center.longitude} $SIGHT_KINDS")
+                parameter("gsrnamespace", "0")
+                parameter("gsrlimit", SIGHT_RESULTS)
+                parameter("prop", "coordinates")
+                parameter("colimit", "max")
+                parameter("format", "json")
+                parameter("formatversion", "2")
+                parameter("origin", "*")
+            }
         }.requireSuccess()
         val pages = json.decodeFromString(WikiSearch.serializer(), response.bodyAsText()).query?.pages.orEmpty()
         // The pages come in no particular order; the search's own ranking is in `index`.
@@ -149,17 +151,19 @@ internal class KtorWikipediaRepository(
 
     /** The article's full plain text from the action API. */
     private suspend fun fullText(title: String): String? {
-        val response = client.get(WIKIPEDIA_API) {
-            header(API_USER_AGENT_HEADER, API_USER_AGENT)
-            parameter("action", "query")
-            parameter("prop", "extracts")
-            parameter("explaintext", "1")
-            parameter("exsectionformat", "plain")
-            parameter("redirects", "1")
-            parameter("titles", title)
-            parameter("format", "json")
-            parameter("formatversion", "2")
-            parameter("origin", "*")
+        val response = reaching {
+            client.get(WIKIPEDIA_API) {
+                header(API_USER_AGENT_HEADER, API_USER_AGENT)
+                parameter("action", "query")
+                parameter("prop", "extracts")
+                parameter("explaintext", "1")
+                parameter("exsectionformat", "plain")
+                parameter("redirects", "1")
+                parameter("titles", title)
+                parameter("format", "json")
+                parameter("formatversion", "2")
+                parameter("origin", "*")
+            }
         }.requireSuccess()
         return json.decodeFromString(
             WikiExtracts.serializer(),
@@ -169,23 +173,27 @@ internal class KtorWikipediaRepository(
 
     /** The English Wikipedia title for [wikidataId], if it has one. */
     private suspend fun englishTitle(wikidataId: String): String? {
-        val response = client.get(WIKIDATA_API) {
-            header(API_USER_AGENT_HEADER, API_USER_AGENT)
-            parameter("action", "wbgetentities")
-            parameter("ids", wikidataId)
-            parameter("props", "sitelinks")
-            parameter("sitefilter", ENGLISH_WIKIPEDIA)
-            parameter("format", "json")
-            // Needed on the web: the action API only sends CORS headers when this is set.
-            parameter("origin", "*")
+        val response = reaching {
+            client.get(WIKIDATA_API) {
+                header(API_USER_AGENT_HEADER, API_USER_AGENT)
+                parameter("action", "wbgetentities")
+                parameter("ids", wikidataId)
+                parameter("props", "sitelinks")
+                parameter("sitefilter", ENGLISH_WIKIPEDIA)
+                parameter("format", "json")
+                // Needed on the web: the action API only sends CORS headers when this is set.
+                parameter("origin", "*")
+            }
         }.requireSuccess()
         val entities = json.decodeFromString(WikidataEntities.serializer(), response.bodyAsText())
         return entities.entities[wikidataId]?.sitelinks?.get(ENGLISH_WIKIPEDIA)?.title
     }
 
     private suspend fun summary(title: String): WikiArticle? {
-        val response = client.get(SUMMARY_API + title.replace(' ', '_').encodeURLPathPart()) {
-            header(API_USER_AGENT_HEADER, API_USER_AGENT)
+        val response = reaching {
+            client.get(SUMMARY_API + title.replace(' ', '_').encodeURLPathPart()) {
+                header(API_USER_AGENT_HEADER, API_USER_AGENT)
+            }
         }
         if (response.status == HttpStatusCode.NotFound) return null
         val summary = json.decodeFromString(WikiSummary.serializer(), response.requireSuccess().bodyAsText())

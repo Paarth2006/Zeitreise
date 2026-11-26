@@ -55,7 +55,6 @@ import zeitreise.shared.generated.resources.quiz_close
 import zeitreise.shared.generated.resources.quiz_done
 import zeitreise.shared.generated.resources.quiz_find
 import zeitreise.shared.generated.resources.quiz_find_capital
-import zeitreise.shared.generated.resources.quiz_find_past
 import zeitreise.shared.generated.resources.quiz_new_best
 import zeitreise.shared.generated.resources.quiz_next
 import zeitreise.shared.generated.resources.quiz_play_again
@@ -73,6 +72,7 @@ import zeitreise.shared.generated.resources.quiz_score
 import zeitreise.shared.generated.resources.quiz_see_score
 import zeitreise.shared.generated.resources.quiz_show_me
 import zeitreise.shared.generated.resources.quiz_streak
+import zeitreise.shared.generated.resources.quiz_world_in
 import zeitreise.shared.generated.resources.quiz_wrong
 import zeitreise.shared.generated.resources.quiz_wrong_capital
 
@@ -171,17 +171,18 @@ private fun Question(round: QuizRound, actions: QuizActions) {
     val capital = round.question.capital
     val year = round.question.map?.year
     SheetHeader(
-        title = when {
-            year != null -> stringResource(Res.string.quiz_find_past, yearLabel(year), round.target.name)
-            capital != null -> stringResource(Res.string.quiz_find_capital, capital)
-            else -> stringResource(Res.string.quiz_find, round.target.name)
+        title = if (capital != null) {
+            stringResource(Res.string.quiz_find_capital, capital)
+        } else {
+            stringResource(Res.string.quiz_find, round.target.name)
         },
         // A country's continent is a hint; for the past, the year the map shows.
         subtitle = stringResource(
             Res.string.quiz_progress,
             round.number + 1,
             round.length,
-            (round.target as? Country)?.continent ?: year?.let { yearLabel(it) }.orEmpty(),
+            (round.target as? Country)?.continent
+                ?: year?.let { stringResource(Res.string.quiz_world_in, yearLabel(it)) }.orEmpty(),
         ),
         closeLabel = stringResource(Res.string.quiz_close),
         onClose = actions.stop,

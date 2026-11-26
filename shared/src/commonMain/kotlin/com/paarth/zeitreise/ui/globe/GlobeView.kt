@@ -134,7 +134,8 @@ internal fun GlobeView(
     val subdivisionAlpha by animateSubdivisionAlpha(content.subdivisions)
 
     val (highlighted, quizShown) = showcase.addedTo(content.selected, quiz)
-    val focus = cameraFocus(highlighted, past, quizShown)
+    // A selected state is framed on its own, so its pins spread out instead of bunching up.
+    val focus = cameraFocus(content.selectedSubdivision ?: highlighted, past, quizShown)
     // No idle drift during a quiz, so the globe stays where the user left it.
     CameraDriver(state, focus, drifting = focus == null && quiz == null, showcase = showcase)
     val pinDrop = rememberPinDrop(pins)
@@ -198,13 +199,13 @@ internal data class PastGlobe(val map: HistoricalMap?, val selected: Realm?)
 
 /**
  * What the camera should frame: the selected realm, the quiz answer (together with a wrong guess),
- * or the selected country.
+ * or the selected country or state.
  */
-private fun cameraFocus(selected: Country?, past: PastGlobe?, quiz: QuizGlobe?): GeoCap? = when {
+private fun cameraFocus(selected: Territory?, past: PastGlobe?, quiz: QuizGlobe?): GeoCap? = when {
     // The quiz comes first, since a question about the past shows an old map too.
     quiz != null -> quiz.answer?.frame?.let { answer -> quiz.wrongGuess?.let { answer union it.frame } ?: answer }
     past != null -> past.selected?.focus
-    else -> selected?.focus
+    else -> selected?.frame
 }
 
 /**
@@ -219,10 +220,11 @@ private fun GlobeShowcase?.addedTo(selected: Country?, quiz: QuizGlobe?): Pair<C
     )
 }
 
-/** The region the camera frames for this country or realm. */
+/** The region the camera frames for this country, state or realm. */
 private val Territory.frame: GeoCap
     get() = when (this) {
         is Country -> focus
+        is Subdivision -> focus
         is Realm -> focus
         else -> outlines.mainlandFocus()
     }

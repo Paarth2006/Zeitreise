@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /** Longest name that fits on the passport. */
-private const val MAX_HOLDER_LENGTH = 30
+internal const val MAX_HOLDER_LENGTH = 30
 
 /** Loads the passport when it's opened, and saves the name the user writes in it. */
 public class PassportViewModel(private val passport: Passport, private val countries: CountryRepository) : ViewModel() {

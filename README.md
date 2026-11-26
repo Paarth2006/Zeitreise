@@ -36,7 +36,7 @@ When I heard about the Kotlin Multiplatform Contest, I wanted to find out how fa
 * **Interactive Globe**
   * Drag to turn the globe, with inertia when you let go; pinch or scroll to zoom
   * All 242 countries and territories, with borders, a graticule, an atmosphere glow and a starfield
-  * Tap a country to fly to it; its states and provinces fade in with their names and can be tapped too
+  * Tap a country to fly to it; its states and provinces fade in with their names, and tapping one zooms in on it
   * Search for any country or state, with a glass toolbar above it for Time Travel, the quiz, the passport and About
   * A slow drift when left alone, and no drawing at all while the globe is still, so it costs no battery
 
@@ -46,7 +46,8 @@ When I heard about the Kotlin Multiplatform Contest, I wanted to find out how fa
   * A country of the day, the same on every device, in a chip that flies you there
 
 * **Places to Visit**
-  * "Explore places" asks the guide for about eight places worth a visit
+  * "Explore places" asks the guide for about eight places worth a visit, in a country or in a single state
+  * Without a Gemini key, a state's places come from a Wikipedia search for its best-known sights
   * Every place is checked against Wikipedia, which supplies its location and photo
   * Pins drop onto the globe one by one; tap one for a card with its photo, summary and facts
   * Pins never overlap: where two places are too close to tell apart, one is shown until you zoom in, so every pin opens exactly one place
@@ -58,6 +59,7 @@ When I heard about the Kotlin Multiplatform Contest, I wanted to find out how fa
 
 * **Globe Quiz**
   * Ten questions a round, answered by tapping the globe: "Find Peru", or by capital, "Where is Lima?"
+  * The last three questions travel back in time: the globe switches to a historical map, such as "Find Ming Empire" in the world of 1492
   * Right answers turn green; a wrong one turns red while the right country lights up, and the camera frames both
   * Streaks, a score card, and your best score saved
 
@@ -66,11 +68,13 @@ When I heard about the Kotlin Multiplatform Contest, I wanted to find out how fa
   * Stamps show each country's flag in its continent's ink, tilted as if pressed by hand
   * Progress overall and for each continent
   * Write your name in it, next to the flag of the home country you picked when you started
+  * Moved? Change your home country right from the passport
 
 * **Sync Across Devices (optional)**
   * Create an account with an email and password, then sign in with it on your other devices
   * Your passport, home country, name and best quiz score follow you to Android, iOS and the web
   * Everything still works offline and without an account; signing in only adds the sync
+  * Delete the account at any time, which removes everything saved in it; this device keeps its progress
 
 * **Works Without a Key**
   * Without a Gemini key, every country and state still gets a story from its Wikipedia article, and ten countries have hand-written stories and places to visit
@@ -86,6 +90,17 @@ When I heard about the Kotlin Multiplatform Contest, I wanted to find out how fa
 <p align="center">
   <img src="App_ScreenShots/Globe_Screen.png" alt="The globe" width="25%"/>
   <img src="App_ScreenShots/Country_Screen.png" alt="A country's sheet" width="25%"/>
+  <img src="App_ScreenShots/State_Screen.png" alt="Places to visit in a state" width="25%"/>
+</p>
+
+<p align="center">
+  <img src="App_ScreenShots/Time_Travel_Screen.png" alt="Time Travel in 1492" width="25%"/>
+  <img src="App_ScreenShots/Past_Quiz_Screen.png" alt="A quiz question about the past" width="25%"/>
+</p>
+
+<p align="center">
+  <img src="App_ScreenShots/Passport_Screen.png" alt="The passport" width="25%"/>
+  <img src="App_ScreenShots/About_Screen.png" alt="About and account" width="25%"/>
 </p>
 
 ## Technical Implementation
@@ -182,6 +197,8 @@ SUPABASE_ANON_KEY=your-anon-key
 ```
 Without them, sync is simply hidden.
 
+Free Supabase projects pause after about a week without use. While it is paused, signing in and syncing fail with a message, and everything else keeps working. Restore the project from the Supabase dashboard to bring sync back.
+
 #### Android
 4) Make sure the Android SDK with API level 37 is installed and an emulator or device is available (Android 7.0 or newer).
 5) Select the `androidApp` run configuration and click Run.
@@ -208,10 +225,7 @@ The app opens at `http://localhost:8080`. Use Chrome or another Chromium-based b
 
 ## Future Steps
 
-1) **Quizzes about the past**
-* Ask questions on Time Travel's historical maps, such as which empire held a city in a given year.
-
-2) **More to explore**
+1) **More to explore**
 * Places to visit for every country without an API key.
 * Landmarks for more eras and continents.
 

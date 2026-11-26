@@ -50,7 +50,7 @@ internal class KtorHistoryRepository(
     override suspend fun mapOf(year: Int): HistoricalMap = withContext(dispatcher) {
         lock.withLock { kept[year] }?.let { return@withContext it }
 
-        val response = client.get(MAPS_BASE_URL + mapFileName(year))
+        val response = reaching { client.get(MAPS_BASE_URL + mapFileName(year)) }
         check(response.status.isSuccess()) { "The map of $year answered ${response.status.value}" }
         val map = parser.parseHistoricalMap(year, response.bodyAsText())
         lock.withLock {

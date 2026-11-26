@@ -1,5 +1,6 @@
 package com.paarth.zeitreise.sync
 
+import com.paarth.zeitreise.data.reaching
 import io.ktor.client.HttpClient
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.bearerAuth
@@ -12,7 +13,6 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
-import kotlinx.io.IOException
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -125,20 +125,8 @@ internal class SupabaseApi(
         }
     }
 
-    /**
-     * Sends a request and checks its status. Ktor's browser engine reports a server it can't reach
-     * as an [Error] instead of an [IOException], so that is turned into one here, as every platform's
-     * callers expect.
-     */
-    @Suppress("TooGenericExceptionCaught")
-    private suspend fun send(request: suspend () -> HttpResponse): HttpResponse {
-        val response = try {
-            request()
-        } catch (unreachable: Error) {
-            throw IOException("Could not reach Supabase", unreachable)
-        }
-        return response.checked()
-    }
+    /** Sends a request and checks its status. */
+    private suspend fun send(request: suspend () -> HttpResponse): HttpResponse = reaching { request() }.checked()
 
     private suspend fun HttpResponse.checked(): HttpResponse = also {
         if (status.isSuccess()) return@also

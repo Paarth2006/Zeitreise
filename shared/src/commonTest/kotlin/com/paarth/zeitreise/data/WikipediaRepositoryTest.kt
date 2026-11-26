@@ -188,4 +188,21 @@ class WikipediaRepositoryTest {
 
         assertEquals(1, requests.size)
     }
+
+    @Test
+    fun goesWithoutNotableSentencesWhenTheBrowserCannotReachWikipedia() = runTest {
+        val wikipedia = repository { request ->
+            when (request.url.host + request.url.encodedPath) {
+                // What Ktor's browser engine throws when a fetch fails: an Error, not an IOException.
+                "en.wikipedia.org/w/api.php" -> throw FailedFetch()
+                else -> answerFor(request, title = "India")
+            }
+        }
+        val article = requireNotNull(wikipedia.article("Q668", fallbackTitle = "India"))
+
+        assertEquals(emptyList(), wikipedia.notableFacts(article))
+    }
 }
+
+/** What Ktor's browser engine throws when a fetch fails. */
+private class FailedFetch : Error("Fail to fetch")

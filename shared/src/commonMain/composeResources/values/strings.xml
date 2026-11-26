@@ -43,6 +43,7 @@
     <string name="story_next_fact">Next fact</string>
     <string name="explore_button">Explore places</string>
     <string name="explore_loading">Finding places worth a visit…</string>
+    <string name="explore_loading_slow">Still searching Wikipedia. The first search for a place can take a few seconds…</string>
     <plurals name="explore_found">
         <item quantity="one">%1$d place pinned on the globe. Tap it to open it.</item>
         <item quantity="other">%1$d places pinned on the globe. Tap a pin to open it.</item>
@@ -71,7 +72,7 @@
     <string name="close_realm">Close</string>
     <string name="about_credit_history">Historical borders: historical-basemaps by André Ourednik and contributors, under the GNU GPL 3.0. They are downloaded while the app runs and are not part of it.</string>
     <string name="quiz_find">Find %1$s</string>
-    <string name="quiz_find_past">In %1$s, find %2$s</string>
+    <string name="quiz_world_in">The world in %1$s</string>
     <string name="quiz_progress">Question %1$d of %2$d · %3$s</string>
     <string name="quiz_close">End the quiz</string>
     <string name="quiz_show_me">Show me</string>
@@ -126,7 +127,7 @@
     <string name="passport_progress">%1$d of %2$d countries and territories stamped</string>
     <string name="passport_close">Close the passport</string>
     <string name="passport_holder">Holder</string>
-    <string name="passport_holder_hint">Tap to write your name</string>
+    <string name="passport_holder_hint">Your name</string>
     <string name="passport_home">Home</string>
     <string name="passport_home_choose">Choose</string>
     <string name="passport_home_change">Change home country</string>

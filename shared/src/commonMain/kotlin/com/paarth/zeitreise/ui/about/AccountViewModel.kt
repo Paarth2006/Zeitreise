@@ -12,7 +12,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /** What the account section of the About card shows. */
@@ -21,14 +20,13 @@ internal sealed interface AccountUiState {
     data object Hidden : AccountUiState
 
     /**
-     * Signing in or creating an account, with the [email] and [password] typed so far.
+     * Signing in or creating an account. The email and password stay in the form as they are
+     * typed, so fast typing never races a round trip through here.
      *
      * @property showProblems whether to point out a wrong email or short password. It turns on
      *   the first time the user tries to go on, so nothing is flagged while they are still typing.
      */
     data class SignedOut(
-        val email: String = "",
-        val password: String = "",
         val showProblems: Boolean = false,
         val busy: Boolean = false,
         val failure: AccountFailure? = null,
@@ -50,51 +48,37 @@ internal sealed interface AccountUiState {
 /** Signs the user in and out, and syncs on request. */
 internal class AccountViewModel(private val account: Account) : ViewModel() {
 
-    private val form = MutableStateFlow(AccountUiState.SignedOut())
+    private val showProblems = MutableStateFlow(false)
     private val busy = MutableStateFlow(false)
     private val failure = MutableStateFlow<AccountFailure?>(null)
     private val confirmingDelete = MutableStateFlow(false)
 
-    /** Forgets what was typed once signed in, so the password isn't kept around. */
-    private val clearForm: () -> Unit = { form.value = AccountUiState.SignedOut() }
+    /** Starts the next sign-in without problems pointed out. */
+    private val resetForm: () -> Unit = { showProblems.value = false }
 
     /** What the account section shows. */
     val state: StateFlow<AccountUiState> = combine(
         account.state,
-        form,
+        showProblems,
         busy,
         failure,
         confirmingDelete,
-    ) { signedIn, typed, working, failed, confirming ->
+    ) { signedIn, problems, working, failed, confirming ->
         when (signedIn) {
             AccountState.Unavailable -> AccountUiState.Hidden
-            AccountState.SignedOut -> typed.copy(busy = working, failure = failed)
+            AccountState.SignedOut -> AccountUiState.SignedOut(problems, working, failed)
             is AccountState.SignedIn -> AccountUiState.SignedIn(signedIn.email, working, failed, confirming)
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, AccountUiState.Hidden)
 
-    /** Updates the email as the user types it. */
-    fun onEmailChange(email: String) {
-        form.update { it.copy(email = email.trim()) }
+    /** Creates an account for [email] with [password]. */
+    fun createAccount(email: String, password: String) {
+        if (looksRight(email, password)) perform({ account.createAccount(email, password) }, onDone = resetForm)
     }
 
-    /** Updates the password as the user types it. */
-    fun onPasswordChange(password: String) {
-        form.update { it.copy(password = password) }
-    }
-
-    /** Creates an account with the typed email and password. */
-    fun createAccount() {
-        val typed = form.value
-        if (!typed.looksRight()) return
-        perform({ account.createAccount(typed.email, typed.password) }, onDone = clearForm)
-    }
-
-    /** Signs in with the typed email and password. */
-    fun signIn() {
-        val typed = form.value
-        if (!typed.looksRight()) return
-        perform({ account.signIn(typed.email, typed.password) }, onDone = clearForm)
+    /** Signs in to the account for [email]. */
+    fun signIn(email: String, password: String) {
+        if (looksRight(email, password)) perform({ account.signIn(email, password) }, onDone = resetForm)
     }
 
     /** Syncs now instead of waiting for the next change. */
@@ -114,10 +98,10 @@ internal class AccountViewModel(private val account: Account) : ViewModel() {
         AccountResult.Done
     })
 
-    /** Whether the email and password look right. If not, the problems are pointed out instead. */
-    private fun AccountUiState.SignedOut.looksRight(): Boolean {
+    /** Whether [email] and [password] look right. If not, the problems are pointed out instead. */
+    private fun looksRight(email: String, password: String): Boolean {
         val fine = credentialsProblem(email, password) == null
-        if (!fine) form.update { it.copy(showProblems = true) }
+        if (!fine) showProblems.value = true
         return fine
     }
 

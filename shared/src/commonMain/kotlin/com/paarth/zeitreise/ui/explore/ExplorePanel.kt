@@ -14,6 +14,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -32,6 +37,7 @@ import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
 import com.paarth.zeitreise.ui.ZeitreiseTheme
 import com.paarth.zeitreise.ui.glass.GlassButton
 import com.paarth.zeitreise.ui.globe.PIN_COLOR
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
@@ -39,6 +45,7 @@ import zeitreise.shared.generated.resources.explore_button
 import zeitreise.shared.generated.resources.explore_failed
 import zeitreise.shared.generated.resources.explore_found
 import zeitreise.shared.generated.resources.explore_loading
+import zeitreise.shared.generated.resources.explore_loading_slow
 import zeitreise.shared.generated.resources.explore_none
 import zeitreise.shared.generated.resources.explore_source_ai
 import zeitreise.shared.generated.resources.explore_source_curated
@@ -46,6 +53,9 @@ import zeitreise.shared.generated.resources.explore_source_wikipedia
 import zeitreise.shared.generated.resources.story_ai_unavailable
 import zeitreise.shared.generated.resources.story_rate_limited
 import zeitreise.shared.generated.resources.story_retry
+
+/** How long the search runs before the panel explains that a first search can take a while. */
+private const val SLOW_SEARCH_MILLIS = 4_000L
 
 /** Spacing between lines and between an icon and its label. */
 private val PANEL_SPACING = 8.dp
@@ -136,8 +146,14 @@ private fun LoadingLine(modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(PANEL_SPACING),
         modifier = modifier.semantics { liveRegion = LiveRegionMode.Polite },
     ) {
+        // A search Wikipedia hasn't seen before can take a while, so a longer wait gets a word of explanation.
+        var slow by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            delay(SLOW_SEARCH_MILLIS)
+            slow = true
+        }
         CircularProgressIndicator(strokeWidth = LOADING_INDICATOR_STROKE, modifier = Modifier.size(GLYPH_SIZE))
-        SecondaryText(stringResource(Res.string.explore_loading))
+        SecondaryText(stringResource(if (slow) Res.string.explore_loading_slow else Res.string.explore_loading))
     }
 }
 

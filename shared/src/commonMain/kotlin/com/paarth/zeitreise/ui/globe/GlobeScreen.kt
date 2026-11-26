@@ -580,6 +580,13 @@ private fun BoxScope.SearchControl(
     demoText: String?,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
+    // A country opened from the map, mid-search, ends the search, so the toolbar is back afterwards.
+    LaunchedEffect(visible) {
+        if (!visible && query.isNotEmpty()) {
+            query = ""
+            actions.search("")
+        }
+    }
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn() + scaleIn(CONTROL_SPRING, initialScale = CONTROL_START_SCALE),
