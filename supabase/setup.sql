@@ -39,3 +39,20 @@ $$;
 drop trigger if exists touch_progress on public.progress;
 create trigger touch_progress before update on public.progress
     for each row execute function public.touch_progress();
+
+-- Lets a signed-in user delete their own account. Their progress row goes with it, through the
+-- foreign key's cascade. It runs with the owner's rights, since users can't delete from
+-- auth.users themselves, but it only ever deletes the caller, so Supabase's warning about
+-- signed-in users running it is expected.
+create or replace function public.delete_account() returns void
+    language plpgsql security definer set search_path = '' as $$
+begin
+    if auth.uid() is null then
+        raise exception 'Not signed in';
+    end if;
+    delete from auth.users where id = auth.uid();
+end;
+$$;
+
+revoke all on function public.delete_account() from public, anon;
+grant execute on function public.delete_account() to authenticated;

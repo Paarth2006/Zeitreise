@@ -64,21 +64,26 @@ internal class SupabaseApi(
      * email, so the answer is a session right away and no email is sent.
      */
     suspend fun signUp(email: String, password: String): AuthSession =
-        session(post("auth/v1/signup", json.credentials(email, password)))
+        json.session(post("auth/v1/signup", json.credentials(email, password)))
 
     /** Signs in to an existing account. */
     suspend fun signIn(email: String, password: String): AuthSession =
-        session(post("auth/v1/token?grant_type=password", json.credentials(email, password)))
+        json.session(post("auth/v1/token?grant_type=password", json.credentials(email, password)))
 
     /** Swaps [refreshToken] for a new session, with a new refresh token. */
     suspend fun refresh(refreshToken: String): AuthSession {
         val body = json.encodeToString(RefreshRequest.serializer(), RefreshRequest(refreshToken))
-        return session(post("auth/v1/token?grant_type=refresh_token", body))
+        return json.session(post("auth/v1/token?grant_type=refresh_token", body))
     }
 
     /** Ends [session] on the server, so its refresh token stops working. */
     suspend fun signOut(session: AuthSession) {
         post("auth/v1/logout", body = null) { bearerAuth(session.accessToken) }
+    }
+
+    /** Deletes the signed-in user's account and their saved progress, for good. */
+    suspend fun deleteAccount(session: AuthSession) {
+        post("rest/v1/rpc/delete_account", body = "{}") { bearerAuth(session.accessToken) }
     }
 
     /** The user's saved progress, or `null` if nothing was saved yet. */
@@ -135,16 +140,6 @@ internal class SupabaseApi(
         return response.checked()
     }
 
-    private suspend fun session(response: HttpResponse): AuthSession {
-        val session = json.decodeFromString(SessionResponse.serializer(), response.bodyAsText())
-        return AuthSession(
-            accessToken = session.accessToken,
-            refreshToken = session.refreshToken,
-            userId = session.user.id,
-            email = session.user.email.orEmpty(),
-        )
-    }
-
     private suspend fun HttpResponse.checked(): HttpResponse = also {
         if (status.isSuccess()) return@also
         // The error's name tells apart, say, a wrong password from an account that already exists.
@@ -162,6 +157,17 @@ internal class SupabaseApi(
         /** Supabase reads the project key from this header on every request. */
         const val API_KEY_HEADER = "apikey"
     }
+}
+
+/** The session in a successful sign-up, sign-in or refresh [response]. */
+private suspend fun Json.session(response: HttpResponse): AuthSession {
+    val session = decodeFromString(SessionResponse.serializer(), response.bodyAsText())
+    return AuthSession(
+        accessToken = session.accessToken,
+        refreshToken = session.refreshToken,
+        userId = session.user.id,
+        email = session.user.email.orEmpty(),
+    )
 }
 
 /** The JSON body that signs up or signs in with [email] and [password]. */

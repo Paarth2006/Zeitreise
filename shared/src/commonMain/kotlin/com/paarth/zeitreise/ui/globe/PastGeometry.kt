@@ -24,6 +24,7 @@ internal fun DrawScope.drawPast(
     geometry: PastGeometry,
     projection: GlobeProjection,
     selected: Realm?,
+    quiz: QuizGlobe?,
     palette: GlobePalette,
 ) {
     geometry.unclaimed.forEach { outline ->
@@ -31,7 +32,13 @@ internal fun DrawScope.drawPast(
     }
     geometry.realms.forEach { realm ->
         val isSelected = realm.territory === selected
-        val fill = if (isSelected) palette.landSelected else palette.pastLand[realm.shade.mod(palette.pastLand.size)]
+        // A quiz about the past colours the answer and a wrong guess like it does countries.
+        val fill = when {
+            realm.territory === quiz?.answer -> palette.quizRight
+            realm.territory === quiz?.wrongGuess -> palette.quizWrong
+            isSelected -> palette.landSelected
+            else -> palette.pastLand[realm.shade.mod(palette.pastLand.size)]
+        }
         val border = if (isSelected) palette.borderSelected else palette.border
         val width = if (isSelected) SELECTED_REALM_BORDER_WIDTH else REALM_BORDER_WIDTH
         realm.update(projection).forEach { path ->

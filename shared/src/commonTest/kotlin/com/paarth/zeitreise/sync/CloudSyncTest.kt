@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /** India, Germany and Japan, by the Wikidata items the passport files them under. */
 private const val INDIA = "Q668"
@@ -173,6 +174,30 @@ class CloudSyncTest {
 
         assertEquals(AccountState.SignedOut, sync.state.value)
         assertEquals(listOf(INDIA), device.readProgress().stamps)
+    }
+
+    @Test
+    fun deletesTheAccountButKeepsTheProgressOnTheDevice() = runTest {
+        server.progress = SyncedProgress(stamps = listOf(INDIA))
+        val sync = cloudSync()
+        sync.signedIn()
+
+        assertEquals(AccountResult.Done, sync.deleteAccount())
+
+        assertEquals(AccountState.SignedOut, sync.state.value)
+        assertNull(server.progress)
+        assertTrue(ADA !in server.accounts)
+        assertEquals(listOf(INDIA), device.readProgress().stamps)
+    }
+
+    @Test
+    fun staysSignedInWhenTheAccountCannotBeDeletedOffline() = runTest {
+        val sync = cloudSync()
+        sync.signedIn()
+        server.unreachable = true
+
+        assertEquals(AccountResult.Failed(AccountFailure.Offline), sync.deleteAccount())
+        assertEquals(AccountState.SignedIn(ADA), sync.state.value)
     }
 
     @Test

@@ -34,9 +34,17 @@ internal sealed interface AccountUiState {
         val failure: AccountFailure? = null,
     ) : AccountUiState
 
-    /** Signed in as [email]. */
-    data class SignedIn(val email: String, val busy: Boolean = false, val failure: AccountFailure? = null) :
-        AccountUiState
+    /**
+     * Signed in as [email].
+     *
+     * @property confirmingDelete whether the user tapped Delete account and is asked to confirm.
+     */
+    data class SignedIn(
+        val email: String,
+        val busy: Boolean = false,
+        val failure: AccountFailure? = null,
+        val confirmingDelete: Boolean = false,
+    ) : AccountUiState
 }
 
 /** Signs the user in and out, and syncs on request. */
@@ -45,6 +53,10 @@ internal class AccountViewModel(private val account: Account) : ViewModel() {
     private val form = MutableStateFlow(AccountUiState.SignedOut())
     private val busy = MutableStateFlow(false)
     private val failure = MutableStateFlow<AccountFailure?>(null)
+    private val confirmingDelete = MutableStateFlow(false)
+
+    /** Forgets what was typed once signed in, so the password isn't kept around. */
+    private val clearForm: () -> Unit = { form.value = AccountUiState.SignedOut() }
 
     /** What the account section shows. */
     val state: StateFlow<AccountUiState> = combine(
@@ -52,11 +64,12 @@ internal class AccountViewModel(private val account: Account) : ViewModel() {
         form,
         busy,
         failure,
-    ) { signedIn, typed, working, failed ->
+        confirmingDelete,
+    ) { signedIn, typed, working, failed, confirming ->
         when (signedIn) {
             AccountState.Unavailable -> AccountUiState.Hidden
             AccountState.SignedOut -> typed.copy(busy = working, failure = failed)
-            is AccountState.SignedIn -> AccountUiState.SignedIn(signedIn.email, working, failed)
+            is AccountState.SignedIn -> AccountUiState.SignedIn(signedIn.email, working, failed, confirming)
         }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, AccountUiState.Hidden)
 
@@ -74,18 +87,26 @@ internal class AccountViewModel(private val account: Account) : ViewModel() {
     fun createAccount() {
         val typed = form.value
         if (!typed.looksRight()) return
-        perform({ account.createAccount(typed.email, typed.password) }, onDone = ::clearForm)
+        perform({ account.createAccount(typed.email, typed.password) }, onDone = clearForm)
     }
 
     /** Signs in with the typed email and password. */
     fun signIn() {
         val typed = form.value
         if (!typed.looksRight()) return
-        perform({ account.signIn(typed.email, typed.password) }, onDone = ::clearForm)
+        perform({ account.signIn(typed.email, typed.password) }, onDone = clearForm)
     }
 
     /** Syncs now instead of waiting for the next change. */
     fun syncNow() = perform(account::sync)
+
+    /** Asks the user to confirm deleting the account, or stops asking if [asking] is false. */
+    fun confirmDelete(asking: Boolean) {
+        confirmingDelete.value = asking
+    }
+
+    /** Deletes the account and the progress saved in it. The progress stays on this device. */
+    fun deleteAccount() = perform(account::deleteAccount, onDone = { confirmingDelete.value = false })
 
     /** Signs out. The progress stays on this device. */
     fun signOut() = perform({
@@ -98,11 +119,6 @@ internal class AccountViewModel(private val account: Account) : ViewModel() {
         val fine = credentialsProblem(email, password) == null
         if (!fine) form.update { it.copy(showProblems = true) }
         return fine
-    }
-
-    /** Forgets what was typed once signed in, so the password isn't kept around. */
-    private fun clearForm() {
-        form.value = AccountUiState.SignedOut()
     }
 
     /** Runs [action] with the busy flag set, then calls [onDone] if it worked or shows why it didn't. */

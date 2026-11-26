@@ -71,6 +71,7 @@
     <string name="close_realm">Close</string>
     <string name="about_credit_history">Historical borders: historical-basemaps by André Ourednik and contributors, under the GNU GPL 3.0. They are downloaded while the app runs and are not part of it.</string>
     <string name="quiz_find">Find %1$s</string>
+    <string name="quiz_find_past">In %1$s, find %2$s</string>
     <string name="quiz_progress">Question %1$d of %2$d · %3$s</string>
     <string name="quiz_close">End the quiz</string>
     <string name="quiz_show_me">Show me</string>
@@ -109,6 +110,10 @@
     <string name="account_signed_in">Your progress follows you to every device you sign in on.</string>
     <string name="account_sync_now">Sync now</string>
     <string name="account_sign_out">Sign out</string>
+    <string name="account_delete">Delete account</string>
+    <string name="account_delete_confirm">Delete your account and the progress saved in it? This can not be undone. Your progress stays on this device.</string>
+    <string name="account_delete_keep">Keep it</string>
+    <string name="account_delete_yes">Delete</string>
     <string name="account_busy">Just a moment…</string>
     <string name="account_failure_offline">Could not reach the server. Check your connection and try again.</string>
     <string name="account_failure_bad_email">That email address is not valid. Check it and try again.</string>
@@ -123,6 +128,10 @@
     <string name="passport_holder">Holder</string>
     <string name="passport_holder_hint">Tap to write your name</string>
     <string name="passport_home">Home</string>
+    <string name="passport_home_choose">Choose</string>
+    <string name="passport_home_change">Change home country</string>
+    <string name="home_cancel">Cancel</string>
+    <string name="home_change_body">Your globe will start there, and it gets a stamp in your passport if it has none yet.</string>
     <string name="passport_empty">No stamps yet. Open any country on the globe to stamp it into your passport.</string>
     <string name="passport_continent">%1$d of %2$d</string>
     <string name="passport_new_stamp">New stamp in your passport!</string>

@@ -1,8 +1,14 @@
 package com.paarth.zeitreise.ui.quiz
 
+import com.paarth.zeitreise.data.HistoryRepository
 import com.paarth.zeitreise.data.QuizStore
 import com.paarth.zeitreise.domain.Country
+import com.paarth.zeitreise.domain.CountryOutline
+import com.paarth.zeitreise.domain.CountryRing
+import com.paarth.zeitreise.domain.HistoricalMap
+import com.paarth.zeitreise.domain.PAST_QUESTIONS
 import com.paarth.zeitreise.domain.QUIZ_LENGTH
+import com.paarth.zeitreise.domain.Realm
 import com.paarth.zeitreise.geo.GeoJsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,6 +45,26 @@ private val WORLD: List<Country> = GeoJsonParser().parseCountries(
     },
 )
 
+/** An empire on the old maps, from 10° to 14° east and 40° to 44° north. */
+private val ROME = Realm(
+    name = "Rome",
+    partOf = null,
+    outlines = listOf(
+        CountryOutline(
+            CountryRing(doubleArrayOf(10.0, 40.0, 14.0, 40.0, 14.0, 44.0, 10.0, 44.0, 10.0, 40.0)),
+            emptyList(),
+        ),
+    ),
+)
+
+/** A history whose maps all show [ROME], or that can't be reached when [down]. */
+private class FakeHistory(private val down: Boolean) : HistoryRepository {
+    override suspend fun mapOf(year: Int): HistoricalMap {
+        check(!down) { "No connection" }
+        return HistoricalMap(year = year, realms = listOf(ROME), unclaimedLand = emptyList())
+    }
+}
+
 /** A store that keeps the best score in memory, starting from [best]. */
 private class MemoryQuizStore(var best: Int = 0) : QuizStore {
     override suspend fun bestScore() = best
@@ -53,11 +79,14 @@ class QuizViewModelTest {
 
     private val store = MemoryQuizStore(best = 3)
 
-    /** Runs [test] with the view model's main dispatcher on the test's scheduler. */
-    private fun quiz(test: suspend TestScope.(QuizViewModel) -> Unit) = runTest {
+    /**
+     * Runs [test] with the view model's main dispatcher on the test's scheduler. The old maps can't
+     * be loaded unless [online], so rounds are about today's countries only.
+     */
+    private fun quiz(online: Boolean = false, test: suspend TestScope.(QuizViewModel) -> Unit) = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
-            test(QuizViewModel(store, Random(seed = 42)))
+            test(QuizViewModel(store, FakeHistory(down = !online), Random(seed = 42)))
             advanceUntilIdle()
         } finally {
             Dispatchers.resetMain()
@@ -69,6 +98,7 @@ class QuizViewModelTest {
     @Test
     fun startsARoundOfDifferentCountries() = quiz { viewModel ->
         viewModel.start(WORLD)
+        advanceUntilIdle()
 
         assertEquals(QUIZ_LENGTH, viewModel.round.questions.toSet().size)
         assertEquals(0, viewModel.round.number)
@@ -77,6 +107,7 @@ class QuizViewModelTest {
     @Test
     fun aTapOnTheOceanDoesNotAnswer() = quiz { viewModel ->
         viewModel.start(WORLD)
+        advanceUntilIdle()
 
         viewModel.answer(null)
 
@@ -86,6 +117,7 @@ class QuizViewModelTest {
     @Test
     fun showsTheCountryWhenTheUserGivesUp() = quiz { viewModel ->
         viewModel.start(WORLD)
+        advanceUntilIdle()
 
         viewModel.reveal()
 
@@ -96,6 +128,7 @@ class QuizViewModelTest {
     @Test
     fun waitsForAnAnswerBeforeMovingOn() = quiz { viewModel ->
         viewModel.start(WORLD)
+        advanceUntilIdle()
 
         viewModel.next()
 
@@ -105,8 +138,9 @@ class QuizViewModelTest {
     @Test
     fun endsTheRoundWithItsScoreAndRemembersANewBest() = quiz { viewModel ->
         viewModel.start(WORLD)
+        advanceUntilIdle()
         repeat(QUIZ_LENGTH) {
-            viewModel.answer(viewModel.round.country)
+            viewModel.answer(viewModel.round.target)
             viewModel.next()
         }
         advanceUntilIdle()
@@ -118,6 +152,7 @@ class QuizViewModelTest {
     @Test
     fun keepsTheEarlierBestAfterAWeakerRound() = quiz { viewModel ->
         viewModel.start(WORLD)
+        advanceUntilIdle()
         repeat(QUIZ_LENGTH) {
             viewModel.reveal()
             viewModel.next()
@@ -131,9 +166,57 @@ class QuizViewModelTest {
     @Test
     fun leavesTheQuiz() = quiz { viewModel ->
         viewModel.start(WORLD)
+        advanceUntilIdle()
 
         viewModel.stop()
 
         assertEquals(QuizState.Off, viewModel.state.value)
+    }
+
+    @Test
+    fun endsEachRoundWithQuestionsAboutThePast() = quiz(online = true) { viewModel ->
+        viewModel.start(WORLD)
+        advanceUntilIdle()
+
+        val past = viewModel.round.questions.takeLast(PAST_QUESTIONS)
+        assertEquals(QUIZ_LENGTH, viewModel.round.questions.size)
+        assertTrue(past.all { it.target === ROME && it.map != null })
+        assertTrue(viewModel.round.questions.dropLast(PAST_QUESTIONS).all { it.map == null })
+    }
+
+    @Test
+    fun tappingTheRealmAnswersAQuestionAboutThePast() = quiz(online = true) { viewModel ->
+        viewModel.start(WORLD)
+        advanceUntilIdle()
+        repeat(QUIZ_LENGTH - PAST_QUESTIONS) {
+            viewModel.reveal()
+            viewModel.next()
+        }
+
+        viewModel.answer(ROME)
+
+        assertTrue(viewModel.round.isRight)
+    }
+
+    @Test
+    fun waitsForThePastQuestionsInsteadOfEndingEarly() = quiz(online = true) { viewModel ->
+        viewModel.start(WORLD)
+        repeat(QUIZ_LENGTH - PAST_QUESTIONS) {
+            viewModel.reveal()
+            viewModel.next()
+        }
+        advanceUntilIdle()
+
+        assertEquals(QUIZ_LENGTH - PAST_QUESTIONS, viewModel.round.number)
+        assertIs<QuizState.Playing>(viewModel.state.value)
+    }
+
+    @Test
+    fun asksAboutTodayInsteadWhenTheOldMapsCannotBeLoaded() = quiz(online = false) { viewModel ->
+        viewModel.start(WORLD)
+        advanceUntilIdle()
+
+        assertEquals(QUIZ_LENGTH, viewModel.round.questions.map { it.target }.toSet().size)
+        assertTrue(viewModel.round.questions.all { it.map == null })
     }
 }

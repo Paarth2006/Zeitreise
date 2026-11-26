@@ -1,6 +1,7 @@
 package com.paarth.zeitreise.ui.about
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -46,6 +48,10 @@ import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.account_body
 import zeitreise.shared.generated.resources.account_busy
 import zeitreise.shared.generated.resources.account_create
+import zeitreise.shared.generated.resources.account_delete
+import zeitreise.shared.generated.resources.account_delete_confirm
+import zeitreise.shared.generated.resources.account_delete_keep
+import zeitreise.shared.generated.resources.account_delete_yes
 import zeitreise.shared.generated.resources.account_email_hint
 import zeitreise.shared.generated.resources.account_email_problem
 import zeitreise.shared.generated.resources.account_failure_bad_email
@@ -88,6 +94,8 @@ private val AVATAR_SIZE = 44.dp
  * @property signIn signs in.
  * @property syncNow syncs right away.
  * @property signOut signs out.
+ * @property confirmDelete asks to confirm deleting the account, or stops asking when given false.
+ * @property deleteAccount deletes the account once confirmed.
  */
 internal data class AccountActions(
     val onEmailChange: (String) -> Unit = {},
@@ -96,6 +104,8 @@ internal data class AccountActions(
     val signIn: () -> Unit = {},
     val syncNow: () -> Unit = {},
     val signOut: () -> Unit = {},
+    val confirmDelete: (Boolean) -> Unit = {},
+    val deleteAccount: () -> Unit = {},
 )
 
 /** The actions of [this] view model. */
@@ -106,6 +116,8 @@ internal fun AccountViewModel.actions(): AccountActions = AccountActions(
     signIn = ::signIn,
     syncNow = ::syncNow,
     signOut = ::signOut,
+    confirmDelete = ::confirmDelete,
+    deleteAccount = ::deleteAccount,
 )
 
 /**
@@ -197,6 +209,37 @@ private fun SignedInPanel(state: AccountUiState.SignedIn, actions: AccountAction
             onClick = actions.syncNow,
             modifier = Modifier.weight(1f),
         )
+    }
+    if (state.confirmingDelete) {
+        DeleteConfirmation(onKeep = { actions.confirmDelete(false) }, onDelete = actions.deleteAccount)
+    } else {
+        Text(
+            text = stringResource(Res.string.account_delete),
+            style = MaterialTheme.typography.labelLarge,
+            color = FAILURE_COLOR,
+            modifier = Modifier
+                .clip(CapsuleShape)
+                .clickable(role = Role.Button) { actions.confirmDelete(true) }
+                .padding(vertical = SECTION_SPACING / 2),
+        )
+    }
+}
+
+/** Asks whether to really delete the account, since it can't be undone. */
+@Composable
+private fun DeleteConfirmation(onKeep: () -> Unit, onDelete: () -> Unit) {
+    ProblemText(Res.string.account_delete_confirm)
+    Row(horizontalArrangement = Arrangement.spacedBy(SECTION_SPACING)) {
+        GlassButton(onClick = onKeep, modifier = Modifier.weight(1f)) {
+            Text(stringResource(Res.string.account_delete_keep), style = MaterialTheme.typography.titleSmall)
+        }
+        GlassButton(onClick = onDelete, modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(Res.string.account_delete_yes),
+                style = MaterialTheme.typography.titleSmall,
+                color = FAILURE_COLOR,
+            )
+        }
     }
 }
 

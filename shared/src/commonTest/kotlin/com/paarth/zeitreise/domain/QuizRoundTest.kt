@@ -80,7 +80,7 @@ class QuizRoundTest {
     fun movesOnToTheNextQuestionWithItsAnswerCleared() {
         val next = round.answer(westland).next()
 
-        assertSame(eastland, next.country)
+        assertSame(eastland, next.target)
         assertFalse(next.answered)
         assertNull(next.guess)
         assertTrue(next.isLast)
@@ -101,7 +101,7 @@ class QuizRoundTest {
 
         val questions = quizQuestions(countries, Random(seed = 1))
 
-        assertEquals(listOf("Bigland"), questions.map { it.country.name })
+        assertEquals(listOf("Bigland"), questions.map { it.target.name })
     }
 
     @Test
@@ -109,7 +109,7 @@ class QuizRoundTest {
         val questions = quizQuestions(ATLANTIS, Random(seed = 7), count = 2)
 
         assertEquals(2, questions.size)
-        assertEquals(2, questions.map { it.country }.toSet().size)
+        assertEquals(2, questions.map { it.target }.toSet().size)
     }
 
     @Test
@@ -119,8 +119,39 @@ class QuizRoundTest {
 
         val questions = (1L..20L).flatMap { seed -> quizQuestions(countries, Random(seed)) }
 
-        assertTrue(questions.none { it.country.name == "Northland" && it.capital != null })
+        assertTrue(questions.none { it.target.name == "Northland" && it.capital != null })
         assertTrue(questions.any { it.capital == "Westland City" })
-        assertTrue(questions.any { it.country.name == "Westland" && it.capital == null })
+        assertTrue(questions.any { it.target.name == "Westland" && it.capital == null })
+    }
+
+    @Test
+    fun asksAboutTheBigIndependentRealmsOfThePast() {
+        fun realm(name: String, partOf: String? = null, size: Double = 1.0) = Realm(
+            name = name,
+            partOf = partOf,
+            outlines = listOf(
+                CountryOutline(CountryRing(doubleArrayOf(0.0, 0.0, size, 0.0, size, size, 0.0, 0.0)), emptyList()),
+            ),
+        )
+        // The groups of peoples are bigger, but they aren't realms to find.
+        val map = HistoricalMap(
+            year = 1600,
+            realms = listOf(
+                realm("Amazon hunter-gatherers", size = 30.0),
+                realm("central Asian khanates", size = 20.0),
+                realm("Wallachia", partOf = "Ottoman Empire"),
+                realm("Ottoman Empire", size = 10.0),
+            ),
+            unclaimedLand = emptyList(),
+        )
+
+        val questions = List(20) { pastQuestion(map, Random(it)) }
+
+        assertTrue(questions.all { it?.target?.name == "Ottoman Empire" && it.map === map })
+    }
+
+    @Test
+    fun hasNoPastQuestionWhenTheMapHasNoRealms() {
+        assertNull(pastQuestion(HistoricalMap(year = 1, realms = emptyList(), unclaimedLand = emptyList()), Random(1)))
     }
 }

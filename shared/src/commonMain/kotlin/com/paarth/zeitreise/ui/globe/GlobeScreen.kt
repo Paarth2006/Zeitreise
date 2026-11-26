@@ -84,6 +84,8 @@ import dev.chrisbanes.haze.rememberHazeState
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import zeitreise.shared.generated.resources.Res
+import zeitreise.shared.generated.resources.home_cancel
+import zeitreise.shared.generated.resources.home_change_body
 import zeitreise.shared.generated.resources.loading_world
 
 /** Padding around the failure message. */
@@ -174,10 +176,11 @@ private fun ReadyScreen(current: GlobeUiState.Ready, models: ScreenModels) {
     ReadyGlobe(
         state = current,
         places = places,
-        past = rememberPastGlobe(travel),
+        // A question about the past shows that year's map, and a tapped realm answers it.
+        past = quizState.pastMap?.let { PastGlobe(map = it, selected = null) } ?: rememberPastGlobe(travel),
         quiz = quizState.globe,
         actions = actions,
-        onSelectRealm = travelActions.selectRealm,
+        onSelectRealm = if (quizState.pastMap != null) models.quiz::answer else travelActions.selectRealm,
         onAnswer = models.quiz::answer,
         showcase = demo.showcase,
         modifier = Modifier.hazeSource(backdrop),
@@ -208,13 +211,19 @@ private fun ReadyScreen(current: GlobeUiState.Ready, models: ScreenModels) {
         }
         // Shown above the controls, so their glass also blurs the country sheet.
         PlaceSheet(card = places.openCard, onClose = { actions.showPin(null) })
-        CardSheets(models, showAbout = showAbout, onDismissAbout = { showAbout = false })
+        CardSheets(models, current.countries, showAbout = showAbout, onDismissAbout = { showAbout = false })
     }
 }
 
 /** The About and Passport cards, over everything else. */
 @Composable
-private fun CardSheets(models: ScreenModels, showAbout: Boolean, onDismissAbout: () -> Unit) {
+private fun CardSheets(
+    models: ScreenModels,
+    countries: List<Country>,
+    showAbout: Boolean,
+    onDismissAbout: () -> Unit,
+) {
+    var choosingHome by rememberSaveable { mutableStateOf(false) }
     AboutSheet(
         visible = showAbout,
         onDismiss = onDismissAbout,
@@ -223,10 +232,27 @@ private fun CardSheets(models: ScreenModels, showAbout: Boolean, onDismissAbout:
         accountActions = remember(models.account) { models.account.actions() },
     )
     PassportSheet(
-        book = models.passport.book.collectAsStateWithLifecycle().value,
+        // Steps aside while the picker is open, and comes back showing the new home.
+        book = models.passport.book.collectAsStateWithLifecycle().value?.takeUnless { choosingHome },
         onDismiss = models.passport::close,
         onRename = models.passport::rename,
+        onChangeHome = { choosingHome = true },
     )
+    // Over the passport, which shows the new home country as soon as it's picked.
+    AnimatedVisibility(visible = choosingHome, enter = fadeIn(), exit = fadeOut()) {
+        HomePicker(
+            countries = countries,
+            onChoose = { country ->
+                // Saving twice is harmless: the passport reloads itself, the globe remembers the new home.
+                models.passport.changeHome(country)
+                models.globe.chooseHome(country)
+                choosingHome = false
+            },
+            onSkip = { choosingHome = false },
+            skipLabel = Res.string.home_cancel,
+            body = Res.string.home_change_body,
+        )
+    }
 }
 
 /** Toolbar actions. Each one starts a mode or opens a sheet over the globe. */
@@ -271,13 +297,17 @@ private fun QuizViewModel.controlActions(countries: List<Country>) = QuizActions
     stop = ::stop,
 )
 
+/** The map the current question is asked on, or `null` if it's about today or there's no quiz. */
+private val QuizState.pastMap: HistoricalMap?
+    get() = (this as? QuizState.Playing)?.round?.question?.map
+
 /** What the quiz highlights on the globe, or `null` if no quiz is running. */
 private val QuizState.globe: QuizGlobe?
     get() = when (this) {
         QuizState.Off -> null
         is QuizState.Finished -> QuizGlobe()
         is QuizState.Playing -> with(round) {
-            if (answered) QuizGlobe(answer = country, wrongGuess = guess?.takeIf { !isRight }) else QuizGlobe()
+            if (answered) QuizGlobe(answer = target, wrongGuess = guess?.takeIf { !isRight }) else QuizGlobe()
         }
     }
 

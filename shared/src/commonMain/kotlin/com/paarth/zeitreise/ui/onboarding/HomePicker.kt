@@ -31,6 +31,7 @@ import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
 import com.paarth.zeitreise.ui.ZeitreiseTheme
 import com.paarth.zeitreise.ui.glass.GlassButton
 import com.paarth.zeitreise.ui.globe.SearchBar
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
 import zeitreise.shared.generated.resources.home_body
@@ -57,6 +58,9 @@ private const val MAX_RESULTS = 3
  * @param onChoose called with the country the user picked.
  * @param onSkip called when the user taps Skip, to not say.
  * @param modifier applied to the root element.
+ * @param skipLabel the label of the button that leaves without choosing: Skip during onboarding,
+ *   Cancel when changing the home country later.
+ * @param body the line under the title, which says what choosing does.
  */
 @Composable
 internal fun HomePicker(
@@ -64,6 +68,8 @@ internal fun HomePicker(
     onChoose: (Country) -> Unit,
     onSkip: () -> Unit,
     modifier: Modifier = Modifier,
+    skipLabel: StringResource = Res.string.home_skip,
+    body: StringResource = Res.string.home_body,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     // No states here, since the question is about countries.
@@ -86,7 +92,7 @@ internal fun HomePicker(
             ) {
                 // Skip sits in the corner, so it stays out of the way while the keyboard is open.
                 GlassButton(onClick = onSkip, modifier = Modifier.align(Alignment.End)) {
-                    Text(text = stringResource(Res.string.home_skip), style = MaterialTheme.typography.titleMedium)
+                    Text(text = stringResource(skipLabel), style = MaterialTheme.typography.titleMedium)
                 }
                 Spacer(Modifier.weight(1f))
                 Text(
@@ -97,7 +103,7 @@ internal fun HomePicker(
                 )
                 Spacer(Modifier.height(CONTENT_SPACING))
                 Text(
-                    text = stringResource(Res.string.home_body),
+                    text = stringResource(body),
                     style = MaterialTheme.typography.bodyLarge,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = SECONDARY_TEXT_ALPHA),

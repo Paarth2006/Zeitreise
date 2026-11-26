@@ -131,7 +131,7 @@ public val sharedModule: Module = module {
     viewModelOf(::ExploreViewModel)
     viewModelOf(::TimeTravelViewModel)
     viewModelOf(::OnboardingViewModel)
-    viewModel { QuizViewModel(store = get()) }
+    viewModel { QuizViewModel(store = get(), history = get()) }
     viewModelOf(::PassportViewModel)
     viewModelOf(::AccountViewModel)
 }

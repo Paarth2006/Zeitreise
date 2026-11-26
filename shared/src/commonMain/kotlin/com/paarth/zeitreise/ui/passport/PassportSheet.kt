@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -39,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
@@ -46,8 +48,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -74,6 +78,8 @@ import zeitreise.shared.generated.resources.passport_empty
 import zeitreise.shared.generated.resources.passport_holder
 import zeitreise.shared.generated.resources.passport_holder_hint
 import zeitreise.shared.generated.resources.passport_home
+import zeitreise.shared.generated.resources.passport_home_change
+import zeitreise.shared.generated.resources.passport_home_choose
 import zeitreise.shared.generated.resources.passport_progress
 import zeitreise.shared.generated.resources.passport_title
 
@@ -122,6 +128,11 @@ private val STAMP_INKS = listOf(
 private val HOME_FLAG = DpSize(24.dp, 16.dp)
 private val NAME_LINE = 1.dp
 
+/** The arrow next to the home country: its size, line width, and how far its point is from the sides. */
+private val CHEVRON_SIZE = 10.dp
+private val CHEVRON_STROKE = 1.5.dp
+private const val CHEVRON_INSET = 0.25f
+
 /** Progress bar height and track opacity. */
 private val PROGRESS_HEIGHT = 6.dp
 private const val TRACK_ALPHA = 0.12f
@@ -134,6 +145,7 @@ private const val TRACK_ALPHA = 0.12f
  * @param onDismiss called when the card is closed.
  * @param onRename called with the holder's name as the user types it.
  * @param modifier applied to the root element.
+ * @param onChangeHome called when the user taps the home country, to pick another one.
  */
 @Composable
 internal fun PassportSheet(
@@ -141,6 +153,7 @@ internal fun PassportSheet(
     onDismiss: () -> Unit,
     onRename: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onChangeHome: () -> Unit = {},
 ) {
     // Keep showing the last content while the card fades out.
     var shown by remember { mutableStateOf(book) }
@@ -167,14 +180,19 @@ internal fun PassportSheet(
                     .clickable(interactionSource = null, indication = null, onClick = {}),
             ) {
                 // The book updates as the user types the name, so show it rather than the copy kept for fading out.
-                (book ?: shown)?.let { PassportContent(it, onDismiss, onRename) }
+                (book ?: shown)?.let { PassportContent(it, onDismiss, onRename, onChangeHome) }
             }
         }
     }
 }
 
 @Composable
-private fun PassportContent(book: PassportBook, onDismiss: () -> Unit, onRename: (String) -> Unit) {
+private fun PassportContent(
+    book: PassportBook,
+    onDismiss: () -> Unit,
+    onRename: (String) -> Unit,
+    onChangeHome: () -> Unit = {},
+) {
     Column(
         verticalArrangement = Arrangement.spacedBy(CARD_SPACING),
         modifier = Modifier.verticalScroll(rememberScrollState()).padding(CARD_PADDING),
@@ -185,7 +203,7 @@ private fun PassportContent(book: PassportBook, onDismiss: () -> Unit, onRename:
             closeLabel = stringResource(Res.string.passport_close),
             onClose = onDismiss,
         )
-        HolderRow(holder = book.holder.orEmpty(), home = book.home, onRename = onRename)
+        HolderRow(holder = book.holder.orEmpty(), home = book.home, onRename = onRename, onChangeHome = onChangeHome)
         ProgressBar(fraction = book.stamped.size.toFloat() / book.total.coerceAtLeast(1))
         if (book.stamped.isEmpty()) {
             SecondaryText(stringResource(Res.string.passport_empty))
@@ -196,26 +214,66 @@ private fun PassportContent(book: PassportBook, onDismiss: () -> Unit, onRename:
     }
 }
 
-/** The holder's name, written on a line like in a real passport, and their home country. */
+/**
+ * The holder's name, written on a line like in a real passport, and their home country. Tapping
+ * the home country picks another one.
+ */
 @Composable
-private fun HolderRow(holder: String, home: Country?, onRename: (String) -> Unit) {
+private fun HolderRow(holder: String, home: Country?, onRename: (String) -> Unit, onChangeHome: () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(CARD_SPACING)) {
         Column(modifier = Modifier.weight(1f)) {
             Label(stringResource(Res.string.passport_holder))
             NameField(holder, onRename)
         }
-        home?.let {
-            Column(horizontalAlignment = Alignment.End) {
-                Label(stringResource(Res.string.passport_home))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(STAMP_PADDING / 2),
-                ) {
-                    CountryFlag(it, size = HOME_FLAG)
-                    Text(text = it.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+        Column(
+            horizontalAlignment = Alignment.End,
+            modifier = Modifier
+                .clip(RoundedCornerShape(STAMP_CORNER))
+                .clickable(role = Role.Button, onClickLabel = stringResource(Res.string.passport_home_change)) {
+                    onChangeHome()
+                },
+        ) {
+            Label(stringResource(Res.string.passport_home))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(STAMP_PADDING / 2),
+            ) {
+                if (home != null) {
+                    CountryFlag(home, size = HOME_FLAG)
+                    Text(text = home.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                } else {
+                    Text(
+                        text = stringResource(Res.string.passport_home_choose),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 }
+                Chevron()
             }
         }
+    }
+}
+
+/** A small arrow that says the home country can be changed. */
+@Composable
+private fun Chevron() {
+    val tint = MaterialTheme.colorScheme.onSurface.copy(alpha = SECONDARY_TEXT_ALPHA)
+    Canvas(modifier = Modifier.size(CHEVRON_SIZE)) {
+        val stroke = CHEVRON_STROKE.toPx()
+        drawLine(
+            tint,
+            Offset(size.width * CHEVRON_INSET, 0f),
+            Offset(size.width * (1 - CHEVRON_INSET), size.height / 2),
+            stroke,
+            StrokeCap.Round,
+        )
+        drawLine(
+            tint,
+            Offset(size.width * (1 - CHEVRON_INSET), size.height / 2),
+            Offset(size.width * CHEVRON_INSET, size.height),
+            stroke,
+            StrokeCap.Round,
+        )
     }
 }
 

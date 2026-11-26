@@ -38,6 +38,8 @@ import com.paarth.zeitreise.domain.HistoricalMap
 import com.paarth.zeitreise.domain.Pinned
 import com.paarth.zeitreise.domain.Realm
 import com.paarth.zeitreise.domain.Subdivision
+import com.paarth.zeitreise.domain.Territory
+import com.paarth.zeitreise.domain.mainlandFocus
 import com.paarth.zeitreise.domain.territoryAt
 import com.paarth.zeitreise.globe.GeoCap
 import com.paarth.zeitreise.globe.GlobeProjection
@@ -173,7 +175,7 @@ internal fun GlobeView(
         drawOcean(projection, palette)
         drawGraticule(geometry.graticule, projection, palette)
         if (pastGeometry != null) {
-            drawPast(pastGeometry, projection, past?.selected, palette)
+            drawPast(pastGeometry, projection, past?.selected, quizShown, palette)
         } else {
             val selected = content.selectedSubdivision
             val highlight = CountryHighlight(highlighted, statesShown = subdivisionAlpha > 0f, quiz = quizShown)
@@ -199,8 +201,9 @@ internal data class PastGlobe(val map: HistoricalMap?, val selected: Realm?)
  * or the selected country.
  */
 private fun cameraFocus(selected: Country?, past: PastGlobe?, quiz: QuizGlobe?): GeoCap? = when {
+    // The quiz comes first, since a question about the past shows an old map too.
+    quiz != null -> quiz.answer?.frame?.let { answer -> quiz.wrongGuess?.let { answer union it.frame } ?: answer }
     past != null -> past.selected?.focus
-    quiz != null -> quiz.answer?.focus?.let { answer -> quiz.wrongGuess?.let { answer union it.focus } ?: answer }
     else -> selected?.focus
 }
 
@@ -215,6 +218,14 @@ private fun GlobeShowcase?.addedTo(selected: Country?, quiz: QuizGlobe?): Pair<C
         quiz ?: shown?.takeIf { it.asQuizAnswer }?.let { QuizGlobe(answer = it.country) },
     )
 }
+
+/** The region the camera frames for this country or realm. */
+private val Territory.frame: GeoCap
+    get() = when (this) {
+        is Country -> focus
+        is Realm -> focus
+        else -> outlines.mainlandFocus()
+    }
 
 /** What the globe acts out while a tour card explains a feature. */
 internal sealed interface GlobeShowcase {
@@ -237,10 +248,10 @@ internal sealed interface GlobeShowcase {
 /**
  * What the quiz highlights on the globe.
  *
- * @property answer the correct country (green) once answered, `null` while still guessing.
- * @property wrongGuess the wrongly tapped country (red), if any.
+ * @property answer the correct country or realm (green) once answered, `null` while still guessing.
+ * @property wrongGuess the wrongly tapped country or realm (red), if any.
  */
-internal data class QuizGlobe(val answer: Country? = null, val wrongGuess: Country? = null)
+internal data class QuizGlobe(val answer: Territory? = null, val wrongGuess: Territory? = null)
 
 /**
  * Moves the camera automatically: flies to [focus] when it changes and runs inertia, flights and

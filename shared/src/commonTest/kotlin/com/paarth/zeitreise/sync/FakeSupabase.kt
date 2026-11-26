@@ -75,6 +75,11 @@ internal class FakeSupabase {
                 else -> refreshStatus?.let { respond("{}", it) } ?: ok(session(ADA))
             }
             HttpMethod.Post to "/auth/v1/logout" -> respond("", HttpStatusCode.NoContent)
+            HttpMethod.Post to "/rest/v1/rpc/delete_account" -> {
+                accounts.remove(ADA)
+                progress = null
+                respond("", HttpStatusCode.NoContent)
+            }
             HttpMethod.Get to "/rest/v1/progress" -> ok(rows())
             HttpMethod.Post to "/rest/v1/progress" -> {
                 val data = json.parseToJsonElement(body).jsonObject.getValue("data")

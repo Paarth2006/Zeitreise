@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.paarth.zeitreise.data.CountryRepository
 import com.paarth.zeitreise.data.Passport
+import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.PassportBook
 import com.paarth.zeitreise.domain.passportBook
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +42,14 @@ public class PassportViewModel(private val passport: Passport, private val count
         // The text shown keeps the user's spaces while they type, so a space before a surname isn't lost.
         _book.update { it?.copy(holder = kept) }
         viewModelScope.launch { passport.setHolder(kept) }
+    }
+
+    /** Makes [country] the user's home country, stamps it if needed, and shows the updated passport. */
+    public fun changeHome(country: Country) {
+        viewModelScope.launch {
+            passport.setHome(country)
+            if (_book.value != null) open()
+        }
     }
 
     /** Closes the passport. */

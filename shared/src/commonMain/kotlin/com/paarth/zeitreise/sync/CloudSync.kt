@@ -97,6 +97,9 @@ internal interface Account {
     /** Signs out. The progress stays on this device. */
     suspend fun signOut()
 
+    /** Deletes the account and the progress saved in it, then signs out. The progress stays on this device. */
+    suspend fun deleteAccount(): AccountResult
+
     /** Merges this device's progress with the cloud's, and saves the result in both places. */
     suspend fun sync(): AccountResult
 }
@@ -171,28 +174,38 @@ internal class CloudSync(
     override suspend fun signOut() {
         lock.withLock {
             // Ending the session on the server is a courtesy; signing out works offline too.
-            attempt { api -> refreshedSession(api)?.let { api.signOut(it) } }
-            forget()
+            attempt { api -> api.refreshedSession(settings, dispatcher)?.let { api.signOut(it) } }
+            signedOut()
         }
+    }
+
+    override suspend fun deleteAccount(): AccountResult = lock.withLock {
+        val result =
+            attempt { api ->
+                api.deleteAccount(requireNotNull(api.refreshedSession(settings, dispatcher)) { "Not signed in" })
+            }
+        // Only forgotten once the server confirmed, so an offline attempt can be tried again.
+        if (result == AccountResult.Done) signedOut()
+        result
     }
 
     override suspend fun sync(): AccountResult = lock.withLock {
         attempt { api ->
             val session = try {
-                refreshedSession(api)
+                api.refreshedSession(settings, dispatcher)
             } catch (refused: SupabaseException) {
                 // The session was ended elsewhere or expired, so the user has to sign in again.
-                if (refused.status in CLIENT_ERRORS) forget()
+                if (refused.status in CLIENT_ERRORS) signedOut()
                 throw refused
             }
             session?.let { exchange(api, it) }
         }
     }
 
-    /** A new session from the saved refresh token, or `null` when signed out. */
-    private suspend fun refreshedSession(api: SupabaseApi): AuthSession? {
-        val token = withContext(dispatcher) { settings.getStringOrNull(REFRESH_TOKEN_KEY) } ?: return null
-        return api.refresh(token).also { withContext(dispatcher) { settings.saveSession(it) } }
+    /** Forgets the session on this device. The progress stays. */
+    private suspend fun signedOut() {
+        withContext(dispatcher) { settings.forgetSession() }
+        _state.value = AccountState.SignedOut
     }
 
     /** Merges this device's progress with the cloud's, and saves the result where it changed. */
@@ -226,19 +239,23 @@ internal class CloudSync(
         }
         return failure?.let { AccountResult.Failed(it) } ?: AccountResult.Done
     }
-
-    private suspend fun forget() {
-        withContext(dispatcher) {
-            listOf(EMAIL_KEY, REFRESH_TOKEN_KEY, PENDING_KEY).forEach(settings::remove)
-        }
-        _state.value = AccountState.SignedOut
-    }
 }
 
 /** Saves who is signed in, and the token that gets their next session. */
 private fun Settings.saveSession(session: AuthSession) {
     putString(EMAIL_KEY, session.email)
     putString(REFRESH_TOKEN_KEY, session.refreshToken)
+}
+
+/** A new session from the refresh token saved in [settings], or `null` when signed out. */
+private suspend fun SupabaseApi.refreshedSession(settings: Settings, dispatcher: CoroutineDispatcher): AuthSession? {
+    val token = withContext(dispatcher) { settings.getStringOrNull(REFRESH_TOKEN_KEY) } ?: return null
+    return refresh(token).also { withContext(dispatcher) { settings.saveSession(it) } }
+}
+
+/** Removes the saved session and any changes waiting to be sent. */
+private fun Settings.forgetSession() {
+    listOf(EMAIL_KEY, REFRESH_TOKEN_KEY, PENDING_KEY).forEach(::remove)
 }
 
 /** What the user can do about this error. */

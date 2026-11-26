@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +38,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.paarth.zeitreise.domain.Country
 import com.paarth.zeitreise.domain.QuizRound
 import com.paarth.zeitreise.ui.SECONDARY_TEXT_ALPHA
 import com.paarth.zeitreise.ui.ZeitreiseTheme
@@ -46,6 +46,7 @@ import com.paarth.zeitreise.ui.glass.GlassButton
 import com.paarth.zeitreise.ui.glass.GlassPanel
 import com.paarth.zeitreise.ui.glass.SHEET_MAX_WIDTH
 import com.paarth.zeitreise.ui.glass.SheetHeader
+import com.paarth.zeitreise.ui.timetravel.yearLabel
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 import zeitreise.shared.generated.resources.Res
@@ -54,6 +55,7 @@ import zeitreise.shared.generated.resources.quiz_close
 import zeitreise.shared.generated.resources.quiz_done
 import zeitreise.shared.generated.resources.quiz_find
 import zeitreise.shared.generated.resources.quiz_find_capital
+import zeitreise.shared.generated.resources.quiz_find_past
 import zeitreise.shared.generated.resources.quiz_new_best
 import zeitreise.shared.generated.resources.quiz_next
 import zeitreise.shared.generated.resources.quiz_play_again
@@ -167,17 +169,19 @@ private fun QuizPanel(state: QuizState, actions: QuizActions, modifier: Modifier
 @Composable
 private fun Question(round: QuizRound, actions: QuizActions) {
     val capital = round.question.capital
+    val year = round.question.map?.year
     SheetHeader(
-        title = if (capital != null) {
-            stringResource(Res.string.quiz_find_capital, capital)
-        } else {
-            stringResource(Res.string.quiz_find, round.country.name)
+        title = when {
+            year != null -> stringResource(Res.string.quiz_find_past, yearLabel(year), round.target.name)
+            capital != null -> stringResource(Res.string.quiz_find_capital, capital)
+            else -> stringResource(Res.string.quiz_find, round.target.name)
         },
+        // A country's continent is a hint; for the past, the year the map shows.
         subtitle = stringResource(
             Res.string.quiz_progress,
             round.number + 1,
-            round.questions.size,
-            round.country.continent,
+            round.length,
+            (round.target as? Country)?.continent ?: year?.let { yearLabel(it) }.orEmpty(),
         ),
         closeLabel = stringResource(Res.string.quiz_close),
         onClose = actions.stop,
@@ -218,7 +222,7 @@ private fun Verdict(round: QuizRound) {
 /** The result text, like "Right! That's Peru." or "Right! Lima is the capital of Peru." */
 @Composable
 private fun verdictText(round: QuizRound): String {
-    val country = round.country.name
+    val country = round.target.name
     val capital = round.question.capital
     val wrongGuess = round.guess
     return when {
