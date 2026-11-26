@@ -25,6 +25,8 @@
 
 **Zeitreise** (German for "time travel") is a cross-platform app for Android, iOS and the web that turns geography into something you can touch. You spin a 3D globe, tap any country to meet it, and an AI guide grounded in Wikipedia tells you something surprising about it and drops pins on the places worth a visit. Press Time Travel and the borders melt back through 54 historical maps, from 123,000 BC to 2010, while famous landmarks rise and fall with the years. A globe quiz, a passport of stamps and a country of the day turn exploring into a habit. One Kotlin codebase runs all three platforms, with 99% of the code shared.
 
+**[Try it in your browser](https://paarth2006.github.io/Zeitreise/)**, with nothing to install (use Chrome or another Chromium-based browser). The hosted version runs on the bundled guide, without a Gemini key.
+
 ## Motivation and Background
 
 Maps on our phones are built to get us somewhere: the fastest route, the nearest café. I wanted a map that does the opposite and makes you want to go somewhere. A globe you can grab and fling, where every country is one tap away from a story, and where the borders themselves can travel back in time, because the world we see today is only one frame in a very long film.
@@ -211,7 +213,7 @@ Free Supabase projects pause after about a week without use. While it is paused,
 ```bash
 ./gradlew :webApp:wasmJsBrowserDevelopmentRun
 ```
-The app opens at `http://localhost:8080`. Use Chrome or another Chromium-based browser; Safari does not currently render Compose for Web.
+The app opens at `http://localhost:8080`. Every push to `main` also publishes the web app to [GitHub Pages](https://paarth2006.github.io/Zeitreise/) through [`.github/workflows/pages.yml`](.github/workflows/pages.yml). Use Chrome or another Chromium-based browser; Safari does not currently render Compose for Web.
 
 #### Gradle
 8) Formatting, static analysis and the tests on every platform:

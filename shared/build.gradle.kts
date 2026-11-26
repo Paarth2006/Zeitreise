@@ -18,14 +18,19 @@ val localProperties: Properties = Properties().apply {
 
 fun localProperty(name: String): String = localProperties.getProperty(name).orEmpty().trim()
 
+// The hosted web build has no local.properties, so its workflow passes the Supabase settings as
+// environment variables. They are public by design; the Gemini key is never read from here.
+fun publicSetting(name: String): String =
+    localProperty(name).ifEmpty { providers.environmentVariable(name).orNull.orEmpty().trim() }
+
 /** Escapes [value] for a Kotlin string literal. */
 fun kotlinString(value: String): String = value.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$")
 
 val generateApiKeys by tasks.registering {
     // Escaped here, while configuring, because the task action can't call functions of this script.
     val gemini = kotlinString(localProperty("GEMINI_API_KEY"))
-    val supabaseUrl = kotlinString(localProperty("SUPABASE_URL").trimEnd('/'))
-    val supabaseKey = kotlinString(localProperty("SUPABASE_ANON_KEY"))
+    val supabaseUrl = kotlinString(publicSetting("SUPABASE_URL").trimEnd('/'))
+    val supabaseKey = kotlinString(publicSetting("SUPABASE_ANON_KEY"))
     val outputDir = layout.buildDirectory.dir("generated/apiKeys/commonMain/kotlin")
     inputs.property("geminiApiKey", gemini)
     inputs.property("supabaseUrl", supabaseUrl)

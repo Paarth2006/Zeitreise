@@ -19,6 +19,15 @@ private val NOTABLE_WORDS = setOf(
 /** Openings that refer to an earlier sentence, so they don't work alone. */
 private val DANGLING_OPENINGS = setOf("it", "this", "these", "they", "he", "she", "his", "her", "its", "their", "such")
 
+/**
+ * A sentence that opens with someone's name and what they wrote or said, such as "Topsfield writes
+ * that…". It reports a scholar's view, and the name means nothing to a reader without the article.
+ */
+private val ATTRIBUTED_OPENING = Regex(
+    """^(?:[A-Z][\w'’.-]*\s+){1,3}(?:writes|wrote|says|said|states|stated|argues|argued|notes|noted|""" +
+        """suggests|suggested|claims|claimed|believes|believed|observes|observed|contends|contended)\b""",
+)
+
 /** A sentence ends with `.`, `?` or `!`, then a space and a capital letter. */
 private val SENTENCE_BREAK = Regex("""(?<=[.!?])\s+(?=[A-Z"“(])""")
 
@@ -58,7 +67,8 @@ private fun String.notability(): Int? {
     val standsAlone = length in MIN_FACT_LENGTH..MAX_FACT_LENGTH &&
         first().isUpperCase() &&
         last() == '.' &&
-        words.first() !in DANGLING_OPENINGS
+        words.first() !in DANGLING_OPENINGS &&
+        !ATTRIBUTED_OPENING.containsMatchIn(this)
     val notableWords = words.count { it in NOTABLE_WORDS }
     val hasNumber = any(Char::isDigit)
     return if (standsAlone && (notableWords > 0 || hasNumber)) notableWords * 2 + if (hasNumber) 1 else 0 else null

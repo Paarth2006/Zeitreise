@@ -25,6 +25,21 @@ class NotableSentencesTest {
     }
 
     @Test
+    fun skipsSentencesThatReportWhatAScholarWrote() {
+        val scholar = "Topsfield writes that the Rajputs first entered India from the north-west."
+        val historian = "Historian John Keay argued that the first great empire there was founded in 322 BC."
+
+        assertTrue(notableSentences("$scholar $historian").isEmpty())
+    }
+
+    @Test
+    fun keepsSentencesWhoseVerbComesLater() {
+        val census = "The 2011 census of the state counted 68 million people, the most it had ever recorded."
+
+        assertEquals(listOf(census), notableSentences(census))
+    }
+
+    @Test
     fun skipsSentencesTooShortOrTooLongForTheSheet() {
         val short = "It has 3 towns."
         val long = "The longest river " + "flows on and on ".repeat(30) + "into the sea."
