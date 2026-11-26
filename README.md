@@ -85,14 +85,14 @@ When I heard about the Kotlin Multiplatform Contest, I wanted to find out how fa
 ## Screenshots
 
 <p align="center">
-  <img src="App_ScreenShots/Welcome_Screen.png" alt="Welcome screen" width="25%"/>
+  <img src="App_ScreenShots/Welcome_Screen_v2.png" alt="Welcome screen" width="25%"/>
   <img src="App_ScreenShots/Home_Country_Screen.png" alt="Picking a home country" width="25%"/>
-  <img src="App_ScreenShots/Onboarding_Hint_Screen.png" alt="Onboarding hint" width="25%"/>
+  <img src="App_ScreenShots/Onboarding_Hint_Screen_v2.png" alt="Onboarding hint" width="25%"/>
 </p>
 
 <p align="center">
-  <img src="App_ScreenShots/Globe_Screen.png" alt="The globe" width="25%"/>
-  <img src="App_ScreenShots/Country_Screen.png" alt="A country's sheet" width="25%"/>
+  <img src="App_ScreenShots/Globe_Screen_v2.png" alt="The globe" width="25%"/>
+  <img src="App_ScreenShots/Country_Screen_v2.png" alt="A country's sheet" width="25%"/>
   <img src="App_ScreenShots/State_Screen.png" alt="Places to visit in a state" width="25%"/>
 </p>
 
