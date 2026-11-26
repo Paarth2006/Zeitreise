@@ -86,6 +86,7 @@ When I heard about the Kotlin Multiplatform Contest, I wanted to find out how fa
 
 <p align="center">
   <img src="App_ScreenShots/Welcome_Screen.png" alt="Welcome screen" width="25%"/>
+  <img src="App_ScreenShots/Home_Country_Screen.png" alt="Picking a home country" width="25%"/>
   <img src="App_ScreenShots/Onboarding_Hint_Screen.png" alt="Onboarding hint" width="25%"/>
 </p>
 
